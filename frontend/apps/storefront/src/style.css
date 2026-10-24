@@ -1,3 +1,4 @@
 @import "tailwindcss";
 @import "@sertec/ui/tokens.css";
+@import "@sertec/ui/fonts.css";
 @source "../../../packages/ui/src";

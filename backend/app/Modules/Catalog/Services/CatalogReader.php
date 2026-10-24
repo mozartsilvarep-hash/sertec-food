@@ -1,0 +1,217 @@
+<?php
+
+namespace App\Modules\Catalog\Services;
+
+use App\Modules\Catalog\Enums\FractionPricingRule;
+use App\Modules\Catalog\Enums\OptionGroupType;
+use App\Modules\Catalog\Images\ProductImageStore;
+use App\Modules\Catalog\Models\BranchProductAvailability;
+use App\Modules\Catalog\Models\Category;
+use App\Modules\Catalog\Models\Menu;
+use App\Modules\Catalog\Models\MenuProduct;
+use App\Modules\Catalog\Models\Option;
+use App\Modules\Catalog\Models\OptionGroup;
+use App\Modules\Catalog\Models\OptionVariantPrice;
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Tenancy\Models\Branch;
+use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
+
+/**
+ * Leitura pública do cardápio de uma unidade (somente itens ativos).
+ * Preços exibidos são informativos; o valor cobrado vem do PriceCalculator.
+ */
+final class CatalogReader
+{
+    private const PRODUCT_RELATIONS = [
+        'variants' => null,
+        'optionGroups.options.variantPrices' => null,
+    ];
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function menus(Branch $branch): array
+    {
+        $soldOut = $this->soldOut($branch);
+
+        $menus = Menu::query()
+            ->where('active', true)
+            ->where(fn (Builder $q) => $q->whereNull('branch_id')->orWhere('branch_id', $branch->id))
+            ->with([
+                'categories' => fn ($q) => $q->where('active', true),
+                'categories.placements.product' => fn ($q) => $q->where('active', true),
+                'categories.placements.product.variants',
+                'categories.placements.product.optionGroups.options.variantPrices',
+            ])
+            ->orderBy('sort_order')->orderBy('id')
+            ->get();
+
+        return $menus->map(fn (Menu $menu) => [
+            'id' => $menu->public_id,
+            'name' => $menu->name,
+            'categories' => $menu->categories
+                ->map(fn (Category $category) => [
+                    'id' => $category->public_id,
+                    'name' => $category->name,
+                    'description' => $category->description,
+                    'products' => $category->placements
+                        ->filter(fn (MenuProduct $p) => $p->product !== null && $this->activeVariants($p->product) !== [])
+                        ->map(fn (MenuProduct $p) => $this->summary($p->product, $soldOut))
+                        ->values()->all(),
+                ])
+                ->filter(fn (array $c) => $c['products'] !== [])
+                ->values()->all(),
+        ])->values()->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function product(Product $product, Branch $branch): array
+    {
+        $product->loadMissing(array_keys(self::PRODUCT_RELATIONS));
+        $variants = $this->activeVariants($product);
+
+        return [
+            ...$this->summary($product, $this->soldOut($branch)),
+            'variants' => array_map(fn (ProductVariant $v) => [
+                'id' => $v->public_id,
+                'name' => $v->name,
+                'price' => $v->price,
+            ], $variants),
+            'option_groups' => $product->optionGroups
+                ->filter(fn (OptionGroup $g) => $g->active)
+                ->map(fn (OptionGroup $g) => [
+                    'id' => $g->public_id,
+                    'name' => $g->name,
+                    'type' => $g->type->value,
+                    'min_select' => $g->min_select,
+                    'max_select' => $g->max_select,
+                    'required' => $g->isRequired(),
+                    'free_quantity' => $g->free_quantity,
+                    'pricing_rule' => $g->pricing_rule?->value,
+                    'options' => $g->options
+                        ->filter(fn (Option $o) => $o->active)
+                        ->map(fn (Option $o) => [
+                            'id' => $o->public_id,
+                            'name' => $o->name,
+                            'description' => $o->description,
+                            'price_delta' => $o->price_delta,
+                            'max_quantity' => $o->max_quantity,
+                            // Sabores: preço por tamanho (ULID da variante => preço).
+                            'prices' => $g->type === OptionGroupType::Fraction
+                                ? (object) $o->variantPrices
+                                    ->mapWithKeys(fn (OptionVariantPrice $p) => [$this->variantPublicId($variants, $p->product_variant_id) => $p->price])
+                                    ->filter(fn ($price, $key) => $key !== '')
+                                    ->all()
+                                : null,
+                        ])->values()->all(),
+                ])->values()->all(),
+        ];
+    }
+
+    /**
+     * @param  array<int, true>  $soldOut
+     * @return array<string, mixed>
+     */
+    private function summary(Product $product, array $soldOut): array
+    {
+        $variants = $this->activeVariants($product);
+
+        return [
+            'id' => $product->public_id,
+            'name' => $product->name,
+            'description' => $product->description,
+            'image_url' => ProductImageStore::url($product->image_key),
+            'available' => ! isset($soldOut[$product->id]),
+            'has_options' => count($variants) > 1 || $product->optionGroups->contains(fn (OptionGroup $g) => $g->active),
+            'price_from' => $this->priceFrom($product, $variants),
+        ];
+    }
+
+    /**
+     * Menor preço possível respeitando os grupos obrigatórios.
+     *
+     * @param  list<ProductVariant>  $variants
+     */
+    private function priceFrom(Product $product, array $variants): ?string
+    {
+        $best = null;
+        $groups = $product->optionGroups->filter(fn (OptionGroup $g) => $g->active && $g->min_select > 0);
+
+        foreach ($variants as $variant) {
+            $cents = Money::toCents($variant->price);
+
+            foreach ($groups as $group) {
+                $options = $group->options->filter(fn (Option $o) => $o->active);
+
+                if ($group->type === OptionGroupType::Fraction) {
+                    $prices = $options
+                        ->map(fn (Option $o) => $o->variantPrices->first(fn ($p) => $p->product_variant_id === $variant->id))
+                        ->filter()
+                        ->map(fn (OptionVariantPrice $p) => Money::toCents($p->price))
+                        ->sort()->values()->all();
+
+                    if (count($prices) < $group->min_select) {
+                        continue 2; // tamanho sem sabores suficientes: ignora
+                    }
+                    $cheapest = array_slice($prices, 0, $group->min_select);
+                    $cents += ($group->pricing_rule === FractionPricingRule::Average) ? Money::averageCents($cheapest) : max($cheapest);
+                } else {
+                    $units = [];
+                    foreach ($options as $o) {
+                        array_push($units, ...array_fill(0, $o->max_quantity, Money::toCents($o->price_delta)));
+                    }
+                    sort($units);
+                    $cents += array_sum(array_slice($units, $group->free_quantity, max(0, $group->min_select - $group->free_quantity)));
+                }
+            }
+
+            $best = $best === null ? $cents : min($best, $cents);
+        }
+
+        return $best === null ? null : Money::format($best);
+    }
+
+    /**
+     * @return list<ProductVariant>
+     */
+    private function activeVariants(Product $product): array
+    {
+        return $product->variants->filter(fn (ProductVariant $v) => $v->active)->values()->all();
+    }
+
+    /**
+     * @param  list<ProductVariant>  $variants
+     */
+    private function variantPublicId(array $variants, int $id): string
+    {
+        foreach ($variants as $variant) {
+            if ($variant->id === $id) {
+                return $variant->public_id;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @return array<int, true>
+     */
+    private function soldOut(Branch $branch): array
+    {
+        $ids = [];
+        $rows = BranchProductAvailability::query()
+            ->where('branch_id', $branch->id)
+            ->where('available', false)
+            ->pluck('product_id');
+
+        foreach ($rows as $id) {
+            $ids[(int) $id] = true;
+        }
+
+        return $ids;
+    }
+}

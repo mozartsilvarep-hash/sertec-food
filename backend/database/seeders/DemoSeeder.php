@@ -53,6 +53,8 @@ class DemoSeeder extends Seeder
             $this->member($burger, $consultant, Role::MANAGER, null);
         });
 
+        $this->call(DemoCatalogSeeder::class);
+
         $this->command?->warn('Credenciais de demonstração (exibidas uma única vez):');
         $this->command?->table(['E-mail', 'Senha', 'Onde entra'], $this->credentials);
     }

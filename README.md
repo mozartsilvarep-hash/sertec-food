@@ -3,7 +3,11 @@
 SaaS multi-tenant de cardápios digitais, pedidos e pagamentos da SerTec Solution.
 Leia `AGENTS.md` e `docs/` antes de contribuir.
 
-## Estado atual: Sprint 0 (fundação) concluída
+## Estado atual: Sprints 0 (fundação) e 1 (catálogo) concluídas
+
+Sprint 1: cardápio público com busca e pizza meio a meio, painel de produtos/opções/esgotados/horários/marca, preço calculado no servidor, upload seguro de fotos.
+
+### Sprint 0
 Docker local, CI, lint, Laravel 13, três SPAs Vue 3 + Tailwind, MariaDB, Redis, migrations do núcleo SaaS, autenticação por sessão, `TenantContext` fail-closed, RBAC por tenant/unidade, funcionalidades por plano, auditoria, seeders e testes de isolamento. Decisões em `docs/ARCHITECTURE.md` (seção "Decisões da Sprint 0").
 
 ## Rodando localmente

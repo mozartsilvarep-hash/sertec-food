@@ -47,3 +47,9 @@ PK bigint unsigned interno; ULID público onde aplicável. Dinheiro DECIMAL(12,2
 
 ## Índices e restrições obrigatórios
 UNIQUE(tenant_id, branch_id, order_number) para numeração visível; UNIQUE(tenant_id, code) em cupons; índices (tenant_id,status,created_at) em orders; índices de tenant nas FKs. A estrutura acima é lógica: detalhar colunas, constraints e migrations antes da implementação.
+
+## Implementado (Sprints 0 e 1)
+Ver `backend/database/migrations` e as decisões D14 e D16–D22 em `docs/ARCHITECTURE.md`. Diferenças em relação ao modelo lógico acima:
+- `menu_products` sem `menu_id` (vem da categoria); `option_groups` com `type`, `free_quantity` e `pricing_rule`; obrigatoriedade = `min_select > 0`.
+- Novas: `option_variant_prices` (preço do sabor por tamanho), `branch_opening_hours`, `branch_schedule_exceptions`.
+- `tenants` ganhou `description` e `brand_color`; `products` usa soft delete.

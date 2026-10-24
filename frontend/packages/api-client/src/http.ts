@@ -43,6 +43,8 @@ function readCookie(name: string): string | null {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
+  /** Envio multipart (upload). Mutuamente exclusivo com body. */
+  form?: Record<string, string | Blob>
   signal?: AbortSignal
 }
 
@@ -53,8 +55,14 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     'X-Requested-With': 'XMLHttpRequest',
   }
 
-  if (options.body !== undefined) {
+  let payload: BodyInit | undefined
+  if (options.form !== undefined) {
+    const data = new FormData()
+    for (const [key, value] of Object.entries(options.form)) data.append(key, value)
+    payload = data // o navegador define o boundary do multipart
+  } else if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
+    payload = JSON.stringify(options.body)
   }
 
   // Defesa adicional ao Sec-Fetch-Site: token CSRF do cookie XSRF-TOKEN.
@@ -69,7 +77,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       method,
       headers,
       credentials: 'same-origin',
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: payload,
       signal: options.signal,
     })
   } catch {
@@ -80,13 +88,13 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     return undefined as T
   }
 
-  const payload: unknown = await response.json().catch(() => ({}))
+  const json: unknown = await response.json().catch(() => ({}))
 
   if (!response.ok) {
-    throw new ApiError(response.status, payload as Partial<ApiErrorBody>)
+    throw new ApiError(response.status, json as Partial<ApiErrorBody>)
   }
 
-  return payload as T
+  return json as T
 }
 
 /** Mensagem amigável + erros por campo, para formulários. */

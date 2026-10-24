@@ -3,7 +3,7 @@
 ## Sprint 0 — Fundação ✅ concluída (23/10/2026)
 Docker local, CI, lint, testes, Laravel, Vue, MariaDB, Redis, migrations iniciais, autenticação, TenantContext, seeders e testes de isolamento. Acrescido: Tailwind, funcionalidades por plano (`FeatureGate`), `docs/REFERENCES.md`.
 
-## Sprint 1 — Catálogo
+## Sprint 1 — Catálogo ✅ concluída (24/10/2026)
 CRUD categorias/produtos/variantes/opções, upload seguro, disponibilidade, storefront. Incluir pizza meio a meio e horários de funcionamento (referência: `docs/REFERENCES.md`).
 
 ## Sprint 2 — Pedidos

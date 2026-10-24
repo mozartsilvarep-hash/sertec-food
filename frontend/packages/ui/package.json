@@ -7,8 +7,16 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./fonts.css": "./src/fonts.css"
   },
-  "scripts": { "typecheck": "vue-tsc --noEmit -p tsconfig.json" },
-  "peerDependencies": { "vue": "^3.5.0" }
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0"
+  }
 }

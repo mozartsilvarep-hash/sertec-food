@@ -38,10 +38,10 @@ async function onSubmit() {
   <main class="flex min-h-dvh items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-(--radius-card) border border-line bg-surface p-6 shadow-sm sm:p-8">
       <header class="mb-6">
-        <p class="text-xs font-semibold tracking-widest text-brand-700 uppercase">
+        <p class="font-display text-sm font-semibold text-brand-700">
           SerTec Food
         </p>
-        <h1 class="mt-1 text-2xl font-bold text-ink">
+        <h1 class="mt-1 font-display text-2xl font-bold text-ink">
           {{ title }}
         </h1>
         <p v-if="subtitle" class="mt-1 text-sm text-muted">

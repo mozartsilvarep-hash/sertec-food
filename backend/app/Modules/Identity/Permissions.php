@@ -24,6 +24,9 @@ final class Permissions
 
     public const CATALOG_MANAGE = 'catalog.manage';
 
+    /** Marcar produto como esgotado/disponível na própria unidade. */
+    public const CATALOG_AVAILABILITY = 'catalog.availability';
+
     public const ORDERS_VIEW = 'orders.view';
 
     public const ORDERS_MANAGE = 'orders.manage';
@@ -43,6 +46,7 @@ final class Permissions
             self::STAFF_MANAGE => 'Gerenciar funcionários e permissões',
             self::CATALOG_VIEW => 'Ver cardápio',
             self::CATALOG_MANAGE => 'Gerenciar cardápio',
+            self::CATALOG_AVAILABILITY => 'Marcar produtos esgotados',
             self::ORDERS_VIEW => 'Ver pedidos',
             self::ORDERS_MANAGE => 'Operar pedidos',
             self::REPORTS_VIEW => 'Ver relatórios',
@@ -62,10 +66,10 @@ final class Permissions
             Role::OWNER => ['name' => 'Proprietário', 'permissions' => $all],
             Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
-                self::BRANCHES_VIEW, self::CATALOG_VIEW, self::ORDERS_VIEW, self::ORDERS_MANAGE,
+                self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
             ]],
             Role::KITCHEN => ['name' => 'Cozinha', 'permissions' => [
-                self::ORDERS_VIEW, self::ORDERS_MANAGE,
+                self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
             ]],
         ];
     }

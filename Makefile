@@ -26,6 +26,7 @@ setup: env ## Sobe tudo do zero: build, dependências, chave, migrations e dados
 	$(DC) up -d --build
 	$(PHP) composer install
 	$(ART) key:generate
+	$(ART) storage:link
 	$(ART) migrate --seed
 	@echo ""
 	@echo "Pronto. Acesse:"

@@ -56,3 +56,18 @@ describe('request', () => {
     await expect(request('/x')).rejects.toMatchObject({ status: 0, code: 'network_error' })
   })
 })
+
+describe('upload', () => {
+  it('envia multipart sem Content-Type manual (boundary do navegador)', async () => {
+    document.cookie = 'XSRF-TOKEN=tok'
+    const fetchMock = mockFetch(200, {})
+    const file = new File(['x'], 'foto.png', { type: 'image/png' })
+
+    await request('/merchant/products/p/image', { method: 'POST', form: { image: file } })
+
+    const init = fetchMock.mock.calls[0]![1]
+    expect(init.body).toBeInstanceOf(FormData)
+    expect(init.headers['Content-Type']).toBeUndefined()
+    expect(init.headers['X-XSRF-TOKEN']).toBe('tok')
+  })
+})
