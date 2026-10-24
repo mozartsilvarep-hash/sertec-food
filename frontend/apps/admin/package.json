@@ -1,0 +1,17 @@
+{
+  "name": "@sertec/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sertec/api-client": "workspace:*",
+    "@sertec/ui": "workspace:*",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  }
+}

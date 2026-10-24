@@ -1,0 +1,82 @@
+# Ambiente local do SerTec Food. Uso: make setup (primeira vez) / make up
+name: sertec-food
+
+x-php: &php
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  volumes:
+    - ./backend:/var/www/backend
+  depends_on:
+    mariadb:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    ports:
+      - "127.0.0.1:80:80"
+    volumes:
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/sertec-api.conf:/etc/nginx/snippets/sertec-api.conf:ro
+      - ./docker/nginx/sertec-vite.conf:/etc/nginx/snippets/sertec-vite.conf:ro
+    depends_on: [php, node]
+    restart: unless-stopped
+
+  php:
+    <<: *php
+
+  worker:
+    <<: *php
+    command: php artisan queue:work redis --tries=3 --backoff=10 --max-time=3600
+
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: sertec_food
+      MARIADB_USER: sertec
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env da raiz (make setup gera)}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no .env da raiz (make setup gera)}
+    command:
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  node:
+    image: node:22-alpine
+    working_dir: /app
+    environment:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    volumes:
+      - ./frontend:/app
+    restart: unless-stopped
+
+volumes:
+  mariadb-data:

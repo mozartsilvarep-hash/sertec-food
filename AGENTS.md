@@ -1,0 +1,2 @@
+# Instruções para Codex / Claude
+Leia todos os arquivos em docs/ antes de programar. Implemente apenas Sprint 0 inicialmente. Antes de alterar código, apresente plano e arquivos afetados. Não invente credenciais nem endpoints externos. Não introduza microserviços. Mantenha tenant_id isolado em todas as operações. Crie migrations, factories, seeders e testes. Execute testes e documente decisões em docs/ARCHITECTURE.md. Peça confirmação antes de decisões irreversíveis ou integrações pagas.
