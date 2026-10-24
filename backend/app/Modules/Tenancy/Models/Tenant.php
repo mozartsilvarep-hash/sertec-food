@@ -19,13 +19,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $slug
  * @property TenantStatus $status
  * @property string $timezone
+ * @property string|null $description
+ * @property string|null $brand_color
  */
 class Tenant extends Model
 {
     /** @use HasFactory<TenantFactory> */
     use HasFactory, HasUlids;
 
-    protected $fillable = ['name', 'slug', 'status', 'timezone'];
+    protected $fillable = ['name', 'slug', 'status', 'timezone', 'description', 'brand_color'];
 
     protected $hidden = ['id'];
 

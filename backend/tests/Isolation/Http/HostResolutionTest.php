@@ -16,7 +16,10 @@ beforeEach(function () {
 it('14. resolve o tenant pelo subdomínio de plataforma', function () {
     $this->getJson(tenantUrl($this->a, 'storefront'))
         ->assertOk()
-        ->assertExactJson(['data' => ['name' => $this->a->name, 'slug' => 'tenant-a', 'timezone' => 'America/Sao_Paulo']]);
+        ->assertJsonPath('data.name', $this->a->name)
+        ->assertJsonPath('data.slug', 'tenant-a')
+        ->assertJsonPath('data.timezone', 'America/Sao_Paulo')
+        ->assertJsonPath('data.branches', []);
 });
 
 it('14. host desconhecido retorna 404', function () {

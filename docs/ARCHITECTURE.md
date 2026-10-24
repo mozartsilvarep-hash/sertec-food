@@ -85,3 +85,32 @@ TastyIgniter e RestoPOS foram avaliados (ver `docs/REFERENCES.md`). Nenhum serve
 - Cache da resolução de host (Redis) quando houver volume; hoje é 1 consulta indexada por requisição.
 - CSP, HSTS e Nginx de produção: Sprint 5.
 - CRUD de tenants/unidades/funcionários pela API: sprints seguintes.
+
+## Decisões da Sprint 1 — Catálogo
+
+### D16 — Modelo do catálogo
+`menus` (opcionalmente por unidade) → `categories` → `menu_products` (posição do produto na categoria; `menu_id` derivado da categoria para não haver duas fontes da verdade) → `products` (soft delete = arquivar) → `product_variants` (todo produto tem ≥ 1 variante; preço único = 1 variante). Tabelas-pivô (`menu_products`, `product_option_groups`) são gravadas por models próprios com `BelongsToTenant`, nunca por `attach()`, para o `tenant_id` passar pelo contexto. Todas as relações usam FK composta `(tenant_id, x_id)`.
+
+### D17 — Grupos de opções e pizza meio a meio
+`option_groups.type`: `addon` (soma `price_delta × qtd`; `free_quantity` = N unidades grátis, sempre as mais baratas) ou `fraction` (sabores). Sabores têm preço **por tamanho** em `option_variant_prices`; sem linha = sabor indisponível naquele tamanho. Preço da pizza = preço da variante + regra do grupo: `highest` (sabor mais caro, padrão) ou `average` (média, arredondamento meio-centavo para cima). Obrigatório = `min_select > 0` (a coluna `required` do DATABASE.md foi substituída por essa regra). Máximo de 4 sabores.
+
+### D18 — Preço calculado só no servidor
+`PriceCalculator` é a fonte única do preço de um produto configurado (centavos inteiros, `App\Support\Money`). Valida variante, grupos (mín./máx.), opções (ativas, do produto, sem duplicata, quantidade), sabor por tamanho e esgotado na unidade; opção de outro tenant = "opção inválida". Erros: 422 `invalid_selection` com `details.reason`. O frontend tem uma prévia (`previewPrice`) só para exibição, testada contra os mesmos cenários.
+
+### D19 — IDs vindos do cliente
+Referências (categoria, grupo, variante, unidade) são resolvidas por `PublicIds::resolve()`, que consulta **com** o `TenantScope`. A regra `exists` do validador não é usada para IDs de tenant porque consultaria a tabela sem escopo e confirmaria IDs de outros estabelecimentos.
+
+### D20 — Upload de imagens
+Tipo pelo conteúdo (finfo + getimagesize), 5 MB, 200–6000 px, decodificação e **reencode para WebP** (remove EXIF/GPS e payloads embutidos), máx. 1200 px, nome gerado (`catalog/{tenant_public_id}/{ulid}.webp`). Disco `public` local servido pelo Nginx em `/storage/` na mesma origem (sem PHP nessa rota). S3/CDN depende de aprovação (serviço pago).
+
+### D21 — Horários
+`branch_opening_hours` (vários períodos por dia; fechamento ≤ abertura = termina no dia seguinte; igual = 24 h) e `branch_schedule_exceptions` (a data especial substitui o dia, sem cortar o período iniciado na véspera). Cálculo em `OpeningSchedule`, sempre no fuso do tenant. Desenho inspirado no WorkingSchedule do TastyIgniter, reescrito (sem cópia de código).
+
+### D22 — Esgotado por unidade e nova permissão
+`branch_product_availability` (ausência = disponível). Permissão `catalog.availability` (atendente e cozinha) para marcar esgotado só nas unidades do próprio vínculo; produto esgotado aparece como "Esgotado hoje" e o `PriceCalculator` recusa. A migration `2026_10_24_000600` sincroniza permissões/papéis em ambientes existentes.
+
+### D23 — Marca e fonte
+`tenants.brand_color` só aceita cores com contraste ≥ 4,5:1 com branco (validado no servidor e pré-visualizado no painel); a escala `--brand-*` é derivada no navegador. Títulos em Bricolage Grotesque **auto-hospedada** (`@fontsource`, OFL): o cardápio não faz requisição a terceiros (LGPD). O painel do restaurante mantém a identidade SerTec; a cor do restaurante vale no cardápio público.
+
+### D24 — Limites de requisição
+Público (`/storefront`, `/menus`, `/products`): 240/min por IP. Upload: 20/min por usuário.

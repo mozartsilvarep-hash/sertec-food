@@ -39,3 +39,34 @@ Todos os erros: `{code, message, details, request_id}`. IDs expostos são sempre
 Códigos de erro estáveis: `not_found`, `unauthenticated`, `forbidden`, `tenant_unavailable`, `feature_unavailable`, `invalid_credentials`, `validation_failed` (`details.fields`), `too_many_requests`, `csrf_token_mismatch`, `internal_error`.
 
 Comandos de console: `php artisan tenant:create {slug} {name} --owner-email= --owner-name= [--plan=] [--activate] [--timezone=]` e `php artisan platform:create-admin {email} {name} [--role=superadmin|support]` (senhas aleatórias exibidas uma vez).
+
+## Implementado na Sprint 1 — Catálogo
+
+Valores monetários são strings `"12.50"`. IDs são ULIDs públicos. Atualização de produto e grupo é `PUT` com o recurso completo.
+
+### Público (host do tenant, sem login)
+| Rota | Resposta |
+|---|---|
+| `GET /api/v1/storefront` | `name, slug, timezone, description, brand_color, branches[{id, name, phone, address, has_hours, open, closes_at, next_opening_at}]` |
+| `GET /api/v1/menus?branch={ulid}` | `branch_id, menus[{id, name, categories[{id, name, description, products[{id, name, description, image_url, available, has_options, price_from}]}]}]` — só itens ativos; unidade padrão = primeira ativa |
+| `GET /api/v1/products/{ulid}?branch=` | resumo + `variants[]` + `option_groups[{id, name, type, min_select, max_select, required, free_quantity, pricing_rule, options[{id, name, description, price_delta, max_quantity, prices}]}]` (`prices`: ULID da variante → preço, só em sabores) |
+
+### Painel do restaurante
+| Rota | Permissão |
+|---|---|
+| `GET /merchant/menus` · `POST` · `PATCH /{id}` · `DELETE /{id}` | `catalog.view` / `catalog.manage` |
+| `GET /merchant/categories?menu=` · `POST` · `PATCH /{id}` · `DELETE /{id}` | `catalog.view` / `catalog.manage` |
+| `GET /merchant/products?search=&per_page=&cursor=` (cursor) · `GET /{id}` | `catalog.view` |
+| `POST /merchant/products` · `PUT /{id}` · `DELETE /{id}` (arquiva) | `catalog.manage` |
+| `POST /merchant/products/{id}/image` (multipart `image`) · `DELETE /{id}/image` | `catalog.manage` |
+| `GET /merchant/option-groups` · `GET /{id}` · `POST` · `PUT /{id}` · `DELETE /{id}` | `catalog.view` / `catalog.manage` |
+| `GET /merchant/branches/{id}/availability` | `catalog.view` |
+| `PUT /merchant/branches/{id}/availability/{product}` `{available}` | `catalog.availability` + acesso à unidade |
+| `GET /merchant/branches/{id}/hours` | `branches.view` + acesso à unidade |
+| `PUT /merchant/branches/{id}/hours` `{weekly[{weekday,opens_at,closes_at}], exceptions[{date,closed,opens_at,closes_at,note}]}` | `branches.manage` + acesso à unidade |
+| `GET /merchant/settings` · `PATCH` `{description, brand_color}` | `settings.view` / `settings.update` |
+
+Produto (`POST`/`PUT`): `{name, description, active, variants[{id?, name, price, active}], option_group_ids[], category_ids[]}`.
+Grupo (`POST`/`PUT`): `{name, type: addon|fraction, min_select, max_select, free_quantity, pricing_rule: highest|average (fraction), active, options[{id?, name, description, price_delta, max_quantity, active, variant_prices[{variant, price}]}]}`.
+
+Erros novos: `invalid_selection` (422, `details.reason`: `variant_invalid`, `option_invalid`, `option_duplicated`, `option_quantity_invalid`, `group_min_not_met`, `group_max_exceeded`, `flavor_unavailable_for_size`, `product_sold_out`, `product_unavailable`) — usado pelo carrinho na Sprint 2.

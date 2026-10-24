@@ -35,5 +35,10 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(30)->by('login-ip:'.$request->ip()),
             ];
         });
+
+        // Cardápio público: generoso para clientes reais, barra raspagem em massa.
+        RateLimiter::for('public', fn (Request $request) => Limit::perMinute(240)->by('public:'.$request->ip()));
+
+        RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(20)->by('uploads:'.$request->user()?->getAuthIdentifier()));
     }
 }
