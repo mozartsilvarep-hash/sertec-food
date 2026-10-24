@@ -1,0 +1,51 @@
+/*
+ * Tokens de design SerTec Food (Tailwind v4).
+ *
+ * A marca de cada estabelecimento é aplicada em runtime sobrescrevendo as
+ * variáveis --brand-* no <html> (ver applyBrand()). Nada de CSS por cliente.
+ * Padrões escolhidos com contraste AA para texto branco sobre --brand-600.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-brand-50: var(--brand-50, #fff7ed);
+  --color-brand-100: var(--brand-100, #ffedd5);
+  --color-brand-500: var(--brand-500, #ea580c);
+  --color-brand-600: var(--brand-600, #c2410c);
+  --color-brand-700: var(--brand-700, #9a3412);
+  --color-brand-contrast: var(--brand-contrast, #ffffff);
+
+  --color-surface: #ffffff;
+  --color-canvas: #fafaf9;
+  --color-ink: #1c1917;
+  --color-muted: #57534e;
+  --color-line: #e7e5e4;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-success: #15803d;
+
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
