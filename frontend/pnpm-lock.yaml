@@ -92,9 +92,6 @@ importers:
       vue:
         specifier: ^3.5.44
         version: 3.5.44(typescript@6.0.3)
-      vue-router:
-        specifier: ^5.4.0
-        version: 5.4.0(@vue/compiler-sfc@3.5.44)(rolldown@1.2.15)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0))(vue@3.5.44(typescript@6.0.3))
 
   packages/api-client: {}
 
