@@ -39,7 +39,7 @@ class PublicCatalogController
         $query = Branch::query()->where('active', true);
 
         $branch = $request->filled('branch')
-            ? $query->where('public_id', (string) $request->query('branch'))->first()
+            ? $query->where('public_id', (string) $request->input('branch'))->first()
             : $query->orderBy('id')->first();
 
         return $branch ?? throw new NotFoundHttpException;

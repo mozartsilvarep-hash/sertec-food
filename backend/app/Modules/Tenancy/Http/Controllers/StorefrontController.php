@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Schedule\OpeningSchedule;
 use App\Modules\Tenancy\TenantContext;
@@ -30,6 +31,7 @@ class StorefrontController
                     'address' => $branch->address_json,
                     'has_hours' => $schedule->hasAnyHours(),
                     ...$schedule->status($now),
+                    'fulfillment' => array_diff_key(DeliverySettingsController::present($branch, onlyActive: true), ['branch_id' => true]),
                 ];
             })->values();
 

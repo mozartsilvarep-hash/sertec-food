@@ -3,7 +3,9 @@
 SaaS multi-tenant de cardápios digitais, pedidos e pagamentos da SerTec Solution.
 Leia `AGENTS.md` e `docs/` antes de contribuir.
 
-## Estado atual: Sprints 0 (fundação) e 1 (catálogo) concluídas
+## Estado atual: Sprints 0 (fundação), 1 (catálogo) e 2 (pedidos) concluídas
+
+Sprint 2: carrinho e checkout sem login, entrega por bairro ou retirada, pagamento na entrega, pedido com histórico imutável, máquina de estados no painel e acompanhamento por link.
 
 Sprint 1: cardápio público com busca e pizza meio a meio, painel de produtos/opções/esgotados/horários/marca, preço calculado no servidor, upload seguro de fotos.
 

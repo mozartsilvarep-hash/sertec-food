@@ -11,6 +11,8 @@ export const router = createRouter({
       component: PanelLayout,
       children: [
         { path: '', name: 'home', component: () => import('./pages/HomePage.vue') },
+        { path: 'pedidos', name: 'orders', component: () => import('./pages/OrdersPage.vue') },
+        { path: 'entrega', name: 'delivery', component: () => import('./pages/DeliveryPage.vue') },
         { path: 'cardapio', name: 'catalog', component: () => import('./pages/catalog/CatalogPage.vue') },
         { path: 'cardapio/produtos/novo', name: 'product-new', component: () => import('./pages/catalog/ProductEditPage.vue') },
         { path: 'cardapio/produtos/:id', name: 'product-edit', component: () => import('./pages/catalog/ProductEditPage.vue'), props: true },

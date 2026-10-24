@@ -114,3 +114,26 @@ Tipo pelo conteúdo (finfo + getimagesize), 5 MB, 200–6000 px, decodificação
 
 ### D24 — Limites de requisição
 Público (`/storefront`, `/menus`, `/products`): 240/min por IP. Upload: 20/min por usuário.
+
+## Decisões da Sprint 2 — Pedidos
+
+### D25 — Carrinho no servidor, anônimo
+`carts` + `cart_items` guardam só **o que** foi escolhido (produto, variante, `selections_json`, quantidade, observação). O cliente recebe um token aleatório de 48 hex (o banco guarda o SHA-256); validade de 48 h renovada a cada alteração; carrinho é por unidade. O preço é recalculado pelo `PriceCalculator` a cada leitura; itens que deixaram de ser válidos aparecem com `valid=false` e o motivo (nunca somem em silêncio).
+
+### D26 — Checkout transacional e idempotente
+`POST /checkout` exige `Idempotency-Key` (16–100 caracteres). Dentro de uma transação: (1) reserva a chave em `idempotency_keys` (UNIQUE por tenant) — requisição concorrente com a mesma chave bloqueia nesse INSERT e, após o commit da primeira, recebe a mesma resposta; (2) trava o carrinho (`FOR UPDATE`); (3) revalida horário, esgotados e preços; (4) calcula entrega; (5) grava pedido, snapshots, `order_totals` e histórico; (6) marca o carrinho como convertido. Mesma chave com dados diferentes = 409 `idempotency_conflict`. Falha de negócio desfaz a reserva (o cliente corrige e reenvia com a mesma chave). O frontend reaproveita a chave enquanto os dados não mudam.
+
+### D27 — Snapshots e composição do total
+`order_items`/`order_item_options` guardam nome, variante, opções e preços do momento da compra; `product_id` é só referência (produtos são arquivados, nunca apagados). `order_totals` registra subtotal, entrega e total na ordem do cálculo (desenho inspirado no TastyIgniter). Numeração visível sequencial por unidade (`order_sequences` com trava de linha; UNIQUE `(tenant_id, branch_id, order_number)`).
+
+### D28 — Máquina de estados
+`OrderStatus::nextFor()` define as transições; `OrderTransitions` é a única porta de mudança (pedido travado, validação, histórico com ator, auditoria). Retirada pula `out_for_delivery`. Recusa/cancelamento exigem motivo padronizado (`CancellationReason`). Transição inválida = 409 `invalid_transition` com a lista permitida.
+
+### D29 — Pagamento na entrega (Sprint 2)
+Métodos `cash` (com troco ≥ total) e `card_on_delivery`. `payment_status` começa `pending`, vira `paid` ao concluir o pedido e `voided` se recusado/cancelado. Métodos online (Sprint 3) só mudam por webhook/reconciliação, nunca pelo retorno do navegador.
+
+### D30 — Entrega por bairro
+`delivery_zones` por unidade com lista de bairros (comparação sem acento/maiúsculas), taxa, pedido mínimo, grátis acima de e prazo; `branches.pickup_enabled/delivery_enabled/pickup_eta_minutes`. **Pendentes de decisão:** raio/polígono (exige geocodificação, serviço externo normalmente pago) e preenchimento por CEP (ex.: ViaCEP).
+
+### D31 — Cliente e acompanhamento
+`customers` por tenant identificados pelo celular normalizado (10–11 dígitos com DDD), dados mínimos. Acompanhamento público por token de 40 hex (hash no banco) mostra estado, itens e totais, mas **não** telefone completo, rua/número, complemento, e-mail ou sobrenome. Atualização por polling (20 s cliente, 15 s painel) até o tempo real da Sprint 4. Checkout limitado a 10/min por host+IP.

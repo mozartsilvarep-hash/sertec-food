@@ -8,6 +8,11 @@ use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\PublicCatalogController;
 use App\Modules\Identity\Http\Controllers\MerchantAuthController;
 use App\Modules\Identity\Permissions as P;
+use App\Modules\Ordering\Http\Controllers\CartController;
+use App\Modules\Ordering\Http\Controllers\CheckoutController;
+use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
+use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
+use App\Modules\Ordering\Http\Controllers\TrackingController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
 use App\Modules\Tenancy\Http\Controllers\BranchController;
 use App\Modules\Tenancy\Http\Controllers\BranchHoursController;
@@ -29,7 +34,18 @@ Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->gro
     Route::get('storefront', StorefrontController::class)->name('storefront.show');
     Route::get('menus', [PublicCatalogController::class, 'menus'])->name('public.menus');
     Route::get('products/{product}', [PublicCatalogController::class, 'product'])->name('public.products.show');
+
+    // Carrinho anônimo (token no caminho) e acompanhamento.
+    Route::post('carts', [CartController::class, 'store'])->name('carts.store');
+    Route::get('carts/{token}', [CartController::class, 'show'])->name('carts.show');
+    Route::post('carts/{token}/items', [CartController::class, 'addItem'])->name('carts.items.store');
+    Route::patch('carts/{token}/items/{item}', [CartController::class, 'updateItem'])->name('carts.items.update');
+    Route::delete('carts/{token}/items/{item}', [CartController::class, 'removeItem'])->name('carts.items.destroy');
+    Route::get('orders/track/{token}', TrackingController::class)->name('orders.track');
 });
+
+// Checkout: limite próprio, mais restrito.
+Route::middleware(['tenant', 'throttle:checkout'])->post('checkout', CheckoutController::class)->name('checkout');
 
 // Painel do restaurante — host de tenant, sessão vinculada ao tenant.
 Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->group(function () {
@@ -86,6 +102,20 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
 
         Route::put('branches/{branch}/availability/{product}', [AvailabilityController::class, 'update'])
             ->middleware('permission:'.P::CATALOG_AVAILABILITY)->name('availability.update');
+
+        // Entrega e retirada
+        Route::get('branches/{branch}/delivery', [DeliverySettingsController::class, 'show'])
+            ->middleware('permission:'.P::BRANCHES_VIEW)->name('delivery.show');
+        Route::put('branches/{branch}/delivery', [DeliverySettingsController::class, 'update'])
+            ->middleware('permission:'.P::BRANCHES_MANAGE)->name('delivery.update');
+
+        // Pedidos
+        Route::middleware('permission:'.P::ORDERS_VIEW)->group(function () {
+            Route::get('orders', [MerchantOrderController::class, 'index'])->name('orders.index');
+            Route::get('orders/{order}', [MerchantOrderController::class, 'show'])->name('orders.show');
+        });
+        Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
+            ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
     });
 });
 

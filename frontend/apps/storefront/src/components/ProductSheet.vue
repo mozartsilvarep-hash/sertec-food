@@ -5,6 +5,7 @@ import {
   type PublicOptionGroup, type PublicProduct,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet, SStepper } from '@sertec/ui'
+import { addToCart, branch, showToast } from '../shop'
 
 const props = defineProps<{ productId: string | null; branchId: string | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -13,11 +14,18 @@ const product = ref<PublicProduct | null>(null)
 const state = ref<'loading' | 'ready' | 'error' | 'offline'>('loading')
 const variantId = ref('')
 const picks = reactive<Record<string, number>>({})
+const quantity = ref(1)
+const notes = ref('')
+const adding = ref(false)
+const addError = ref<string | null>(null)
 
 async function load(id: string) {
   state.value = 'loading'
   product.value = null
   for (const key of Object.keys(picks)) delete picks[key]
+  quantity.value = 1
+  notes.value = ''
+  addError.value = null
   try {
     product.value = await publicCatalogApi.product(id, props.branchId ?? undefined)
     variantId.value = product.value.variants[0]?.id ?? ''
@@ -70,6 +78,32 @@ function setQty(group: PublicOptionGroup, optionId: string, qty: number) {
   const capped = Math.min(qty, group.max_select - others)
   if (capped <= 0) delete picks[optionId]
   else picks[optionId] = capped
+}
+
+const pendingGroup = computed(() => {
+  const index = preview.value?.groups.findIndex((g) => !g.ok) ?? -1
+  return index >= 0 ? product.value?.option_groups[index]?.name : null
+})
+
+async function add() {
+  if (!product.value || !preview.value?.valid) return
+  adding.value = true
+  addError.value = null
+  try {
+    await addToCart({
+      product_id: product.value.id,
+      variant_id: variantId.value,
+      options: Object.entries(picks).filter(([, q]) => q > 0).map(([option, q]) => ({ option, quantity: q })),
+      quantity: quantity.value,
+      notes: notes.value.trim() || null,
+    })
+    showToast(`${product.value.name} adicionado`)
+    emit('close')
+  } catch (error) {
+    addError.value = error instanceof ApiError ? error.message : 'Não foi possível adicionar. Tente de novo.'
+  } finally {
+    adding.value = false
+  }
 }
 
 function flavorPrice(option: PublicProduct['option_groups'][number]['options'][number]): string | null {
@@ -163,15 +197,30 @@ function flavorPrice(option: PublicProduct['option_groups'][number]['options'][n
             </li>
           </ul>
         </fieldset>
+
+        <div class="border-t border-line px-5 py-4">
+          <label for="obs" class="mb-1.5 block font-semibold">Alguma observação?</label>
+          <textarea
+            id="obs"
+            v-model="notes"
+            rows="2"
+            maxlength="140"
+            placeholder="Ex.: sem cebola, bem passado"
+            class="w-full rounded-(--radius-control) border border-line bg-surface px-3 py-2 text-base"
+          />
+        </div>
       </div>
 
       <footer class="border-t border-line bg-surface px-5 py-4">
-        <SButton block disabled>
-          Pedido online em breve · {{ formatMoney(preview?.unitPrice ?? '0') }}
-        </SButton>
-        <p class="mt-2 text-center text-xs text-muted">
-          O valor final é confirmado no fechamento do pedido.
-        </p>
+        <p v-if="addError" role="alert" class="mb-2 text-sm text-danger">{{ addError }}</p>
+        <p v-else-if="branch && !branch.open && branch.has_hours" class="mb-2 text-sm text-muted">Estamos fechados agora: você pode montar o pedido e enviar quando abrirmos.</p>
+        <div class="flex items-center gap-3">
+          <SStepper v-model="quantity" label="quantidade" :min="1" :max="50" />
+          <SButton block :disabled="!preview?.valid" :loading="adding" class="flex-1" @click="add">
+            <template v-if="preview?.valid">Adicionar · {{ formatMoney((preview.unitCents * quantity / 100).toFixed(2)) }}</template>
+            <template v-else>Escolha: {{ pendingGroup ?? 'tamanho' }}</template>
+          </SButton>
+        </div>
       </footer>
     </template>
   </SSheet>

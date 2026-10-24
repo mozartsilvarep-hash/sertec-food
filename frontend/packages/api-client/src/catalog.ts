@@ -4,6 +4,16 @@ type Data<T> = { data: T }
 
 /* ---------- Tipos públicos (cardápio) ---------- */
 
+export interface PublicZone {
+  id: string
+  name: string
+  neighborhoods: string[]
+  fee: string
+  minimum_order: string | null
+  free_above: string | null
+  eta_minutes: number
+}
+
 export interface BranchStatus {
   id: string
   name: string
@@ -13,6 +23,7 @@ export interface BranchStatus {
   open: boolean
   closes_at: string | null
   next_opening_at: string | null
+  fulfillment?: { pickup_enabled: boolean; delivery_enabled: boolean; pickup_eta_minutes: number; zones: PublicZone[] }
 }
 
 export interface StorefrontInfo {

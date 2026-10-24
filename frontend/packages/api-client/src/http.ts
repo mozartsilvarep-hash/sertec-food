@@ -45,6 +45,7 @@ export interface RequestOptions {
   body?: unknown
   /** Envio multipart (upload). Mutuamente exclusivo com body. */
   form?: Record<string, string | Blob>
+  headers?: Record<string, string>
   signal?: AbortSignal
 }
 
@@ -53,6 +54,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
+    ...options.headers,
   }
 
   let payload: BodyInit | undefined
