@@ -1,0 +1,35 @@
+# Testes ponta a ponta (navegador)
+
+Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vite):
+
+| Arquivo | O que cobre |
+|---|---|
+| `s0-fundacao.mjs` | cardápio pelo host, host desconhecido, login, sessão não vale em outro tenant, atendente restrito à unidade, painel SerTec |
+| `s1-catalogo.mjs` | meio a meio, adicionais, criar produto com foto (WebP), sabores por tamanho, marca, esgotado por unidade |
+| `s2-pedidos.mjs` | carrinho, checkout com entrega e troco, duplo clique = 1 pedido, fluxo de status até concluído |
+| `s3-pagamento.mjs` | conectar Mercado Pago, Pix com QR, webhook assinado via Nginx, assinatura falsa = 401, reembolso, cartão (Checkout Pro) e retorno |
+| `s4-operacao.mjs` | alerta ao vivo em segundos, comanda 58/80 mm, histórico, CSV, auditoria |
+
+## Como rodar
+
+> **Zera o banco local de demonstração.** Nunca aponte para produção.
+
+```bash
+# 1. Ambiente local no ar (make setup / make up) e dados limpos:
+docker compose exec php php artisan migrate:fresh --seed --force
+docker compose exec php php artisan demo:prepare-e2e e2e-local-123
+
+# 2. Mercado Pago falso (cenário s3): rode na máquina e aponte o backend para ele
+#    (backend/.env: MERCADOPAGO_BASE_URL=http://host.docker.internal:9911 e LOGIN_PER_MINUTE=100)
+cd e2e && npm install && npx playwright install chromium
+node fake-mercadopago.mjs &
+
+# 3. Cenários
+E2E_OWNER_PASSWORD=e2e-local-123 E2E_ATTENDANT_PASSWORD=e2e-local-123 E2E_ADMIN_PASSWORD=e2e-local-123 node run.mjs
+# um só: node run.mjs s3
+```
+
+Saída: uma linha `OK`/`FALHOU` por verificação; capturas de tela em `e2e/shots/`. O processo termina com código 1 se algo falhar.
+Variáveis opcionais: `E2E_BASE_DOMAIN` (padrão `cardapios.localhost`), `PW_CHROMIUM` (Chromium já instalado), `E2E_SHOTS`.
+
+O `demo:prepare-e2e` (só `APP_ENV=local`) define a senha dos usuários `*.localhost`, deixa as lojas de demonstração abertas a qualquer hora e desconecta o Mercado Pago.

@@ -22,6 +22,7 @@ const links = computed(() => [
   { to: '/marca', label: 'Marca', show: can('settings.view') },
   { to: '/pagamentos', label: 'Pagamentos', show: can('payments.manage') },
   { to: '/equipe', label: 'Equipe', show: can('staff.manage') },
+  { to: '/privacidade', label: 'Privacidade (LGPD)', show: can('settings.update') },
   { to: '/auditoria', label: 'Auditoria', show: can('audit.view') },
   { to: '/minha-conta', label: 'Minha conta', show: true },
 ].filter((l) => l.show))

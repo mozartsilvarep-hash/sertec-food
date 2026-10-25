@@ -188,3 +188,35 @@ Middleware `AuditMutations` registra toda escrita 2xx do painel (rota, entidade 
 ### D46 — Acompanhamento do cliente
 Atualiza a cada 10 s (5 s aguardando pagamento) e oferece WhatsApp (celular da unidade) e ligação.
 
+## Decisões da Sprint 5 — Piloto
+
+### D47 — Painel SerTec
+API `/admin/*` só no host admin, em modo plataforma (leitura entre tenants). Suporte consulta; escrita exige `superadmin`. Criação reaproveita o `TenantProvisioner` (o mesmo do `tenant:create`). Senha do proprietário redefinida pela SerTec é global (a conta pode estar em vários tenants) e encerra todas as sessões do usuário (`SessionTerminator`, única exceção autorizada ao Query Builder cru — tabela `sessions` sem tenant_id).
+
+### D48 — Domínio próprio e HTTPS sob demanda
+Domínio do cliente é cadastrado sem verificação e só passa a resolver o tenant depois que o TXT `_sertec-verify.{host}` = `sertec-verify={token}` é encontrado (token mostrado uma vez; banco guarda o hash). O Caddy emite certificados sob demanda (`on_demand_tls`) e pergunta antes a `/api/v1/internal/tls-ask`, que só autoriza o host admin e domínios verificados — subdomínios de plataforma são verificados na criação. Assim não é preciso certificado curinga (desafio DNS, dependente de provedor) e nomes arbitrários apontados para o servidor não consomem o limite do Let's Encrypt. Rotas `/api/v1/internal/*` são bloqueadas na borda.
+
+### D49 — Borda de produção: Caddy + PHP-FPM
+Caddy serve as SPAs compiladas e fala FastCGI direto com o PHP-FPM (sem Nginx em produção). `REMOTE_ADDR` é o IP real; por isso **nenhum proxy é confiável por padrão** (`TRUSTED_PROXIES` vazio) — confiar em `*` deixava o cliente forjar `X-Forwarded-For` e driblar limites por IP (coberto por teste). Cabeçalhos: HSTS, CSP restrita (`default-src 'self'`, imagens `data:` para o QR do Pix, `frame-ancestors 'none'`), nosniff, Referrer-Policy, Permissions-Policy. Imagens multi-stage (`docker/prod/Dockerfile`): build dos frontends, Composer sem dev com autoload autoritativo, PHP com opcache sem revalidação, caches do Laravel no start.
+
+### D50 — Meta tags por restaurante
+O Caddy entrega qualquer navegação do cardápio ao `StorefrontShellController`, que injeta (escapados) título, descrição, canonical, `theme-color` e Open Graph (nome, descrição, primeira foto do cardápio) no `index.html` do build. Link compartilhado no WhatsApp mostra o restaurante. Cache de 5 min por tenant, invalidado ao salvar a marca. Host desconhecido/suspenso recebe `noindex`.
+
+### D51 — Equipe
+O proprietário gerencia gerente/atendente/cozinha (um vínculo por pessoa, opcionalmente restrito a uma unidade). Proprietários são definidos pela SerTec. A conta é global: o restaurante só cria conta nova (senha temporária mostrada uma vez) ou redefine senha de conta **exclusiva** dele (`AccountSharing`, checagem em modo plataforma); quem já tem conta em outro estabelecimento entra com a senha que já tem e o nome da conta não é sobrescrito.
+
+### D52 — Saúde e logs
+`HealthCheck` verifica banco, cache/Redis, tamanho da fila e batimento do agendador (gravado a cada minuto). Exposto em `ops:status`, no healthcheck do container e em `/api/v1/internal/health`. Em produção os logs vão para stderr em JSON (Monolog `JsonFormatter`) com `request_id`. Sentry/APM ficam opcionais (serviço externo, decisão da SerTec).
+
+### D53 — Backups
+`ops/backup.sh`: `mariadb-dump --single-transaction` + tar das fotos, gzip, criptografia opcional AES-256 (openssl, PBKDF2 200k), retenção por dias; `ops/backup-test.sh` restaura o último backup num banco temporário, compara contagens com produção e apaga (validado localmente, inclusive falhando com a senha errada). Cópia para fora do servidor é obrigatória na operação (docs/OPERATIONS.md) e depende de destino escolhido pela SerTec.
+
+### D54 — LGPD
+Restaurante = controlador; SerTec = operadora. Política de privacidade modelo em `/privacidade` (revisão jurídica pendente). Retenção: `privacy:anonymize` diário remove nome, telefone, e-mail, endereço e observações de pedidos **finalizados** há mais de `PRIVACY_RETENTION_MONTHS` (24) e apaga clientes sem pedidos recentes; valores e itens permanecem. Titular: o restaurante consulta e apaga por celular (recusado com pedido em andamento); auditoria guarda só o hash do telefone. CSV sem telefone/endereço.
+
+### D55 — E2E no repositório
+`e2e/` reúne os cenários Playwright usados em cada sprint (57 verificações) e um Mercado Pago falso. Rodam contra o ambiente local depois de `demo:prepare-e2e` (só `APP_ENV=local`: senhas conhecidas, lojas sempre abertas, MP desconectado). Ainda não rodam no CI (exigiriam a stack completa); o CI valida o compose e o Caddyfile de produção e constrói as imagens.
+
+### Nota de testes
+O `TestCase` reaproveita o `Store` de sessão entre requisições do mesmo teste; testes que alternam sessões de usuários diferentes devem fazer as asserções de uma sessão antes de logar com outra (comportamento só do harness, não da aplicação).
+

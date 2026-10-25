@@ -114,4 +114,9 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    | Tentativas de login por minuto (por host + e-mail + IP). Aumente só em
+    | desenvolvimento para rodar os testes ponta a ponta (e2e/README.md).
+    */
+    'login_per_minute' => (int) env('LOGIN_PER_MINUTE', 5),
 ];

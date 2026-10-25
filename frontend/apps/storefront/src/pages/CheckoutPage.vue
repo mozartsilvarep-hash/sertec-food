@@ -212,6 +212,7 @@ onMounted(async () => {
     </fieldset>
 
     <STextArea v-model="form.notes" label="Observações para o restaurante (opcional)" :maxlength="300" />
+    <p class="-mt-4 text-sm text-muted">Usamos seus dados só para este pedido. <RouterLink to="/privacidade" class="font-medium text-brand-700 underline">Política de privacidade</RouterLink></p>
 
     <section aria-label="Resumo" class="grid gap-1 border-t border-line pt-4 text-sm">
       <p class="flex justify-between"><span class="text-muted">Subtotal</span><span class="tabular-nums">{{ formatMoney(cart.subtotal) }}</span></p>

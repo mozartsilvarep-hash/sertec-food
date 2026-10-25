@@ -18,6 +18,7 @@ export const router = createRouter({
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
         { path: 'equipe', name: 'team', component: () => import('./pages/TeamPage.vue') },
         { path: 'minha-conta', name: 'account', component: () => import('./pages/AccountPage.vue') },
+        { path: 'privacidade', name: 'privacy', component: () => import('./pages/PrivacyToolPage.vue') },
         { path: 'entrega', name: 'delivery', component: () => import('./pages/DeliveryPage.vue') },
         { path: 'cardapio', name: 'catalog', component: () => import('./pages/catalog/CatalogPage.vue') },
         { path: 'cardapio/produtos/novo', name: 'product-new', component: () => import('./pages/catalog/ProductEditPage.vue') },

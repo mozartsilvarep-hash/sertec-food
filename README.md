@@ -3,7 +3,15 @@
 SaaS multi-tenant de cardápios digitais, pedidos e pagamentos da SerTec Solution.
 Leia `AGENTS.md` e `docs/` antes de contribuir.
 
-## Estado atual: Sprints 0 (fundação), 1 (catálogo) e 2 (pedidos) concluídas
+## Estado atual: MVP completo (Sprints 0–5) — pronto para o piloto
+
+**Colocar em produção:** `docs/OPERATIONS.md` (servidor, DNS, HTTPS automático, cadastro de restaurantes, Mercado Pago, backups, LGPD, incidentes).
+
+Sprint 5: painel SerTec (restaurantes, domínios próprios, auditoria), equipe e "Minha conta", stack de produção com Caddy + HTTPS sob demanda, meta tags por restaurante, saúde/logs, backups com teste de restauração, LGPD e testes ponta a ponta em `e2e/`.
+
+Sprint 4: painel ao vivo com alerta sonoro, comanda para térmica, histórico, resumo, CSV e auditoria.
+
+Sprint 3: Pix e cartão pelo Mercado Pago (conta de cada restaurante), webhook assinado, reconciliação e reembolso.
 
 Sprint 2: carrinho e checkout sem login, entrega por bairro ou retirada, pagamento na entrega, pedido com histórico imutável, máquina de estados no painel e acompanhamento por link.
 
@@ -39,10 +47,12 @@ docker compose exec php php artisan tenant:create pizzaria-do-ze "Pizzaria do Z�
 
 ## Estrutura
 ```
-backend/   Laravel 13 (monólito modular: app/Modules/{Tenancy,Identity,Platform})
+backend/   Laravel 13 (monólito modular: app/Modules/{Tenancy,Identity,Platform,Catalog,Ordering,Payments})
 frontend/  pnpm workspace: apps/{storefront,merchant,admin}, packages/{ui,api-client}
-docker/    PHP-FPM, Nginx (roteamento por host), init do MariaDB
-docs/      produto, arquitetura, API, banco, segurança, roadmap, referências
+docker/    dev (PHP-FPM, Nginx) e produção (docker/prod, docker/caddy)
+ops/       backup, restauração e teste de restauração
+e2e/       cenários Playwright no navegador + Mercado Pago falso
+docs/      produto, arquitetura, API, banco, segurança, operação, roadmap, referências
 ```
 
 ## Testes

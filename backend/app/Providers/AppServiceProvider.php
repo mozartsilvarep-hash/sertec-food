@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
             $email = strtolower((string) $request->input('email'));
 
             return [
-                Limit::perMinute(5)->by('login:'.$request->getHost().'|'.$email.'|'.$request->ip()),
+                Limit::perMinute((int) config('auth.login_per_minute', 5))->by('login:'.$request->getHost().'|'.$email.'|'.$request->ip()),
                 Limit::perMinute(30)->by('login-ip:'.$request->ip()),
             ];
         });
