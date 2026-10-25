@@ -168,3 +168,23 @@ A cobrança é criada **depois** do commit do checkout (não segura transação 
 ### D40 — Acompanhamento durante o pagamento
 Enquanto `awaiting_payment`, o site consulta o pedido a cada 5 s (a rota de leitura não chama o provedor); "Já paguei" chama o provedor com limite de 12/min. Pix com QR, copia e cola e contagem regressiva; cartão com botão para o Checkout Pro (sandbox com credencial de teste).
 
+## Decisões da Sprint 4 — Operação
+
+### D41 — "Tempo real" por pulso, sem WebSocket (por enquanto)
+Contador por unidade no cache (`order-pulse:{tenant}:{branch}`, Redis), incrementado **depois do commit** por qualquer `Order::saved`. O painel consulta `GET /merchant/orders/pulse` a cada 3 s e só recarrega a lista quando a versão muda. Latência ≤ 3 s, sem novo serviço, sem portas extras e com o mesmo modelo de sessão/tenant do resto da API. A consulta roda num **Web Worker**, cujos timers não sofrem o "intensive throttling" do Chrome em abas em segundo plano (que reduziria um `setInterval` a 1/min). Caminho de evolução quando o volume justificar: Laravel Reverb (WebSocket, gratuito) com canais privados por tenant/unidade — o pulso continua como fallback.
+
+### D42 — Alertas
+Som de dois tons gerado com Web Audio (sem arquivo de áudio/licença), ligado por um clique (exigência dos navegadores) e lembrado no aparelho; repete a cada 30 s enquanto houver pedido sem aceite. Título da aba com a contagem, notificação do sistema quando a aba está oculta (com permissão) e faixa fixa que fica vermelha quando o pedido mais antigo espera ≥ 5 min.
+
+### D43 — Comanda
+Página de impressão fora do layout (`/painel/pedidos/{id}/imprimir`), 58 ou 80 mm (preferência local), `@page { margin: 0 }`, abre o diálogo de impressão automaticamente. Para imprimir sem diálogo: Chrome com `--kiosk-printing` e a térmica como impressora padrão. ESC/POS direto fica para o "SerTec Print Agent" (pós-MVP, ver REFERENCES).
+
+### D44 — Histórico, resumo e CSV
+Uma única implementação de filtros (`OrderFilters`) para lista, resumo e exportação: unidades do usuário, nunca `awaiting_payment`, datas no fuso do tenant, período ≤ 1 ano, LIKE escapado. Faturamento conta só pedidos concluídos; reembolsos à parte. O CSV é gerado em streaming (`chunk(500)`) com o contexto do tenant reaberto explicitamente (o corpo é enviado depois que os middlewares terminam), sem telefone/endereço (minimização LGPD) e com proteção contra injeção de fórmulas.
+
+### D45 — Auditoria do painel
+Middleware `AuditMutations` registra toda escrita 2xx do painel (rota, entidade e nomes, nunca o corpo); ações com registro próprio mais rico ficam de fora. Leitura em `GET /merchant/audit` com filtro **explícito** por `tenant_id` (a tabela é exceção ao `TenantScope`), coberto por teste de isolamento e de sabotagem. Nova permissão `audit.view` só para o proprietário (migration `2026_10_26_000100`).
+
+### D46 — Acompanhamento do cliente
+Atualiza a cada 10 s (5 s aguardando pagamento) e oferece WhatsApp (celular da unidade) e ligação.
+

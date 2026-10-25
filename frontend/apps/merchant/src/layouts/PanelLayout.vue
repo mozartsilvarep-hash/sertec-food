@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { merchantApi } from '@sertec/api-client'
 import { SButton } from '@sertec/ui'
+import LiveBar from '../components/LiveBar.vue'
+import { startLive, stopLive } from '../live'
 import { notice } from '../notify'
 import { can, me } from '../session'
 
@@ -10,6 +12,7 @@ const router = useRouter()
 
 const links = computed(() => [
   { to: '/pedidos', label: 'Pedidos', show: can('orders.view') },
+  { to: '/historico', label: 'Histórico', show: can('orders.view') },
   { to: '/', label: 'Unidades', show: can('branches.view') },
   { to: '/cardapio', label: 'Cardápio', show: can('catalog.view') },
   { to: '/opcoes', label: 'Opções e sabores', show: can('catalog.view') },
@@ -18,13 +21,27 @@ const links = computed(() => [
   { to: '/entrega', label: 'Entrega', show: can('branches.view') },
   { to: '/marca', label: 'Marca', show: can('settings.view') },
   { to: '/pagamentos', label: 'Pagamentos', show: can('payments.manage') },
+  { to: '/auditoria', label: 'Auditoria', show: can('audit.view') },
 ].filter((l) => l.show))
 
+const live = can('orders.view')
+
 async function logout() {
+  stopLive()
   await merchantApi.logout().catch(() => undefined)
   me.value = null
   await router.replace({ name: 'login' })
 }
+
+onMounted(() => {
+  if (live) {
+    startLive(() => {
+      me.value = null
+      void router.replace({ name: 'login' })
+    })
+  }
+})
+onBeforeUnmount(stopLive)
 </script>
 
 <template>
@@ -55,9 +72,12 @@ async function logout() {
       </nav>
     </aside>
 
-    <main class="min-w-0 px-4 py-6 md:px-8 md:py-8">
-      <RouterView />
-    </main>
+    <div class="min-w-0">
+      <LiveBar v-if="live" />
+      <main class="min-w-0 px-4 py-6 md:px-8 md:py-8">
+        <RouterView />
+      </main>
+    </div>
 
     <div
       v-if="notice"

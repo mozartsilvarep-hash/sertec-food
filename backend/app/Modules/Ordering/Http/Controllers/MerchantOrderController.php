@@ -8,43 +8,55 @@ use App\Modules\Ordering\Enums\CancellationReason;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Http\Resources\MerchantOrderResource;
 use App\Modules\Ordering\Models\Order;
+use App\Modules\Ordering\Services\OrderFilters;
+use App\Modules\Ordering\Services\OrderPulse;
 use App\Modules\Ordering\Services\OrderTransitions;
 use App\Modules\Tenancy\Models\Branch;
-use App\Modules\Tenancy\Support\PublicIds;
+use App\Modules\Tenancy\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MerchantOrderController
 {
-    public function index(Request $request, TenantAccess $tenantAccess): AnonymousResourceCollection
+    public function index(Request $request, TenantAccess $tenantAccess, TenantContext $context): AnonymousResourceCollection
     {
         $access = $tenantAccess->for($this->user($request));
 
-        $query = Order::query()
-            ->with(['branch', 'items.options', 'payments.refunds'])
-            // Pedido online ainda não pago não existe para o restaurante.
-            ->where('status', '!=', OrderStatus::AwaitingPayment)
-            ->when($access->branchIds !== null, fn ($q) => $q->whereIn('branch_id', $access->branchIds ?? []))
-            ->orderByDesc('placed_at')->orderByDesc('id');
-
-        $view = (string) $request->query('view', 'active');
-        if ($view === 'active') {
-            $query->whereIn('status', OrderStatus::active());
-        } elseif ($view === 'finished') {
-            $query->whereIn('status', [OrderStatus::Completed, OrderStatus::Rejected, OrderStatus::Cancelled]);
-        } elseif (OrderStatus::tryFrom($view) !== null) {
-            $query->where('status', $view);
-        }
-
-        if ($request->filled('branch')) {
-            $query->where('branch_id', PublicIds::one(Branch::class, (string) $request->query('branch'), 'branch')->id);
-        }
+        $query = OrderFilters::view(
+            OrderFilters::query($request, $access, $context->get()->timezone),
+            (string) $request->query('view', 'active'),
+        )->with(['branch', 'items.options', 'payments.refunds'])->orderByDesc('placed_at')->orderByDesc('id');
 
         $perPage = min(100, max(1, (int) $request->query('per_page', '50')));
 
         return MerchantOrderResource::collection($query->cursorPaginate($perPage)->withQueryString());
+    }
+
+    /**
+     * GET /merchant/orders/pulse — consultado a cada 3 s pelo painel.
+     * Lê o contador no cache; só a contagem de "novos" vai ao banco (índice).
+     */
+    public function pulse(Request $request, TenantAccess $tenantAccess, TenantContext $context): JsonResponse
+    {
+        $access = $tenantAccess->for($this->user($request));
+        $tenantId = $context->id();
+        $branchIds = $access->branchIds ?? Branch::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $pending = Order::query()
+            ->where('status', OrderStatus::PendingAcceptance)
+            ->whereIn('branch_id', $branchIds)
+            ->selectRaw('COUNT(*) AS c, MIN(placed_at) AS oldest')
+            ->toBase()->first();
+
+        return new JsonResponse(['data' => [
+            'version' => OrderPulse::version($tenantId, $branchIds),
+            'pending' => (int) ($pending->c ?? 0),
+            'oldest_pending_at' => isset($pending->oldest) ? Carbon::parse((string) $pending->oldest, 'UTC')->toIso8601String() : null,
+        ]]);
     }
 
     public function show(Request $request, Order $order, TenantAccess $access): MerchantOrderResource

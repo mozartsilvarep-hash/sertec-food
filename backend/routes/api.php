@@ -12,11 +12,14 @@ use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
+use App\Modules\Ordering\Http\Controllers\ReportController;
 use App\Modules\Ordering\Http\Controllers\TrackingController;
 use App\Modules\Payments\Http\Controllers\MercadoPagoWebhookController;
 use App\Modules\Payments\Http\Controllers\PaymentSettingsController;
 use App\Modules\Payments\Http\Controllers\RefundController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
+use App\Modules\Platform\Http\Controllers\MerchantAuditController;
+use App\Modules\Platform\Http\Middleware\AuditMutations;
 use App\Modules\Tenancy\Http\Controllers\BranchController;
 use App\Modules\Tenancy\Http\Controllers\BranchHoursController;
 use App\Modules\Tenancy\Http\Controllers\SettingsController;
@@ -63,7 +66,7 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
     Route::post('auth/login', [MerchantAuthController::class, 'login'])
         ->middleware('throttle:login')->name('auth.login');
 
-    Route::middleware(['auth:sanctum', 'merchant', SubstituteBindings::class])->group(function () {
+    Route::middleware(['auth:sanctum', 'merchant', SubstituteBindings::class, AuditMutations::class])->group(function () {
         Route::post('auth/logout', [MerchantAuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [MerchantAuthController::class, 'me'])->name('me');
 
@@ -122,11 +125,21 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
 
         // Pedidos
         Route::middleware('permission:'.P::ORDERS_VIEW)->group(function () {
+            Route::get('orders/pulse', [MerchantOrderController::class, 'pulse'])
+                ->middleware('throttle:pulse')->name('orders.pulse');
             Route::get('orders', [MerchantOrderController::class, 'index'])->name('orders.index');
             Route::get('orders/{order}', [MerchantOrderController::class, 'show'])->name('orders.show');
         });
         Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
             ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
+
+        // Relatórios e auditoria
+        Route::middleware('permission:'.P::REPORTS_VIEW)->group(function () {
+            Route::get('reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
+            Route::get('reports/orders.csv', [ReportController::class, 'csv'])->middleware('throttle:exports')->name('reports.csv');
+        });
+        Route::get('audit', [MerchantAuditController::class, 'index'])
+            ->middleware('permission:'.P::AUDIT_VIEW)->name('audit.index');
 
         // Pagamentos online
         Route::post('orders/{order}/refunds', [RefundController::class, 'store'])

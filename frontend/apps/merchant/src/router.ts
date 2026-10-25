@@ -6,12 +6,16 @@ export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', name: 'login', component: () => import('./pages/LoginPage.vue'), meta: { guest: true } },
+    // Comanda: fora do layout (sem menu na impressão).
+    { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
     {
       path: '/',
       component: PanelLayout,
       children: [
         { path: '', name: 'home', component: () => import('./pages/HomePage.vue') },
         { path: 'pedidos', name: 'orders', component: () => import('./pages/OrdersPage.vue') },
+        { path: 'historico', name: 'history', component: () => import('./pages/HistoryPage.vue') },
+        { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
         { path: 'entrega', name: 'delivery', component: () => import('./pages/DeliveryPage.vue') },
         { path: 'cardapio', name: 'catalog', component: () => import('./pages/catalog/CatalogPage.vue') },
         { path: 'cardapio/produtos/novo', name: 'product-new', component: () => import('./pages/catalog/ProductEditPage.vue') },

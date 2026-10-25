@@ -217,9 +217,59 @@ export interface DeliverySettings {
   zones: (DeliveryZoneInput & { id: string })[]
 }
 
+export interface OrderFilter {
+  from?: string | null
+  to?: string | null
+  q?: string | null
+  payment_method?: PaymentMethod | null
+  branch?: string | null
+}
+
+/** Monta a query string ignorando filtros vazios. */
+export function filterQuery(params: Record<string, string | number | null | undefined>): string {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => `${enc(k)}=${enc(String(v))}`)
+    .join('&')
+  return qs ? `?${qs}` : ''
+}
+
+export interface ReportSummary {
+  orders: number
+  completed: number
+  cancelled: number
+  in_progress: number
+  revenue: string
+  average_ticket: string
+  refunded: string
+  by_payment_method: { method: PaymentMethod; label: string; orders: number; total: string }[]
+}
+
+export interface AuditEntry {
+  id: string
+  action: string
+  actor: { id: string; name: string } | null
+  entity_type: string | null
+  entity_id: string | null
+  metadata: Record<string, unknown> | null
+  ip: string | null
+  at: string
+}
+
+export const reportsApi = {
+  summary: (filter: OrderFilter) => request<Data<ReportSummary>>(`/merchant/reports/summary${filterQuery({ ...filter })}`).then((r) => r.data),
+  /** Link direto (download pelo navegador, com a sessão). */
+  csvUrl: (filter: OrderFilter & { view?: string }) => `/api/v1/merchant/reports/orders.csv${filterQuery({ ...filter })}`,
+}
+
+export const auditApi = {
+  list: (cursor?: string | null, action?: string | null) =>
+    request<{ data: AuditEntry[]; meta: { next_cursor: string | null } }>(`/merchant/audit${filterQuery({ cursor, action, per_page: 50 })}`),
+}
+
 export const merchantOrdersApi = {
-  list: (view: 'active' | 'finished' | 'all' = 'active', cursor?: string | null) =>
-    request<{ data: MerchantOrder[]; meta: { next_cursor: string | null } }>(`/merchant/orders?view=${view}&per_page=50${cursor ? `&cursor=${enc(cursor)}` : ''}`),
+  list: (view: 'active' | 'finished' | 'all' | string = 'active', cursor?: string | null, filter: OrderFilter = {}) =>
+    request<{ data: MerchantOrder[]; meta: { next_cursor: string | null } }>(`/merchant/orders${filterQuery({ view, per_page: 50, cursor, ...filter })}`),
   get: (id: string) => request<Data<MerchantOrder>>(`/merchant/orders/${enc(id)}`).then((r) => r.data),
   setStatus: (id: string, body: { status: OrderStatus; eta_minutes?: number | null; reason?: CancellationReason | null; note?: string | null }) =>
     request<Data<MerchantOrder>>(`/merchant/orders/${enc(id)}/status`, { method: 'PATCH', body }).then((r) => r.data),

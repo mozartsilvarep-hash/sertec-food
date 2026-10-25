@@ -19,6 +19,12 @@ const reached = computed(() => {
 })
 const cancelled = computed(() => order.value && ['rejected', 'cancelled'].includes(order.value.status))
 const tz = computed(() => store.value?.timezone ?? 'America/Sao_Paulo')
+const phoneDigits = computed(() => (order.value?.branch.phone ?? '').replace(/\D/g, ''))
+const whatsapp = computed(() => {
+  if (phoneDigits.value.length !== 11 || !order.value) return null
+  const text = encodeURIComponent(`Olá! Sobre o pedido #${order.value.number}`)
+  return `https://wa.me/55${phoneDigits.value}?text=${text}`
+})
 const awaitingPayment = computed(() => order.value?.status === 'awaiting_payment' && order.value.payment !== null)
 
 async function load(silent = false) {
@@ -50,14 +56,14 @@ async function refreshPayment() {
   }
 }
 
-// Atualização por consulta; enquanto espera o pagamento, mais frequente
-// (o servidor não chama o provedor nesta rota). Tempo real chega na Sprint 4.
+// Atualização por consulta: 10 s (5 s enquanto espera o pagamento; a rota de
+// leitura não chama o provedor).
 function schedule() {
   if (order.value?.final) return
   timer = setTimeout(async () => {
     await load(true)
     schedule()
-  }, awaitingPayment.value ? 5_000 : 20_000)
+  }, awaitingPayment.value ? 5_000 : 10_000)
 }
 
 onMounted(async () => {
@@ -125,6 +131,11 @@ onBeforeUnmount(() => clearTimeout(timer))
           {{ order.payment_method_label }} · {{ order.fulfillment_type === 'delivery' ? `Entrega em ${order.neighborhood}` : `Retirada em ${order.branch.name}` }}
         </p>
       </section>
+
+      <div v-if="phoneDigits.length >= 10" class="mt-6 grid gap-2 sm:grid-cols-2">
+        <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Falar no WhatsApp</a>
+        <a :href="`tel:${phoneDigits}`" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Ligar para {{ order.branch.name }}</a>
+      </div>
 
       <RouterLink to="/" class="mt-8 block text-center font-semibold text-brand-700 hover:underline">Voltar ao cardápio</RouterLink>
     </template>

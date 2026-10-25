@@ -54,6 +54,11 @@ class AppServiceProvider extends ServiceProvider
         // Ações que chamam o provedor (gerar Pix de novo, "já paguei", reembolso, credenciais).
         RateLimiter::for('payment-actions', fn (Request $request) => Limit::perMinute(12)->by('pay:'.$request->getHost().'|'.$request->ip()));
 
+        // Painel consulta o pulso a cada 3 s; folga para várias abas/unidades.
+        RateLimiter::for('pulse', fn (Request $request) => Limit::perMinute(90)->by('pulse:'.$request->user()?->getAuthIdentifier()));
+
+        RateLimiter::for('exports', fn (Request $request) => Limit::perMinute(6)->by('exports:'.$request->user()?->getAuthIdentifier()));
+
         RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(20)->by('uploads:'.$request->user()?->getAuthIdentifier()));
     }
 }
