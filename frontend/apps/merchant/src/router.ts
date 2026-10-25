@@ -22,6 +22,7 @@ export const router = createRouter({
         { path: 'esgotados', name: 'availability', component: () => import('./pages/catalog/AvailabilityPage.vue') },
         { path: 'horarios', name: 'hours', component: () => import('./pages/HoursPage.vue') },
         { path: 'marca', name: 'brand', component: () => import('./pages/BrandPage.vue') },
+        { path: 'pagamentos', name: 'payments', component: () => import('./pages/PaymentsPage.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -23,3 +23,12 @@ it('erro interno não vaza mensagem nem stack trace', function () {
     $response->assertStatus(500)->assertJsonPath('code', 'internal_error');
     expect($response->getContent())->not->toContain('segredo-interno')->not->toContain('trace');
 });
+
+it('ID do proxy (SERTEC_REQUEST_ID) tem prioridade e não apaga o X-Request-Id do cliente', function () {
+    $tenant = makeTenant();
+
+    $this->withServerVariables(['SERTEC_REQUEST_ID' => 'nginx-abcdef123456'])
+        ->withHeader('X-Request-Id', 'cliente-12345678')
+        ->getJson(tenantUrl($tenant, 'storefront'))
+        ->assertHeader('X-Request-Id', 'nginx-abcdef123456');
+});

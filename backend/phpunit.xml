@@ -36,6 +36,8 @@
         <env name="SESSION_DRIVER" value="database"/>
         <env name="TENANCY_BASE_DOMAIN" value="cardapios.test"/>
         <env name="TENANCY_ADMIN_HOST" value="admin.cardapios.test"/>
+        <!-- O Mercado Pago dos testes é o FakeMercadoPago (Http::fake) neste endereço. -->
+        <env name="MERCADOPAGO_BASE_URL" value="https://api.mercadopago.com" force="true"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

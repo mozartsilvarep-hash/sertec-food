@@ -37,6 +37,11 @@ services:
     <<: *php
     command: php artisan queue:work redis --tries=3 --backoff=10 --max-time=3600
 
+  # Agendador: reconciliação de pagamentos a cada minuto (payments:reconcile).
+  scheduler:
+    <<: *php
+    command: php artisan schedule:work
+
   mariadb:
     image: mariadb:11.4
     environment:

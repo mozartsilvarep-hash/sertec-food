@@ -49,7 +49,7 @@ async function fill(wrapper: Awaited<ReturnType<typeof mountPage>>['wrapper']) {
 
 describe('Checkout', () => {
   it('calcula a taxa da zona do bairro e envia só escolhas, nunca preços', async () => {
-    const spy = vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 1, status: 'pending_acceptance', payment_status: 'pending', payment_method: 'card_on_delivery', fulfillment_type: 'delivery', total: '47.00', eta_minutes: 50, tracking_token: 'f'.repeat(40) })
+    const spy = vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 1, status: 'pending_acceptance', payment_status: 'pending', payment_method: 'card_on_delivery', fulfillment_type: 'delivery', total: '47.00', eta_minutes: 50, payment_required: false, payment_expires_at: null, tracking_token: 'f'.repeat(40) })
     const { wrapper, router } = await mountPage()
     await fill(wrapper)
 
@@ -87,5 +87,36 @@ describe('Checkout', () => {
 
     expect(wrapper.text()).toContain('Pedido mínimo para Pajuçara: R$ 30,00')
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('com Mercado Pago conectado: Pix vem marcado, pede e-mail e envia o método online', async () => {
+    store.value = { ...store.value!, payment_methods: [
+      { method: 'cash', label: 'Dinheiro', online: false }, { method: 'card_on_delivery', label: 'Cartão na entrega', online: false },
+      { method: 'pix', label: 'Pix', online: true }, { method: 'online_card', label: 'Cartão pelo site', online: true },
+    ] }
+    const spy = vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 1, status: 'awaiting_payment', payment_status: 'pending', payment_method: 'pix', fulfillment_type: 'delivery', total: '47.00', eta_minutes: 50, payment_required: true, payment_expires_at: null, tracking_token: 'e'.repeat(40) })
+    const { wrapper, router } = await mountPage()
+    await fill(wrapper)
+
+    expect((wrapper.find('input[value="pix"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.text()).toContain('Ir para o pagamento · R$ 47,00')
+    const email = wrapper.findAll('label').find((l) => l.text().startsWith('E-mail para o comprovante'))!
+    await wrapper.find(`#${email.attributes('for')}`).setValue('maria@example.com')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const [payload] = spy.mock.calls[0]!
+    expect(payload.payment.method).toBe('pix')
+    expect(payload.customer.email).toBe('maria@example.com')
+    expect(router.currentRoute.value.path).toBe(`/pedido/${'e'.repeat(40)}`)
+  })
+
+  it('sem Mercado Pago: só pagamento na entrega', async () => {
+    store.value = { ...store.value!, payment_methods: [
+      { method: 'cash', label: 'Dinheiro', online: false }, { method: 'card_on_delivery', label: 'Cartão na entrega', online: false },
+    ] }
+    const { wrapper } = await mountPage()
+    expect(wrapper.find('input[value="pix"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Pagar agora pelo site')
   })
 })

@@ -17,6 +17,7 @@ const links = computed(() => [
   { to: '/horarios', label: 'Horários', show: can('branches.view') },
   { to: '/entrega', label: 'Entrega', show: can('branches.view') },
   { to: '/marca', label: 'Marca', show: can('settings.view') },
+  { to: '/pagamentos', label: 'Pagamentos', show: can('payments.manage') },
 ].filter((l) => l.show))
 
 async function logout() {

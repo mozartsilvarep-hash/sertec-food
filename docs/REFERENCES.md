@@ -19,6 +19,7 @@ Avaliados em 23/10/2026. Ambos MIT. Nenhum é base de código do SerTec Food; se
 | 2 Pedidos | TI `CoveredArea` + `CoveredAreaCondition` | Zona de entrega por bairro, raio ou polígono, com regras por valor ("grátis acima de R$ X"). |
 | 2 Pedidos | TI `StatusWorkflowManager`; RestoPOS tipos de pedido | Aceitar com tempo estimado, recusar com motivo padronizado; status com "notificar cliente" → templates de WhatsApp (Meta exige aprovação prévia). |
 | 3 Pagamento | TI `BasePaymentGateway`, Stripe + `ProcessStripeWebhookJob` | Interface de gateway; webhook com assinatura obrigatória, processado em fila, tratando webhook antes do retorno do navegador. **Não copiar** a deduplicação (`isPaymentProcessed()` sem trava sofre condição de corrida) — usar UNIQUE + `SELECT … FOR UPDATE`. |
+| 3 Pagamento | `mercadopago/sdk-php` (MIT) — usado só como referência | Endpoints, campos e o `WebhookSignatureValidator` (formato do manifest) conferidos no SDK oficial; implementação própria em `MercadoPagoGateway`/`WebhookSignature`, sem cópia de código. |
 | 3 Pagamento | Mercado Pago (ideia) | Vincular a conta do restaurante via OAuth em vez de colar chaves; permite comissão por pedido no futuro. Requer aprovação (integração externa/decisão comercial). |
 | 4 Operação | Impressão (RestoPOS usa `mike42/escpos-php`, MIT) | MVP: layout 58/80 mm + Chrome em `--kiosk-printing`. Depois: "SerTec Print Agent" local com ESC/POS e setores (cozinha/bar). |
 | Pós-MVP | RestoPOS `ReportController` | Checklist de relatórios: por categoria, produto, forma de pagamento, consolidado. |
