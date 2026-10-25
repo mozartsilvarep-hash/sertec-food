@@ -65,7 +65,9 @@ sf exec app php artisan migrate --force
 sf exec app php artisan ops:status
 ```
 
-As migrations vêm com rollback testado no CI. Antes de uma atualização grande, faça um backup manual: `sf exec backup bash /ops/backup.sh`.
+As migrations vêm com rollback testado no CI.
+
+> **Builds reproduzíveis:** o repositório ainda não versiona o `backend/composer.lock` (o ambiente onde o código foi escrito não alcança o Packagist). Numa máquina com internet, rode uma vez `cd backend && composer update --lock` (ou `composer install`), confira os testes e faça commit do `composer.lock`. A partir daí o build de produção usa exatamente essas versões. Antes de uma atualização grande, faça um backup manual: `sf exec backup bash /ops/backup.sh`.
 
 ## 5. Cadastrar um restaurante (onboarding)
 

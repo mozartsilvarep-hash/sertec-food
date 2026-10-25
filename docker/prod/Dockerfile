@@ -21,7 +21,9 @@ RUN pnpm build
 # ---------- 2. Dependências PHP (sem dev) ----------
 FROM composer:2 AS vendor
 WORKDIR /src
-COPY backend/composer.json backend/composer.lock ./
+# composer.lock entra se existir (o curinga não falha sem ele). Versione o
+# lock para builds reproduzíveis — ver docs/OPERATIONS.md, item 4.
+COPY backend/composer.json backend/composer.lock* ./
 RUN composer install --no-dev --no-interaction --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 COPY backend/ ./
 # Scripts (package:discover) rodam no estágio do PHP, que tem as extensões.
