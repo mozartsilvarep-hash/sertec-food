@@ -5,6 +5,8 @@
 # ---------- 1. Frontends (Vue) ----------
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /src/frontend
+# Sem pergunta interativa do corepack ao baixar o pnpm do packageManager.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=1
 RUN corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 COPY frontend/apps/storefront/package.json apps/storefront/
@@ -22,7 +24,8 @@ WORKDIR /src
 COPY backend/composer.json backend/composer.lock ./
 RUN composer install --no-dev --no-interaction --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 COPY backend/ ./
-RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
+# Scripts (package:discover) rodam no estágio do PHP, que tem as extensões.
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scripts
 
 # ---------- 3. App: PHP-FPM ----------
 FROM php:8.4-fpm-bookworm AS app
@@ -38,9 +41,11 @@ COPY --chown=www-data:www-data --from=vendor /src /var/www/backend
 COPY --from=frontend /src/frontend/apps/storefront/dist/index.html /srv/www/storefront/index.html
 COPY docker/prod/entrypoint.sh /usr/local/bin/sertec-entrypoint
 RUN chmod +x /usr/local/bin/sertec-entrypoint \
-    && rm -f .env && mkdir -p storage/framework/{cache,sessions,views} storage/logs \
+    && rm -f .env \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
+RUN php artisan package:discover --ansi
 ENTRYPOINT ["sertec-entrypoint"]
 CMD ["php-fpm"]
 
