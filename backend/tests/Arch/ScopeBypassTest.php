@@ -41,12 +41,19 @@ it('13. runAsPlatform só no módulo Platform, seeders e no próprio TenantConte
         'app/Modules/Tenancy/TenantContext.php',
         'app/Modules/Platform/Http/Middleware/EnsurePlatformSession.php',
         'app/Modules/Platform/Tenants/TenantProvisioner.php',
+        // Caddy pergunta se pode emitir certificado: consulta global por hostname.
+        'app/Modules/Platform/Http/Controllers/TlsAskController.php',
+        // Restaurante só redefine senha de conta exclusiva dele: checagem global de vínculos.
+        'app/Modules/Platform/Accounts/AccountSharing.php',
         'database/seeders/DemoSeeder.php',
     ]))->toBe([]);
 });
 
 it('13. Query Builder cru (DB::table / DB::select) não é usado no código de aplicação', function () {
-    expect(filesUsing('/DB::(table|select|insert|update|delete|statement)\s*\(/', []))->toBe([]);
+    expect(filesUsing('/DB::(table|select|insert|update|delete|statement)\s*\(/', [
+        // `sessions` é tabela do driver de sessão (sem tenant_id).
+        'app/Modules/Identity/Auth/SessionTerminator.php',
+    ]))->toBe([]);
 });
 
 it('13. código de aplicação não lê tenant_id do request', function () {

@@ -25,6 +25,8 @@ class AuditMutations
         'merchant.orders.status', 'merchant.orders.refunds.store',
         'merchant.payments.mercadopago.update', 'merchant.payments.mercadopago.destroy',
         'merchant.settings.update',
+        'merchant.me.password', 'merchant.staff.store', 'merchant.staff.update',
+        'merchant.staff.destroy', 'merchant.staff.password',
     ];
 
     public function __construct(private readonly AuditLogger $audit) {}
