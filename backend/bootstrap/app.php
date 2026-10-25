@@ -7,6 +7,7 @@ use App\Modules\Identity\Http\Middleware\RequirePermission;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformHost;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformSession;
 use App\Modules\Platform\Http\Middleware\RequireFeature;
+use App\Modules\Tenancy\Http\Controllers\StorefrontShellController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenantFromHost;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -17,6 +18,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,14 +26,27 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            // Cardápio com meta tags do restaurante (produção, via Caddy).
+            Route::get('/__storefront', StorefrontShellController::class)
+                ->middleware('throttle:public')->name('storefront.shell');
+        },
     )
     ->withCommands([
         __DIR__.'/../app/Modules/Platform/Console',
         __DIR__.'/../app/Modules/Payments/Console',
+        __DIR__.'/../app/Modules/Ordering/Console',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
-        $middleware->trustProxies(at: '*');
+        // Em produção o Caddy fala FastCGI direto com o PHP: REMOTE_ADDR já é o
+        // IP real e nenhum proxy precisa ser confiável (confiar em "*" deixaria
+        // o cliente forjar X-Forwarded-For e driblar limites por IP). Se houver
+        // CDN/balanceador na frente, liste os IPs dele em TRUSTED_PROXIES.
+        $proxies = (string) env('TRUSTED_PROXIES', '');
+        if ($proxies !== '') {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
 
         // Sessão por cookie host-only (SESSION_DOMAIN vazio): o cookie do
         // tenant A nunca é enviado ao host do tenant B. SPA e API ficam na

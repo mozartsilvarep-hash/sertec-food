@@ -30,6 +30,10 @@ final class Phone
     /** Para exibir ao restaurante: (82) 99999-0000 */
     public static function format(string $digits): string
     {
+        if (strlen($digits) < 10) {
+            return ''; // anonimizado (LGPD)
+        }
+
         return strlen($digits) === 11
             ? sprintf('(%s) %s-%s', substr($digits, 0, 2), substr($digits, 2, 5), substr($digits, 7))
             : sprintf('(%s) %s-%s', substr($digits, 0, 2), substr($digits, 2, 4), substr($digits, 6));
@@ -38,6 +42,10 @@ final class Phone
     /** Para o acompanhamento público: (82) •••••-0000 */
     public static function mask(string $digits): string
     {
+        if (strlen($digits) < 10) {
+            return '';
+        }
+
         return sprintf('(%s) •••••-%s', substr($digits, 0, 2), substr($digits, -4));
     }
 }

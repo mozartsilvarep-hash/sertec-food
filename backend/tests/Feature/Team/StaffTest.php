@@ -3,6 +3,7 @@
 use App\Modules\Identity\Models\Role;
 use App\Modules\Identity\Models\TenantUser;
 use App\Modules\Identity\Models\User;
+use App\Modules\Tenancy\Models\Branch;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -111,7 +112,7 @@ it('unidade: dono edita telefone e endereço; não desativa a última; atendente
     withSession($this->session)->patchJson($url, ['phone' => '123'])->assertStatus(422);
 
     // Única unidade ativa do tenant A? Desativa as outras primeiro.
-    inTenant($this->a, fn () => \App\Modules\Tenancy\Models\Branch::query()->whereKeyNot($this->branch->id)->update(['active' => false]));
+    inTenant($this->a, fn () => Branch::query()->whereKeyNot($this->branch->id)->update(['active' => false]));
     withSession($this->session)->patchJson($url, ['active' => false])->assertStatus(409)->assertJsonPath('code', 'last_branch');
 
     $attendant = merchantLogin($this->a, makeMember($this->a, role: Role::ATTENDANT));

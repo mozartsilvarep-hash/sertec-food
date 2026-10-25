@@ -14,6 +14,7 @@ use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
+use App\Modules\Ordering\Http\Controllers\PrivacyController;
 use App\Modules\Ordering\Http\Controllers\ReportController;
 use App\Modules\Ordering\Http\Controllers\TrackingController;
 use App\Modules\Payments\Http\Controllers\MercadoPagoWebhookController;
@@ -24,6 +25,7 @@ use App\Modules\Platform\Http\Controllers\AdminAuditController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
 use App\Modules\Platform\Http\Controllers\AdminDomainController;
 use App\Modules\Platform\Http\Controllers\AdminTenantController;
+use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Platform\Http\Controllers\MerchantAuditController;
 use App\Modules\Platform\Http\Controllers\TlsAskController;
 use App\Modules\Platform\Http\Middleware\AuditMutations;
@@ -158,6 +160,12 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
             ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
 
+        // LGPD: atendimento a titulares
+        Route::middleware('permission:'.P::SETTINGS_UPDATE)->group(function () {
+            Route::get('privacy/customer', [PrivacyController::class, 'show'])->name('privacy.show');
+            Route::post('privacy/customer/erase', [PrivacyController::class, 'erase'])->name('privacy.erase');
+        });
+
         // Relatórios e auditoria
         Route::middleware('permission:'.P::REPORTS_VIEW)->group(function () {
             Route::get('reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
@@ -205,3 +213,4 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
 // Perguntado pelo Caddy antes de emitir certificado (on-demand TLS). A borda
 // bloqueia /api/v1/internal/* vindo de fora; só a rede interna alcança.
 Route::get('internal/tls-ask', TlsAskController::class)->middleware('throttle:60,1')->name('internal.tls-ask');
+Route::get('internal/health', HealthController::class)->middleware('throttle:60,1')->name('internal.health');
