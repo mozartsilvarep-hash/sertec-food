@@ -42,7 +42,7 @@ COPY --from=frontend /src/frontend/apps/storefront/dist/index.html /srv/www/stor
 COPY docker/prod/entrypoint.sh /usr/local/bin/sertec-entrypoint
 RUN chmod +x /usr/local/bin/sertec-entrypoint \
     && rm -f .env \
-    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
 RUN php artisan package:discover --ansi
