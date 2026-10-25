@@ -14,6 +14,9 @@ enum CancellationReason: string
     case CustomerUnreachable = 'customer_unreachable';
     case Other = 'other';
 
+    /** Automático: o pagamento online não foi concluído no prazo. */
+    case PaymentNotCompleted = 'payment_not_completed';
+
     public function label(): string
     {
         return match ($this) {
@@ -23,6 +26,7 @@ enum CancellationReason: string
             self::CustomerRequest => 'A pedido do cliente',
             self::CustomerUnreachable => 'Não conseguimos contato',
             self::Other => 'Outro motivo',
+            self::PaymentNotCompleted => 'Pagamento não concluído',
         };
     }
 }

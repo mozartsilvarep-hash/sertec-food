@@ -10,9 +10,20 @@ enum PaymentMethod: string
     /** Cartão na maquininha, na entrega/retirada. */
     case CardOnDelivery = 'card_on_delivery';
 
+    /** Pix pelo Mercado Pago, pago no site (QR Code / copia e cola). */
+    case Pix = 'pix';
+
+    /** Cartão pelo Checkout Pro do Mercado Pago (dados do cartão nunca passam por nós). */
+    case OnlineCard = 'online_card';
+
     public function isOnDelivery(): bool
     {
-        return true; // Sprint 3 acrescenta métodos online (Mercado Pago).
+        return in_array($this, [self::Cash, self::CardOnDelivery], true);
+    }
+
+    public function isOnline(): bool
+    {
+        return ! $this->isOnDelivery();
     }
 
     public function label(): string
@@ -20,6 +31,8 @@ enum PaymentMethod: string
         return match ($this) {
             self::Cash => 'Dinheiro',
             self::CardOnDelivery => 'Cartão na entrega',
+            self::Pix => 'Pix',
+            self::OnlineCard => 'Cartão pelo site',
         };
     }
 }

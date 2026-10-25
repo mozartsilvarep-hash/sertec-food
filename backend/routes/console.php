@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Webhook é o caminho principal; a reconciliação garante que nada fique pendurado.
+Schedule::command('payments:reconcile')->everyMinute()->withoutOverlapping()->onOneServer();

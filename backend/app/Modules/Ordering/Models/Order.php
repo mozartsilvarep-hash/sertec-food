@@ -6,6 +6,7 @@ use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Enums\PaymentStatus;
+use App\Modules\Payments\Models\Payment;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Modules\Tenancy\Models\Branch;
 use Illuminate\Database\Eloquent\Collection;
@@ -48,6 +49,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, OrderItem> $items
  * @property-read Collection<int, OrderTotal> $totals
  * @property-read Collection<int, OrderStatusHistory> $history
+ * @property-read Collection<int, Payment> $payments
  */
 class Order extends Model
 {
@@ -110,5 +112,11 @@ class Order extends Model
     public function history(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->orderBy('id');
+    }
+
+    /** @return HasMany<Payment, $this> */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class)->orderBy('id');
     }
 }

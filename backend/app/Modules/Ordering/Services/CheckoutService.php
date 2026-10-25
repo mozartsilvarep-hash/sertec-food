@@ -18,6 +18,10 @@ use App\Modules\Ordering\Models\OrderSequence;
 use App\Modules\Ordering\Models\OrderStatusHistory;
 use App\Modules\Ordering\Models\OrderTotal;
 use App\Modules\Ordering\Support\Phone;
+use App\Modules\Payments\Enums\Provider;
+use App\Modules\Payments\Models\IntegrationConnection;
+use App\Modules\Payments\Models\Payment;
+use App\Modules\Payments\Services\PaymentInitiator;
 use App\Modules\Tenancy\Schedule\OpeningSchedule;
 use App\Modules\Tenancy\TenantContext;
 use App\Support\Money;
@@ -34,7 +38,10 @@ use Illuminate\Support\Facades\DB;
  *  3. revalida horário, disponibilidade e preços no servidor;
  *  4. calcula entrega e totais (preço do navegador é ignorado);
  *  5. grava pedido + snapshots + composição do total + histórico;
- *  6. marca o carrinho como convertido.
+ *  6. marca o carrinho como convertido;
+ *  7. pagamento online: grava o pedido como awaiting_payment + a linha em
+ *     `payments`. A cobrança no provedor é criada DEPOIS do commit
+ *     (CheckoutController → PaymentInitiator), nunca segurando a transação.
  */
 final class CheckoutService
 {
@@ -46,7 +53,7 @@ final class CheckoutService
 
     /**
      * @param  array<string, mixed>  $data  validado por CheckoutRequest
-     * @return array{status: int, body: array<string, mixed>}
+     * @return array{status: int, body: array<string, mixed>, payment?: Payment|null}
      */
     public function checkout(string $idempotencyKey, array $data): array
     {
@@ -65,7 +72,7 @@ final class CheckoutService
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array{status: int, body: array<string, mixed>}
+     * @return array{status: int, body: array<string, mixed>, payment?: Payment|null}
      */
     private function run(string $key, string $hash, array $data): array
     {
@@ -124,6 +131,9 @@ final class CheckoutService
         /** @var array{method: string, change_for?: string|null} $paymentData */
         $paymentData = $data['payment'];
         $method = PaymentMethod::from($paymentData['method']);
+        if ($method->isOnline() && IntegrationConnection::activeFor(Provider::MercadoPago) === null) {
+            throw OrderingException::make('payment_method_unavailable', 'Pagamento online indisponível. Escolha pagar na entrega.');
+        }
         $changeFor = $method === PaymentMethod::Cash && ! empty($paymentData['change_for']) ? Money::toCents((string) $paymentData['change_for']) : null;
         if ($changeFor !== null && $changeFor < $total) {
             throw OrderingException::make('change_for_too_low', 'O valor para troco precisa ser maior que o total do pedido.');
@@ -144,7 +154,8 @@ final class CheckoutService
             'customer_id' => $customer->id,
             'order_number' => $number,
             'tracking_token_hash' => hash('sha256', $trackingToken),
-            'status' => OrderStatus::PendingAcceptance,
+            // Online: o restaurante só vê o pedido depois do pagamento confirmado.
+            'status' => $method->isOnline() ? OrderStatus::AwaitingPayment : OrderStatus::PendingAcceptance,
             'payment_status' => PaymentStatus::Pending,
             'payment_method' => $method,
             'change_for' => $changeFor !== null ? Money::format($changeFor) : null,
@@ -175,7 +186,9 @@ final class CheckoutService
             OrderTotal::query()->create(['order_id' => $order->id, 'code' => $code, 'label' => $label, 'amount' => Money::format($amount), 'sort_order' => $position]);
         }
 
-        OrderStatusHistory::query()->create(['order_id' => $order->id, 'old_status' => null, 'new_status' => OrderStatus::PendingAcceptance]);
+        OrderStatusHistory::query()->create(['order_id' => $order->id, 'old_status' => null, 'new_status' => $order->status]);
+
+        $payment = $method->isOnline() ? PaymentInitiator::open($order) : null;
 
         $cart->forceFill(['converted_at' => $now, 'order_public_id' => $order->public_id])->save();
 
@@ -188,13 +201,15 @@ final class CheckoutService
             'fulfillment_type' => $order->fulfillment_type->value,
             'total' => $order->total,
             'eta_minutes' => $order->eta_minutes,
+            'payment_required' => $payment !== null,
+            'payment_expires_at' => $payment?->expires_at->toIso8601String(),
             // Mostrado uma vez; o banco guarda só o hash.
             'tracking_token' => $trackingToken,
         ]];
 
         $reservation->forceFill(['status_code' => 201, 'response_json' => $body])->save();
 
-        return ['status' => 201, 'body' => $body];
+        return ['status' => 201, 'body' => $body, 'payment' => $payment];
     }
 
     private function snapshotItem(Order $order, CartItem $item, PriceQuote $quote): void

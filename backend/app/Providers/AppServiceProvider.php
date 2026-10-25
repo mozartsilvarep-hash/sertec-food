@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Modules\Identity\Access\TenantAccess;
+use App\Modules\Payments\Gateway\MercadoPagoGateway;
+use App\Modules\Payments\Gateway\PaymentGateway;
 use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -19,6 +21,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(TenantAccess::class);
         $this->app->scoped(FeatureGate::class);
+
+        $this->app->bind(PaymentGateway::class, MercadoPagoGateway::class);
     }
 
     public function boot(): void
@@ -43,6 +47,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('checkout', fn (Request $request) => [
             Limit::perMinute(10)->by('checkout:'.$request->getHost().'|'.$request->ip()),
         ]);
+
+        // Webhooks: o provedor manda rajadas e reenvios; acima disso é abuso.
+        RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(120)->by('webhooks:'.$request->getHost()));
+
+        // Ações que chamam o provedor (gerar Pix de novo, "já paguei", reembolso, credenciais).
+        RateLimiter::for('payment-actions', fn (Request $request) => Limit::perMinute(12)->by('pay:'.$request->getHost().'|'.$request->ip()));
 
         RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(20)->by('uploads:'.$request->user()?->getAuthIdentifier()));
     }

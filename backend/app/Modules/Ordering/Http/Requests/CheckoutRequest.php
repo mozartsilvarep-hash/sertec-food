@@ -33,7 +33,8 @@ class CheckoutRequest extends FormRequest
                     $fail('Informe um celular com DDD, ex.: (82) 99999-0000.');
                 }
             }],
-            'customer.email' => ['nullable', 'email', 'max:191'],
+            // O Mercado Pago exige e-mail do pagador no Pix.
+            'customer.email' => [Rule::requiredIf(fn () => $this->input('payment.method') === PaymentMethod::Pix->value), 'nullable', 'email', 'max:191'],
             'fulfillment.type' => ['required', Rule::enum(FulfillmentType::class)],
             'fulfillment.zone_id' => [Rule::requiredIf($delivery), 'nullable', 'string', 'size:26'],
             'fulfillment.address.street' => [Rule::requiredIf($delivery), 'nullable', 'string', 'max:150'],
@@ -53,6 +54,7 @@ class CheckoutRequest extends FormRequest
         return [
             'customer.name' => 'nome',
             'customer.phone' => 'celular',
+            'customer.email' => 'e-mail',
             'fulfillment.address.street' => 'rua',
             'fulfillment.address.number' => 'número',
             'fulfillment.address.neighborhood' => 'bairro',
