@@ -33,6 +33,8 @@ export interface StorefrontInfo {
   description: string | null
   brand_color: string | null
   branches: BranchStatus[]
+  /** Formas aceitas; Pix e cartão pelo site só aparecem com o Mercado Pago conectado. */
+  payment_methods?: { method: 'cash' | 'card_on_delivery' | 'pix' | 'online_card'; label: string; online: boolean }[]
 }
 
 export interface ProductSummary {

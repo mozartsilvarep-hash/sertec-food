@@ -98,3 +98,33 @@ Erros do checkout: `idempotency_key_required` (400), `idempotency_conflict` / `i
 | `PUT /merchant/branches/{id}/delivery` `{pickup_enabled, delivery_enabled, pickup_eta_minutes, zones[{id?, name, neighborhoods[], fee, minimum_order?, free_above?, eta_minutes, active?}]}` | `branches.manage` |
 
 `GET /storefront` agora inclui em cada unidade `fulfillment{pickup_enabled, delivery_enabled, pickup_eta_minutes, zones[]}` (só zonas ativas).
+
+## Implementado na Sprint 3 — Pagamento
+
+### Storefront e checkout
+- `GET /storefront` ganhou `payment_methods[{method, label, online}]`; `pix` e `online_card` só aparecem com o Mercado Pago conectado.
+- `POST /checkout`: `payment.method` aceita também `pix` (exige `customer.email`, pedido do Mercado Pago) e `online_card`. Pedido online nasce `awaiting_payment` e **não aparece no painel** até o pagamento ser confirmado. Resposta ganhou `payment_required` e `payment_expires_at`. A cobrança é criada no provedor logo depois do commit; se falhar, o pedido existe e o acompanhamento oferece gerar de novo. Erro novo: `payment_method_unavailable` (422).
+- `GET /orders/track/{token}` ganhou `payment` (online): `{status, amount, expires_at, payable, needs_start, rejected, pix{qr_code, qr_code_base64, ticket_url}|null, checkout_url|null}`. Sem IDs do provedor.
+- `POST /orders/track/{token}/payment` (12/min por host+IP): gera a cobrança se ainda não existe ou consulta o provedor ("Já paguei"). Corpo é ignorado. 409 `payment_not_pending`.
+
+### Webhook
+`POST /webhooks/mercadopago` no **host do restaurante** (`notification_url` enviada em cada cobrança quando o host é HTTPS, com `?source_news=webhooks`). 120/min por host.
+1. Com assinatura secreta configurada: exige `x-signature` válido (`ts`, `v1` = HMAC-SHA256 de `id:{data.id};request-id:{x-request-id};ts:{ts};`) → senão **401** `invalid_signature`.
+2. Só `type=payment` com `data.id` numérico; o resto responde 200 `ignored` sem gravar.
+3. Grava em `payment_events` (UNIQUE deduplica → 200 `duplicate`), enfileira `ProcessPaymentEvent`, responde 200 `received`.
+4. O job consulta `GET /v1/payments/{id}` com o token **do restaurante do host**; pagamento de outra conta = 404 → `ignored`.
+
+### Painel
+| Rota | Permissão |
+|---|---|
+| `GET /merchant/payments/mercadopago` | `payments.manage` (só proprietário) — `{connected, mode, account_label, account_id, token_hint, has_webhook_secret, verified_at, webhook_url}`; nunca devolve credenciais |
+| `PUT /merchant/payments/mercadopago` `{access_token?, webhook_secret?, remove_webhook_secret?}` | `payments.manage` — valida o token em `GET /users/me` (conta do Brasil) antes de gravar; 422 `invalid_provider_credentials` |
+| `DELETE /merchant/payments/mercadopago` | `payments.manage` — apaga as credenciais |
+| `POST /merchant/orders/{id}/refunds` `{amount?, reason?}` | `payments.refund` (proprietário e gerente) + acesso à unidade; sem `amount` devolve tudo o disponível. 409 `nothing_to_refund`, 422 `refund_amount_invalid`, 502 `payment_provider_unavailable` (falha registrada em `refunds`) |
+| `GET /merchant/orders…` | resposta ganhou `online_payment{status, amount, amount_refunded, refundable, approved_at, provider_reference, attempts[], refunds[]}`; pedidos `awaiting_payment` não aparecem em nenhum filtro e dão 404 no detalhe |
+
+Cancelar/recusar um pedido pago online dispara o reembolso total automaticamente (job com novas tentativas). O motivo `payment_not_completed` é exclusivo do sistema.
+
+### Chamadas ao Mercado Pago (sem SDK)
+`GET /users/me`, `POST /v1/payments` (Pix), `POST /checkout/preferences` (Checkout Pro, sem boleto/lotérica), `GET /v1/payments/{id}`, `GET /v1/payments/search?external_reference=`, `POST /v1/payments/{id}/refunds`. Criações com `X-Idempotency-Key`; timeout de 10 s; logs só com operação e status HTTP.
+

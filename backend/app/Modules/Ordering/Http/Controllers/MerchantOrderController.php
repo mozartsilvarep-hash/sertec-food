@@ -18,22 +18,22 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MerchantOrderController
 {
-    private const ACTIVE = ['pending_acceptance', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
-
     public function index(Request $request, TenantAccess $tenantAccess): AnonymousResourceCollection
     {
         $access = $tenantAccess->for($this->user($request));
 
         $query = Order::query()
-            ->with(['branch', 'items.options'])
+            ->with(['branch', 'items.options', 'payments.refunds'])
+            // Pedido online ainda não pago não existe para o restaurante.
+            ->where('status', '!=', OrderStatus::AwaitingPayment)
             ->when($access->branchIds !== null, fn ($q) => $q->whereIn('branch_id', $access->branchIds ?? []))
             ->orderByDesc('placed_at')->orderByDesc('id');
 
         $view = (string) $request->query('view', 'active');
         if ($view === 'active') {
-            $query->whereIn('status', self::ACTIVE);
+            $query->whereIn('status', OrderStatus::active());
         } elseif ($view === 'finished') {
-            $query->whereNotIn('status', self::ACTIVE);
+            $query->whereIn('status', [OrderStatus::Completed, OrderStatus::Rejected, OrderStatus::Cancelled]);
         } elseif (OrderStatus::tryFrom($view) !== null) {
             $query->where('status', $view);
         }
@@ -51,7 +51,7 @@ class MerchantOrderController
     {
         $this->guard($request, $order, $access);
 
-        return new MerchantOrderResource($order->load(['branch', 'items.options', 'totals', 'history']));
+        return new MerchantOrderResource($order->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds']));
     }
 
     public function updateStatus(Request $request, Order $order, TenantAccess $access, OrderTransitions $transitions): MerchantOrderResource
@@ -61,7 +61,7 @@ class MerchantOrderController
         $data = $request->validate([
             'status' => ['required', Rule::enum(OrderStatus::class)],
             'eta_minutes' => ['nullable', 'integer', 'min:5', 'max:240'],
-            'reason' => ['nullable', Rule::enum(CancellationReason::class)],
+            'reason' => ['nullable', Rule::enum(CancellationReason::class)->except(CancellationReason::PaymentNotCompleted)],
             'note' => ['nullable', 'string', 'max:300'],
         ]);
 
@@ -74,12 +74,12 @@ class MerchantOrderController
             $data['note'] ?? null,
         );
 
-        return new MerchantOrderResource($updated->load(['branch', 'items.options', 'totals', 'history']));
+        return new MerchantOrderResource($updated->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds']));
     }
 
     private function guard(Request $request, Order $order, TenantAccess $access): void
     {
-        if (! $access->for($this->user($request))->canAccessBranch($order->branch_id)) {
+        if ($order->status === OrderStatus::AwaitingPayment || ! $access->for($this->user($request))->canAccessBranch($order->branch_id)) {
             throw new NotFoundHttpException;
         }
     }

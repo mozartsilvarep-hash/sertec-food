@@ -137,3 +137,34 @@ Métodos `cash` (com troco ≥ total) e `card_on_delivery`. `payment_status` com
 
 ### D31 — Cliente e acompanhamento
 `customers` por tenant identificados pelo celular normalizado (10–11 dígitos com DDD), dados mínimos. Acompanhamento público por token de 40 hex (hash no banco) mostra estado, itens e totais, mas **não** telefone completo, rua/número, complemento, e-mail ou sobrenome. Atualização por polling (20 s cliente, 15 s painel) até o tempo real da Sprint 4. Checkout limitado a 10/min por host+IP.
+
+## Decisões da Sprint 3 — Pagamento
+
+### D32 — Mercado Pago com credenciais coladas pelo restaurante
+Cada restaurante recebe na **própria** conta do Mercado Pago (a SerTec não intermedia dinheiro; split fica fora do MVP). O proprietário cola o Access Token e, opcionalmente, a assinatura secreta do webhook; o token é validado em `GET /users/me` (conta MLB) e gravado em `integration_connections.credentials` com o cast `encrypted:array` (APP_KEY). A API devolve só os 4 últimos caracteres; auditoria registra conexão/desconexão sem segredos. Modo `test`/`live` derivado do prefixo do token. **Alternativa pendente de decisão:** OAuth do Mercado Pago (exige registrar o aplicativo SerTec e guardar refresh token).
+
+### D33 — Sem SDK
+Cliente HTTP próprio (`MercadoPagoGateway`, ~200 linhas) atrás da interface `PaymentGateway`: menos dependências, controle do que vai para log e testes com `Http::fake`. Endpoints e formato da assinatura conferidos com o SDK oficial `mercadopago/sdk-php` (licença MIT, sem cópia de código). Pix pela API de Pagamentos (`/v1/payments`, QR na resposta) e cartão pelo Checkout Pro (`/checkout/preferences`): os dois geram notificações do tópico `payment` e são conciliados pelo mesmo `GET /v1/payments/{id}`. Dados de cartão nunca passam pelo SerTec Food.
+
+### D34 — Pedido online só existe para o restaurante depois de pago
+Novo status `awaiting_payment` (saída só pelo sistema: `OrderTransitions::system()`). Confirmado → `pending_acceptance` com histórico sem ator ("Pagamento confirmado pelo Mercado Pago"). Prazo de 30 min (+2 min de tolerância) vencido → `cancelled` com motivo `payment_not_completed` e `payment_status=expired`. Pago depois do cancelamento → reembolso automático.
+
+### D35 — Fonte da verdade e conferências
+O status nunca vem do navegador (retorno do Checkout Pro vai para `/pedido/retorno`, sem token e com a query ignorada) nem do corpo do webhook: `PaymentSync` sempre lê a API com o token do restaurante e, com pagamento e pedido travados (`FOR UPDATE`), confere `external_reference` = `payments.public_id`, `collector_id` = conta conectada, moeda BRL e valor exato em centavos. Qualquer divergência → `mismatch` + auditoria, pedido não é liberado. Pagamento confirmado nunca volta a pendente; outra tentativa aprovada no mesmo checkout é auditada como `payment.duplicate_approval` (tratamento manual).
+
+### D36 — Webhook: caixa de entrada, assinatura e isolamento
+Rota no host do restaurante (o tenant vem do Host, como em todo o sistema), sem sessão/CSRF. Assinatura `x-signature` verificada como no SDK oficial; com segredo configurado a ausência/erro dá 401. Sem segredo o evento é aceito, mas é inofensivo: só dispara uma consulta autoritativa. `payment_events` deduplica por `(provider, external_event_id)` (ID da notificação, ou hash de tópico+recurso+ação+x-request-id) e guarda só campos mínimos. Pagamento de outra conta consultado com o token do host = 404 → ignorado. Processamento em fila (`ProcessPaymentEvent`, 5 tentativas); erro no processamento nunca derruba a resposta ao provedor.
+**Correção de infraestrutura encontrada no E2E:** o Nginx sobrescrevia o cabeçalho `X-Request-Id` com o ID próprio, o que invalidaria toda assinatura do Mercado Pago. O ID do Nginx agora vai no parâmetro FastCGI `SERTEC_REQUEST_ID` (preferido pelo `AssignRequestId`) e o cabeçalho do cliente chega intacto. O PHP troca `data.id` por `data_id` em `$_GET`; o controller lê a query string crua.
+
+### D37 — Idempotência com o provedor
+A cobrança é criada **depois** do commit do checkout (não segura transação esperando rede) com `X-Idempotency-Key = payments.public_id`: falha de rede → o acompanhamento oferece "Tentar de novo" com a mesma chave, sem cobrar duas vezes. Replay do checkout (mesma `Idempotency-Key`) não cria nova cobrança. Reembolsos usam `refunds.public_id` como chave e travam o pagamento durante a chamada (dois reembolsos simultâneos não passam do valor pago); falha do provedor fica registrada (`refunds.status=failed`) e o pagamento não muda.
+
+### D38 — Reconciliação agendada
+`payments:reconcile` a cada minuto (`schedule:work`, novo serviço `scheduler` no Compose; `withoutOverlapping` + `onOneServer`): por tenant ativo e no contexto dele, consulta pagamentos abertos (Pix por ID; Checkout Pro pela `external_reference`, escolhendo a tentativa mais avançada), vence os expirados e reenfileira eventos com falha. É o que confirma pagamentos em desenvolvimento, onde o host não é HTTPS e o Mercado Pago não alcança o webhook.
+
+### D39 — Permissões
+`payments.manage` (credenciais) só para o proprietário; `payments.refund` para proprietário e gerente. Sincronizadas em ambientes existentes pela migration `2026_10_25_000300`.
+
+### D40 — Acompanhamento durante o pagamento
+Enquanto `awaiting_payment`, o site consulta o pedido a cada 5 s (a rota de leitura não chama o provedor); "Já paguei" chama o provedor com limite de 12/min. Pix com QR, copia e cola e contagem regressiva; cartão com botão para o Checkout Pro (sandbox com credencial de teste).
+

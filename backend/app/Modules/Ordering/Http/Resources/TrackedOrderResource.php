@@ -6,6 +6,7 @@ use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Order;
 use App\Modules\Ordering\Models\OrderStatusHistory;
 use App\Modules\Ordering\Support\Phone;
+use App\Modules\Payments\Support\PaymentPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -45,9 +46,10 @@ class TrackedOrderResource extends JsonResource
                 'label' => $h->new_status->label(),
                 'at' => $h->created_at->toIso8601String(),
             ])->values(),
+            'payment' => PaymentPresenter::public($this->resource),
             'final' => $this->status->isFinal(),
             'steps' => array_map(fn (OrderStatus $s) => ['status' => $s->value, 'label' => $s->label()], array_values(array_filter(
-                [OrderStatus::PendingAcceptance, OrderStatus::Accepted, OrderStatus::Preparing, OrderStatus::Ready, OrderStatus::OutForDelivery, OrderStatus::Completed],
+                [...($this->payment_method->isOnline() ? [OrderStatus::AwaitingPayment] : []), OrderStatus::PendingAcceptance, OrderStatus::Accepted, OrderStatus::Preparing, OrderStatus::Ready, OrderStatus::OutForDelivery, OrderStatus::Completed],
                 fn (OrderStatus $s) => $s !== OrderStatus::OutForDelivery || $this->fulfillment_type->value === 'delivery',
             ))),
         ];

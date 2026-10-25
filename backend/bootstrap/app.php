@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         __DIR__.'/../app/Modules/Platform/Console',
+        __DIR__.'/../app/Modules/Payments/Console',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);

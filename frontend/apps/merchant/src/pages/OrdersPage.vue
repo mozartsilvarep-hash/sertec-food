@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
-  ApiError, CANCELLATION_REASONS, describeError, formatMoney, formatTime, merchantOrdersApi,
+  ApiError, CANCELLATION_REASONS, describeError, formatMoney, formatTime, merchantOrdersApi, paymentsApi, toCents,
   type CancellationReason, type MerchantOrder, type OrderStatus,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet } from '@sertec/ui'
@@ -18,6 +18,18 @@ const cancelling = ref<OrderStatus | null>(null)
 const reason = ref<CancellationReason>('out_of_stock')
 const note = ref('')
 const manage = can('orders.manage')
+const canRefund = can('payments.refund')
+const refunding = ref(false)
+const refundAmount = ref('')
+const refundReason = ref('')
+const refundConfirm = ref(false)
+
+const PAYMENT_LABEL: Record<string, string> = {
+  approved: 'pago pelo site', partially_refunded: 'reembolsado em parte', refunded: 'reembolsado',
+  in_review: 'em análise no Mercado Pago', charged_back: 'contestado pelo cliente', mismatch: 'divergente — confira no Mercado Pago',
+}
+const paidOnline = (o: MerchantOrder) => ['approved', 'partially_refunded'].includes(o.online_payment?.status ?? '')
+const refundable = computed(() => toCents(selected.value?.online_payment?.refundable ?? '0'))
 const tz = computed(() => me.value?.tenant.timezone ?? 'America/Sao_Paulo')
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -49,6 +61,9 @@ async function load(silent = false) {
 async function open(order: MerchantOrder) {
   selected.value = order
   cancelling.value = null
+  refundConfirm.value = false
+  refundAmount.value = ''
+  refundReason.value = ''
   selected.value = await merchantOrdersApi.get(order.id)
   eta.value = selected.value.eta_minutes ?? 40
 }
@@ -77,6 +92,30 @@ async function advance(status: OrderStatus) {
     await load(true)
   } finally {
     acting.value = false
+  }
+}
+
+async function refund() {
+  if (!selected.value) return
+  if (!refundConfirm.value) {
+    refundConfirm.value = true
+    return
+  }
+  refunding.value = true
+  try {
+    const result = await paymentsApi.refund(selected.value.id, {
+      amount: refundAmount.value.trim() || null,
+      reason: refundReason.value.trim() || null,
+    })
+    selected.value = result.order
+    refundConfirm.value = false
+    refundAmount.value = ''
+    notify(`Reembolso de ${formatMoney(result.refund.amount)} enviado ao Mercado Pago`)
+    await load(true)
+  } catch (error) {
+    notify(describeError(error).message, 'error')
+  } finally {
+    refunding.value = false
   }
 }
 
@@ -128,7 +167,10 @@ onBeforeUnmount(() => clearInterval(timer))
             :class="o.status === 'pending_acceptance' ? 'border-brand-600 ring-2 ring-brand-100' : 'border-line'" @click="open(o)"
           >
             <span class="flex items-baseline justify-between gap-2">
-              <span class="font-display text-lg font-bold">#{{ o.number }}</span>
+              <span class="flex items-center gap-2">
+                <span class="font-display text-lg font-bold">#{{ o.number }}</span>
+                <span v-if="paidOnline(o)" class="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-success">Pago online</span>
+              </span>
               <span class="text-sm text-muted">{{ minutesAgo(o.placed_at) }}</span>
             </span>
             <span class="mt-1 block text-sm">{{ o.customer.name }} · {{ o.fulfillment_type === 'delivery' ? o.address?.neighborhood : 'Retirada' }}</span>
@@ -160,7 +202,17 @@ onBeforeUnmount(() => clearInterval(timer))
             <dd>{{ selected.address.street }}, {{ selected.address.number }}<template v-if="selected.address.complement"> — {{ selected.address.complement }}</template><br>{{ selected.address.neighborhood }}<template v-if="selected.address.reference"> · Ref.: {{ selected.address.reference }}</template></dd>
           </div>
           <div v-else><dt class="font-semibold">Retirada no local</dt></div>
-          <div><dt class="font-semibold">Pagamento</dt><dd>{{ selected.payment_method_label }}<template v-if="selected.change_for"> · troco para {{ formatMoney(selected.change_for) }}</template></dd></div>
+          <div>
+            <dt class="font-semibold">Pagamento</dt>
+            <dd>
+              {{ selected.payment_method_label }}<template v-if="selected.change_for"> · troco para {{ formatMoney(selected.change_for) }}</template>
+              <template v-if="selected.online_payment?.status"> · {{ PAYMENT_LABEL[selected.online_payment.status] ?? selected.online_payment.status }}</template>
+              <span v-if="selected.online_payment?.provider_reference" class="block text-muted">Mercado Pago nº {{ selected.online_payment.provider_reference }}</span>
+              <span v-for="r in selected.online_payment?.refunds ?? []" :key="r.id" class="block text-muted">
+                Reembolso {{ formatMoney(r.amount) }} · {{ r.status === 'failed' ? 'falhou' : r.status === 'rejected' ? 'recusado' : r.status === 'approved' ? 'feito' : 'em processamento' }} · {{ formatTime(r.created_at, tz) }}
+              </span>
+            </dd>
+          </div>
           <div v-if="selected.notes"><dt class="font-semibold">Observações</dt><dd>{{ selected.notes }}</dd></div>
         </dl>
 
@@ -174,6 +226,21 @@ onBeforeUnmount(() => clearInterval(timer))
         <dl class="mt-2 grid gap-1 text-sm">
           <div v-for="t in selected.totals ?? []" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'font-bold'"><dt>{{ t.label }}</dt><dd class="tabular-nums">{{ formatMoney(t.amount) }}</dd></div>
         </dl>
+
+        <section v-if="canRefund && refundable > 0" class="mt-6 grid gap-3 rounded-(--radius-card) border border-line p-4" aria-label="Reembolso">
+          <h3 class="font-semibold">Reembolso pelo Mercado Pago</h3>
+          <p class="text-sm text-muted">Disponível: {{ formatMoney(selected.online_payment!.refundable) }}. Deixe o valor em branco para devolver tudo.</p>
+          <div class="grid grid-cols-[8rem_1fr] gap-2">
+            <input v-model="refundAmount" inputmode="decimal" placeholder="Valor (R$)" aria-label="Valor do reembolso" class="min-h-11 rounded-(--radius-control) border border-line px-3">
+            <input v-model="refundReason" maxlength="200" placeholder="Motivo (opcional)" aria-label="Motivo do reembolso" class="min-h-11 rounded-(--radius-control) border border-line px-3">
+          </div>
+          <div class="flex gap-2">
+            <SButton :variant="refundConfirm ? 'primary' : 'secondary'" :loading="refunding" @click="refund">
+              {{ refundConfirm ? `Confirmar reembolso de ${refundAmount.trim() ? `R$ ${refundAmount.trim()}` : formatMoney(selected.online_payment!.refundable)}` : 'Reembolsar' }}
+            </SButton>
+            <SButton v-if="refundConfirm" variant="ghost" @click="refundConfirm = false">Voltar</SButton>
+          </div>
+        </section>
       </div>
 
       <footer v-if="manage && selected.next_statuses.length" class="grid gap-3 border-t border-line bg-surface px-5 py-4">
@@ -184,6 +251,7 @@ onBeforeUnmount(() => clearInterval(timer))
             </select>
           </label>
           <input v-model="note" maxlength="300" placeholder="Detalhe (opcional)" aria-label="Detalhe do motivo" class="min-h-11 rounded-(--radius-control) border border-line px-3">
+          <p v-if="paidOnline(selected)" class="text-sm text-muted">O valor pago pelo site ({{ formatMoney(selected.online_payment!.refundable) }}) será devolvido automaticamente ao cliente.</p>
           <div class="flex gap-2">
             <SButton class="flex-1" :loading="acting" @click="advance(cancelling)">Confirmar: {{ actionLabel(cancelling).toLowerCase() }}</SButton>
             <SButton variant="ghost" @click="cancelling = null">Voltar</SButton>

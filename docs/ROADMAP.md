@@ -9,8 +9,8 @@ CRUD categorias/produtos/variantes/opções, upload seguro, disponibilidade, sto
 ## Sprint 2 — Pedidos ✅ concluída (24/10/2026)
 Carrinho, precificação no servidor, checkout sem login, retirada/entrega, snapshots e máquina de estados. Incluir `order_totals` e zonas de entrega por bairro/raio/polígono.
 
-## Sprint 3 — Pagamento
-Mercado Pago sandbox, credenciais por tenant, webhook inbox, idempotência, reconciliação, reembolso básico.
+## Sprint 3 — Pagamento ✅ concluída (25/10/2026, aguardando homologação com credenciais de teste reais)
+Mercado Pago sandbox, credenciais por tenant, webhook inbox, idempotência, reconciliação, reembolso básico. Entregue: Pix no site (QR + copia e cola), cartão pelo Checkout Pro, pedido só chega ao restaurante depois do pagamento confirmado, reembolso total/parcial e automático ao cancelar. **Pendente de decisão:** conexão por OAuth ("Conectar com Mercado Pago") em vez de colar o Access Token — exige registrar o app SerTec no Mercado Pago.
 
 ## Sprint 4 — Operação
 Painel em tempo real, alertas, acompanhamento por token, histórico e auditoria.

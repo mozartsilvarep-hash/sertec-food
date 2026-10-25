@@ -2,7 +2,10 @@
 
 namespace App\Modules\Tenancy\Http\Controllers;
 
+use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
+use App\Modules\Payments\Enums\Provider;
+use App\Modules\Payments\Models\IntegrationConnection;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Schedule\OpeningSchedule;
 use App\Modules\Tenancy\TenantContext;
@@ -18,6 +21,7 @@ class StorefrontController
     public function __invoke(TenantContext $context): JsonResponse
     {
         $tenant = $context->get();
+        $online = IntegrationConnection::activeFor(Provider::MercadoPago) !== null;
         $now = CarbonImmutable::now();
 
         $branches = Branch::query()->where('active', true)->orderBy('id')->get()
@@ -42,6 +46,10 @@ class StorefrontController
             'description' => $tenant->description,
             'brand_color' => $tenant->brand_color,
             'branches' => $branches,
+            'payment_methods' => array_map(fn (PaymentMethod $m) => ['method' => $m->value, 'label' => $m->label(), 'online' => $m->isOnline()], array_values(array_filter(
+                PaymentMethod::cases(),
+                fn (PaymentMethod $m) => $m->isOnDelivery() || $online,
+            ))),
         ]]);
     }
 }

@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    /*
+    | Mercado Pago — credenciais são POR RESTAURANTE (integration_connections),
+    | nunca aqui. Webhooks e retornos usam o host do restaurante quando HTTPS;
+    | sem HTTPS (desenvolvimento) a reconciliação periódica confirma os pagamentos.
+    */
+    'mercadopago' => [
+        'base_url' => env('MERCADOPAGO_BASE_URL', 'https://api.mercadopago.com'),
+        'timeout' => (int) env('MERCADOPAGO_TIMEOUT', 10),
+        'payment_window_minutes' => 30,
+    ],
+
 ];

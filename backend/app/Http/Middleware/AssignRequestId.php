@@ -9,8 +9,12 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Correlaciona logs, auditoria e respostas de erro. Aceita X-Request-Id do
- * proxy (Nginx) se tiver formato seguro; senão gera um ULID.
+ * Correlaciona logs, auditoria e respostas de erro. Prefere o ID gerado pelo
+ * Nginx (parâmetro FastCGI SERTEC_REQUEST_ID); depois X-Request-Id do
+ * cliente, se tiver formato seguro; senão gera um ULID.
+ *
+ * O Nginx NÃO sobrescreve o cabeçalho X-Request-Id: o Mercado Pago assina o
+ * webhook com ele (manifest "request-id:...").
  */
 class AssignRequestId
 {
@@ -20,8 +24,13 @@ class AssignRequestId
 
     public function handle(Request $request, Closure $next): Response
     {
-        $incoming = (string) $request->headers->get(self::HEADER, '');
-        $id = preg_match('/^[A-Za-z0-9-]{8,64}$/', $incoming) ? $incoming : (string) Str::ulid();
+        $id = (string) Str::ulid();
+        foreach ([(string) $request->server('SERTEC_REQUEST_ID', ''), (string) $request->headers->get(self::HEADER, '')] as $candidate) {
+            if (preg_match('/^[A-Za-z0-9-]{8,64}$/', $candidate)) {
+                $id = $candidate;
+                break;
+            }
+        }
 
         $request->attributes->set(self::ATTRIBUTE, $id);
         Log::withContext(['request_id' => $id]);

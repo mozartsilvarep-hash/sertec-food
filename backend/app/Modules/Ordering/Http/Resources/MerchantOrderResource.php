@@ -6,6 +6,7 @@ use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Order;
 use App\Modules\Ordering\Models\OrderStatusHistory;
 use App\Modules\Ordering\Support\Phone;
+use App\Modules\Payments\Support\PaymentPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,6 +34,7 @@ class MerchantOrderResource extends JsonResource
             'payment_method' => $this->payment_method->value,
             'payment_method_label' => $this->payment_method->label(),
             'change_for' => $this->change_for,
+            'online_payment' => $this->whenLoaded('payments', fn () => PaymentPresenter::merchant($this->resource)),
             'fulfillment_type' => $this->fulfillment_type->value,
             'customer' => ['name' => $this->customer_name, 'phone' => Phone::format($this->customer_phone)],
             'address' => $this->address_snapshot_json,

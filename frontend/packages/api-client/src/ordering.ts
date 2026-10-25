@@ -49,7 +49,7 @@ export const cartApi = {
 /* ---------- Checkout e acompanhamento (público) ---------- */
 
 export type FulfillmentType = 'pickup' | 'delivery'
-export type PaymentMethod = 'cash' | 'card_on_delivery'
+export type PaymentMethod = 'cash' | 'card_on_delivery' | 'pix' | 'online_card'
 
 export interface CheckoutPayload {
   cart_token: string
@@ -72,7 +72,21 @@ export interface CheckoutResult {
   fulfillment_type: FulfillmentType
   total: string
   eta_minutes: number | null
+  payment_required: boolean
+  payment_expires_at: string | null
   tracking_token: string
+}
+
+/** Cobrança online vista pelo cliente (Pix ou Checkout Pro). */
+export interface PublicPayment {
+  status: string
+  amount: string
+  expires_at: string
+  payable: boolean
+  needs_start: boolean
+  rejected: boolean
+  pix: { qr_code: string; qr_code_base64: string | null; ticket_url: string | null } | null
+  checkout_url: string | null
 }
 
 export interface OrderLine {
@@ -104,6 +118,7 @@ export interface TrackedOrder {
   items: OrderLine[]
   totals: { code: string; label: string; amount: string }[]
   timeline: { status: string; label: string; at: string }[]
+  payment: PublicPayment | null
   final: boolean
   steps: { status: string; label: string }[]
 }
@@ -112,11 +127,13 @@ export const orderApi = {
   checkout: (payload: CheckoutPayload, idempotencyKey: string) =>
     request<Data<CheckoutResult>>('/checkout', { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
   track: (token: string) => request<Data<TrackedOrder>>(`/orders/track/${enc(token)}`).then((r) => r.data),
+  /** Gera a cobrança de novo (se falhou) ou consulta o provedor ("Já paguei"). */
+  refreshPayment: (token: string) => request<Data<TrackedOrder>>(`/orders/track/${enc(token)}/payment`, { method: 'POST' }).then((r) => r.data),
 }
 
 /* ---------- Painel: pedidos e entrega ---------- */
 
-export type OrderStatus = 'pending_acceptance' | 'accepted' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'rejected' | 'cancelled'
+export type OrderStatus = 'awaiting_payment' | 'pending_acceptance' | 'accepted' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'rejected' | 'cancelled'
 export type CancellationReason = 'store_closed' | 'out_of_stock' | 'out_of_area' | 'customer_request' | 'customer_unreachable' | 'other'
 
 export interface MerchantOrder {
@@ -146,6 +163,39 @@ export interface MerchantOrder {
   items?: OrderLine[]
   totals?: { code: string; label: string; amount: string }[]
   history?: { from: string | null; to: string; label: string; note: string | null; at: string }[]
+  online_payment?: MerchantOnlinePayment | null
+}
+
+export interface MerchantOnlinePayment {
+  status: string | null
+  amount: string | null
+  amount_refunded: string | null
+  refundable: string
+  approved_at: string | null
+  provider_reference: string | null
+  attempts: { id: string; status: string; provider_status: string | null; provider_status_detail: string | null; created_at: string }[]
+  refunds: { id: string; amount: string; status: string; reason: string | null; created_at: string }[]
+}
+
+export interface MercadoPagoSettings {
+  provider: 'mercadopago'
+  connected: boolean
+  mode: 'test' | 'live' | null
+  account_label: string | null
+  account_id: string | null
+  token_hint: string | null
+  has_webhook_secret: boolean
+  verified_at: string | null
+  webhook_url: string
+}
+
+export const paymentsApi = {
+  settings: () => request<Data<MercadoPagoSettings>>('/merchant/payments/mercadopago').then((r) => r.data),
+  connect: (body: { access_token?: string | null; webhook_secret?: string | null; remove_webhook_secret?: boolean }) =>
+    request<Data<MercadoPagoSettings>>('/merchant/payments/mercadopago', { method: 'PUT', body }).then((r) => r.data),
+  disconnect: () => request<Data<MercadoPagoSettings>>('/merchant/payments/mercadopago', { method: 'DELETE' }).then((r) => r.data),
+  refund: (orderId: string, body: { amount?: string | null; reason?: string | null }) =>
+    request<Data<{ refund: { id: string; amount: string; status: string }; order: MerchantOrder }>>(`/merchant/orders/${enc(orderId)}/refunds`, { method: 'POST', body }).then((r) => r.data),
 }
 
 export interface DeliveryZoneInput {

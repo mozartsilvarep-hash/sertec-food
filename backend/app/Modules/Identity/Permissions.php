@@ -33,6 +33,12 @@ final class Permissions
 
     public const REPORTS_VIEW = 'reports.view';
 
+    /** Conectar/desconectar a conta do Mercado Pago (só o proprietário). */
+    public const PAYMENTS_MANAGE = 'payments.manage';
+
+    /** Reembolsar pagamentos online. */
+    public const PAYMENTS_REFUND = 'payments.refund';
+
     /**
      * @return array<string, string> chave => descrição
      */
@@ -50,6 +56,8 @@ final class Permissions
             self::ORDERS_VIEW => 'Ver pedidos',
             self::ORDERS_MANAGE => 'Operar pedidos',
             self::REPORTS_VIEW => 'Ver relatórios',
+            self::PAYMENTS_MANAGE => 'Gerenciar conta de pagamentos',
+            self::PAYMENTS_REFUND => 'Reembolsar pagamentos',
         ];
     }
 
@@ -64,7 +72,7 @@ final class Permissions
 
         return [
             Role::OWNER => ['name' => 'Proprietário', 'permissions' => $all],
-            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE]))],
+            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
                 self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
             ]],

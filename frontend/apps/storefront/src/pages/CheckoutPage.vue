@@ -7,7 +7,7 @@ import {
 } from '@sertec/api-client'
 import { SAlert, SButton, STextArea, STextField } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
-import { branch, cart, loadCart, rememberOrder } from '../shop'
+import { branch, cart, loadCart, rememberOrder, store } from '../shop'
 
 const router = useRouter()
 const fulfillment = computed(() => branch.value?.fulfillment)
@@ -25,6 +25,7 @@ const form = reactive({
   reference: '',
   name: '',
   phone: '',
+  email: '',
   method: 'card_on_delivery' as PaymentMethod,
   needsChange: false,
   changeFor: '',
@@ -34,6 +35,17 @@ const errors = ref<Record<string, string[]>>({})
 const message = ref<string | null>(null)
 const sending = ref(false)
 let attempt: { key: string; body: string } | null = null
+
+const methods = computed(() => store.value?.payment_methods ?? [
+  { method: 'card_on_delivery' as const, label: 'Cartão na entrega', online: false },
+  { method: 'cash' as const, label: 'Dinheiro', online: false },
+])
+const onlineMethods = computed(() => methods.value.filter((m) => m.online))
+const isOnline = computed(() => form.method === 'pix' || form.method === 'online_card')
+const ONLINE_TEXT: Record<string, { title: string; hint: string }> = {
+  pix: { title: 'Pix', hint: 'Aprovação na hora · QR Code ou copia e cola' },
+  online_card: { title: 'Cartão de crédito ou débito', hint: 'Pelo Mercado Pago, ambiente seguro' },
+}
 
 const zone = computed(() => neighborhoods.value.find((n) => n.name === form.neighborhood)?.zone ?? null)
 const subtotalCents = computed(() => toCents(cart.value?.subtotal ?? '0'))
@@ -52,7 +64,7 @@ function payload(): CheckoutPayload {
   const delivery = form.type === 'delivery'
   return {
     cart_token: cart.value?.token ?? '',
-    customer: { name: form.name.trim(), phone: form.phone },
+    customer: { name: form.name.trim(), phone: form.phone, email: form.email.trim() || null },
     fulfillment: {
       type: form.type,
       zone_id: delivery ? (zone.value?.id ?? null) : null,
@@ -101,6 +113,7 @@ onMounted(async () => {
   await loadCart()
   if (!cart.value || cart.value.items.length === 0) await router.replace('/carrinho')
   if (fulfillment.value && !fulfillment.value.delivery_enabled) form.type = 'pickup'
+  if (onlineMethods.value.some((m) => m.method === 'pix')) form.method = 'pix'
 })
 </script>
 
@@ -158,7 +171,22 @@ onMounted(async () => {
     </fieldset>
 
     <fieldset class="grid gap-2">
-      <legend class="mb-3 font-display text-xl font-bold">Pagamento na {{ form.type === 'delivery' ? 'entrega' : 'retirada' }}</legend>
+      <legend class="mb-3 font-display text-xl font-bold">Pagamento</legend>
+      <template v-if="onlineMethods.length">
+        <p class="text-sm font-medium text-muted">Pagar agora pelo site</p>
+        <label
+          v-for="m in onlineMethods"
+          :key="m.method"
+          class="flex cursor-pointer items-center gap-3 rounded-(--radius-control) border border-line p-3 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50"
+        >
+          <input v-model="form.method" type="radio" :value="m.method" class="accent-brand-600">
+          <span>
+            <span class="block">{{ ONLINE_TEXT[m.method]?.title ?? m.label }}</span>
+            <span class="block text-sm text-muted">{{ ONLINE_TEXT[m.method]?.hint }}</span>
+          </span>
+        </label>
+        <p class="mt-3 text-sm font-medium text-muted">Pagar na {{ form.type === 'delivery' ? 'entrega' : 'retirada' }}</p>
+      </template>
       <label class="flex cursor-pointer items-center gap-3 rounded-(--radius-control) border border-line p-3 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
         <input v-model="form.method" type="radio" value="card_on_delivery" class="accent-brand-600"> Cartão (maquininha)
       </label>
@@ -171,7 +199,16 @@ onMounted(async () => {
           <STextField v-model="form.changeFor" label="Troco para (R$)" :error="err('payment.change_for')" />
         </div>
       </div>
-      <p class="text-sm text-muted">Pix e cartão pelo site chegam em breve.</p>
+      <div v-if="isOnline" class="grid gap-1.5 pt-2">
+        <STextField
+          v-model="form.email"
+          :label="form.method === 'pix' ? 'E-mail para o comprovante' : 'E-mail para o comprovante (opcional)'"
+          type="email"
+          autocomplete="email"
+          :error="err('customer.email')"
+        />
+        <p class="text-sm text-muted">O Mercado Pago envia o comprovante para este e-mail. O pedido vai para o restaurante assim que o pagamento for confirmado.</p>
+      </div>
     </fieldset>
 
     <STextArea v-model="form.notes" label="Observações para o restaurante (opcional)" :maxlength="300" />
@@ -186,7 +223,7 @@ onMounted(async () => {
     <div class="fixed inset-x-0 bottom-0 border-t border-line bg-surface px-4 py-3">
       <div class="mx-auto max-w-2xl">
         <SButton type="submit" block :loading="sending" :disabled="belowMinimum || (form.type === 'delivery' && !zone)">
-          Fazer pedido · {{ formatMoney(centsToString(totalCents)) }}
+          {{ isOnline ? 'Ir para o pagamento' : 'Fazer pedido' }} · {{ formatMoney(centsToString(totalCents)) }}
         </SButton>
       </div>
     </div>

@@ -5,12 +5,17 @@ namespace App\Modules\Ordering\Enums;
 /**
  * Estado operacional do pedido (independente do pagamento).
  *
+ * awaiting_payment ─(pagamento online confirmado pelo provedor)→ pending_acceptance
+ *                  ↘ cancelled (prazo do pagamento venceu)
  * pending_acceptance → accepted → preparing → ready → out_for_delivery → completed
  *                   ↘ rejected            ↘ cancelled (de qualquer etapa ativa)
  * Retirada: ready → completed (pula out_for_delivery).
  */
 enum OrderStatus: string
 {
+    /** Pedido com Pix/cartão online ainda não pago; o restaurante não vê. */
+    case AwaitingPayment = 'awaiting_payment';
+
     case PendingAcceptance = 'pending_acceptance';
     case Accepted = 'accepted';
     case Preparing = 'preparing';
@@ -31,6 +36,8 @@ enum OrderStatus: string
     public function nextFor(FulfillmentType $fulfillment): array
     {
         return match ($this) {
+            // Só o sistema sai deste estado (PaymentSync / reconciliação).
+            self::AwaitingPayment => [],
             self::PendingAcceptance => [self::Accepted, self::Rejected, self::Cancelled],
             self::Accepted => [self::Preparing, self::Cancelled],
             self::Preparing => [self::Ready, self::Cancelled],
@@ -42,6 +49,16 @@ enum OrderStatus: string
         };
     }
 
+    /**
+     * Estados que o restaurante acompanha no painel (pedido já pago ou na entrega).
+     *
+     * @return list<self>
+     */
+    public static function active(): array
+    {
+        return [self::PendingAcceptance, self::Accepted, self::Preparing, self::Ready, self::OutForDelivery];
+    }
+
     public function canTransitionTo(self $next, FulfillmentType $fulfillment): bool
     {
         return in_array($next, $this->nextFor($fulfillment), true);
@@ -50,6 +67,7 @@ enum OrderStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::AwaitingPayment => 'Aguardando pagamento',
             self::PendingAcceptance => 'Aguardando confirmação',
             self::Accepted => 'Pedido confirmado',
             self::Preparing => 'Em preparo',

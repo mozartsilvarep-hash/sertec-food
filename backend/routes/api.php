@@ -13,6 +13,9 @@ use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
 use App\Modules\Ordering\Http\Controllers\TrackingController;
+use App\Modules\Payments\Http\Controllers\MercadoPagoWebhookController;
+use App\Modules\Payments\Http\Controllers\PaymentSettingsController;
+use App\Modules\Payments\Http\Controllers\RefundController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
 use App\Modules\Tenancy\Http\Controllers\BranchController;
 use App\Modules\Tenancy\Http\Controllers\BranchHoursController;
@@ -43,6 +46,14 @@ Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->gro
     Route::delete('carts/{token}/items/{item}', [CartController::class, 'removeItem'])->name('carts.items.destroy');
     Route::get('orders/track/{token}', TrackingController::class)->name('orders.track');
 });
+
+// Gerar de novo / consultar a cobrança online do pedido (chama o provedor).
+Route::middleware(['tenant', 'throttle:payment-actions'])
+    ->post('orders/track/{token}/payment', [TrackingController::class, 'payment'])->name('orders.track.payment');
+
+// Webhook do Mercado Pago no host do restaurante (sem sessão/CSRF; assinatura própria).
+Route::middleware(['tenant', 'throttle:webhooks'])
+    ->post('webhooks/mercadopago', MercadoPagoWebhookController::class)->name('webhooks.mercadopago');
 
 // Checkout: limite próprio, mais restrito.
 Route::middleware(['tenant', 'throttle:checkout'])->post('checkout', CheckoutController::class)->name('checkout');
@@ -116,6 +127,16 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         });
         Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
             ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
+
+        // Pagamentos online
+        Route::post('orders/{order}/refunds', [RefundController::class, 'store'])
+            ->middleware(['permission:'.P::PAYMENTS_REFUND, 'throttle:payment-actions'])->name('orders.refunds.store');
+        Route::middleware('permission:'.P::PAYMENTS_MANAGE)->group(function () {
+            Route::get('payments/mercadopago', [PaymentSettingsController::class, 'show'])->name('payments.mercadopago.show');
+            Route::put('payments/mercadopago', [PaymentSettingsController::class, 'update'])
+                ->middleware('throttle:payment-actions')->name('payments.mercadopago.update');
+            Route::delete('payments/mercadopago', [PaymentSettingsController::class, 'destroy'])->name('payments.mercadopago.destroy');
+        });
     });
 });
 

@@ -3,12 +3,15 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ApiError, formatMoney, formatTime, orderApi, type TrackedOrder } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
+import PaymentPanel from '../components/PaymentPanel.vue'
 import { store } from '../shop'
 
 const props = defineProps<{ token: string }>()
 const order = ref<TrackedOrder | null>(null)
 const state = ref<'loading' | 'ready' | 'error' | 'offline' | 'notfound'>('loading')
-let timer: ReturnType<typeof setInterval> | undefined
+const checking = ref(false)
+const payNotice = ref<string | null>(null)
+let timer: ReturnType<typeof setTimeout> | undefined
 
 const reached = computed(() => {
   if (!order.value) return -1
@@ -16,13 +19,13 @@ const reached = computed(() => {
 })
 const cancelled = computed(() => order.value && ['rejected', 'cancelled'].includes(order.value.status))
 const tz = computed(() => store.value?.timezone ?? 'America/Sao_Paulo')
+const awaitingPayment = computed(() => order.value?.status === 'awaiting_payment' && order.value.payment !== null)
 
 async function load(silent = false) {
   if (!silent) state.value = 'loading'
   try {
     order.value = await orderApi.track(props.token)
     state.value = 'ready'
-    if (order.value.final) clearInterval(timer)
   } catch (error) {
     if (silent) return
     if (error instanceof ApiError && error.status === 404) state.value = 'notfound'
@@ -30,12 +33,38 @@ async function load(silent = false) {
   }
 }
 
+/** "Já paguei" / "Tentar de novo": o servidor consulta o Mercado Pago. */
+async function refreshPayment() {
+  checking.value = true
+  payNotice.value = null
+  try {
+    order.value = await orderApi.refreshPayment(props.token)
+    if (order.value.status === 'awaiting_payment' && !order.value.payment?.needs_start) {
+      payNotice.value = 'Ainda não recebemos a confirmação. Pode levar alguns segundos.'
+    }
+  } catch (error) {
+    payNotice.value = error instanceof ApiError ? error.message : 'Não foi possível conferir agora.'
+    await load(true)
+  } finally {
+    checking.value = false
+  }
+}
+
+// Atualização por consulta; enquanto espera o pagamento, mais frequente
+// (o servidor não chama o provedor nesta rota). Tempo real chega na Sprint 4.
+function schedule() {
+  if (order.value?.final) return
+  timer = setTimeout(async () => {
+    await load(true)
+    schedule()
+  }, awaitingPayment.value ? 5_000 : 20_000)
+}
+
 onMounted(async () => {
   await load()
-  // Atualização simples a cada 20 s; tempo real chega na Sprint 4.
-  timer = setInterval(() => load(true), 20_000)
+  schedule()
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>
@@ -49,8 +78,16 @@ onBeforeUnmount(() => clearInterval(timer))
     <template v-else>
       <p class="text-sm text-muted">Pedido #{{ order.number }} · {{ formatTime(order.placed_at, tz) }}</p>
       <h2 class="mt-1 font-display text-3xl leading-tight font-extrabold" aria-live="polite">{{ order.status_label }}</h2>
-      <p v-if="!order.final && order.eta_minutes" class="mt-2 text-muted">
+      <p v-if="!order.final && order.eta_minutes && !awaitingPayment" class="mt-2 text-muted">
         Previsão: cerca de {{ order.eta_minutes }} min {{ order.fulfillment_type === 'delivery' ? 'para chegar' : 'para retirar' }}.
+      </p>
+      <PaymentPanel v-if="awaitingPayment && order.payment" :payment="order.payment" :method="order.payment_method" :busy="checking" @refresh="refreshPayment" />
+      <p v-if="payNotice" class="mt-3 text-sm text-muted" role="status">{{ payNotice }}</p>
+      <p v-if="order.status === 'cancelled' && order.cancellation_reason === 'payment_not_completed'" class="mt-2 text-muted">
+        O pagamento não foi concluído a tempo e nada foi cobrado. Se o valor saiu da sua conta, ele será devolvido automaticamente.
+      </p>
+      <p v-if="['refunded', 'partially_refunded'].includes(order.payment_status)" class="mt-2 text-muted">
+        {{ order.payment_status === 'refunded' ? 'O valor pago foi reembolsado' : 'Parte do valor foi reembolsada' }} pelo Mercado Pago.
       </p>
       <p v-if="cancelled" class="mt-2 text-danger">Fale com {{ order.branch.name }}{{ order.branch.phone ? ` pelo ${order.branch.phone}` : '' }} se tiver dúvidas.</p>
 
