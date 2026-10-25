@@ -70,3 +70,31 @@ Produto (`POST`/`PUT`): `{name, description, active, variants[{id?, name, price,
 Grupo (`POST`/`PUT`): `{name, type: addon|fraction, min_select, max_select, free_quantity, pricing_rule: highest|average (fraction), active, options[{id?, name, description, price_delta, max_quantity, active, variant_prices[{variant, price}]}]}`.
 
 Erros novos: `invalid_selection` (422, `details.reason`: `variant_invalid`, `option_invalid`, `option_duplicated`, `option_quantity_invalid`, `group_min_not_met`, `group_max_exceeded`, `flavor_unavailable_for_size`, `product_sold_out`, `product_unavailable`) — usado pelo carrinho na Sprint 2.
+
+## Implementado na Sprint 2 — Pedidos
+
+### Público (host do tenant, sem login)
+| Rota | Descrição |
+|---|---|
+| `POST /api/v1/carts` `{branch_id?}` | 201 `{token, branch_id, items[], subtotal, valid, count, expires_at}` — o `token` só é devolvido aqui |
+| `GET /api/v1/carts/{token}` | carrinho com preços recalculados; itens inválidos com `valid:false` e `problem{reason,message}` |
+| `POST /api/v1/carts/{token}/items` `{product_id, variant_id, options[{option,quantity}], quantity, notes?}` | 201; 422 `invalid_selection` se a configuração não for válida |
+| `PATCH /api/v1/carts/{token}/items/{id}` `{quantity?, notes?}` | `quantity: 0` remove |
+| `DELETE /api/v1/carts/{token}/items/{id}` | remove |
+| `POST /api/v1/checkout` + header `Idempotency-Key` | 201 `{order_id, order_number, status, payment_status, payment_method, fulfillment_type, total, eta_minutes, tracking_token}` |
+| `GET /api/v1/orders/track/{token}` | andamento público sem dados sensíveis |
+
+Checkout: `{cart_token, customer{name, phone, email?}, fulfillment{type: pickup|delivery, zone_id?, address?{street, number, complement?, neighborhood, reference?}}, payment{method: cash|card_on_delivery, change_for?}, notes?}`. Nenhum campo de preço é aceito.
+
+Erros do checkout: `idempotency_key_required` (400), `idempotency_conflict` / `idempotency_in_progress` (409), `cart_not_found` (404), `cart_empty`, `cart_invalid` (`details.items`), `store_closed` (`details.next_opening_at`), `pickup_unavailable`, `delivery_unavailable`, `zone_invalid`, `neighborhood_not_served`, `minimum_order_not_met`, `change_for_too_low`, `validation_failed`.
+
+### Painel do restaurante
+| Rota | Permissão |
+|---|---|
+| `GET /merchant/orders?view=active\|finished\|all\|{status}&branch=&cursor=` | `orders.view` (filtrado pelas unidades do usuário) |
+| `GET /merchant/orders/{id}` | `orders.view` + acesso à unidade |
+| `PATCH /merchant/orders/{id}/status` `{status, eta_minutes?, reason?, note?}` | `orders.manage`; 409 `invalid_transition`; 422 `reason_required` |
+| `GET /merchant/branches/{id}/delivery` | `branches.view` |
+| `PUT /merchant/branches/{id}/delivery` `{pickup_enabled, delivery_enabled, pickup_eta_minutes, zones[{id?, name, neighborhoods[], fee, minimum_order?, free_above?, eta_minutes, active?}]}` | `branches.manage` |
+
+`GET /storefront` agora inclui em cada unidade `fulfillment{pickup_enabled, delivery_enabled, pickup_eta_minutes, zones[]}` (só zonas ativas).

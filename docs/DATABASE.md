@@ -53,3 +53,4 @@ Ver `backend/database/migrations` e as decisões D14 e D16–D22 em `docs/ARCHIT
 - `menu_products` sem `menu_id` (vem da categoria); `option_groups` com `type`, `free_quantity` e `pricing_rule`; obrigatoriedade = `min_select > 0`.
 - Novas: `option_variant_prices` (preço do sabor por tamanho), `branch_opening_hours`, `branch_schedule_exceptions`.
 - `tenants` ganhou `description` e `brand_color`; `products` usa soft delete.
+- Sprint 2: `carts.token_hash` (não `public_token`), `cart_items` com `product_id`; `orders` com `public_id`, `order_number`, `payment_method`, `change_for`, snapshots de cliente/endereço/zona e datas de aceite/conclusão/cancelamento; novas `order_totals`, `order_sequences`, `idempotency_keys`; `delivery_zones` com lista de bairros, `free_above` e `eta_minutes`; `branches` com `pickup_enabled`, `delivery_enabled`, `pickup_eta_minutes`. Cupons e pagamentos online ficam para as próximas sprints.

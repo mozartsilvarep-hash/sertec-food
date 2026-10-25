@@ -9,11 +9,13 @@ import { can, me } from '../session'
 const router = useRouter()
 
 const links = computed(() => [
+  { to: '/pedidos', label: 'Pedidos', show: can('orders.view') },
   { to: '/', label: 'Unidades', show: can('branches.view') },
   { to: '/cardapio', label: 'Cardápio', show: can('catalog.view') },
   { to: '/opcoes', label: 'Opções e sabores', show: can('catalog.view') },
   { to: '/esgotados', label: 'Esgotados', show: can('catalog.availability') },
   { to: '/horarios', label: 'Horários', show: can('branches.view') },
+  { to: '/entrega', label: 'Entrega', show: can('branches.view') },
   { to: '/marca', label: 'Marca', show: can('settings.view') },
 ].filter((l) => l.show))
 

@@ -14,3 +14,11 @@ export function writePref(key: string, value: string): void {
     /* modo privado / bloqueado: ignora */
   }
 }
+
+export function removePref(key: string): void {
+  try {
+    window.localStorage.removeItem(`sertec:${key}`)
+  } catch {
+    /* ignora */
+  }
+}

@@ -11,6 +11,7 @@ use App\Modules\Catalog\Models\OptionVariantPrice;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductOptionGroup;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Ordering\Models\DeliveryZone;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Models\BranchOpeningHour;
 use App\Modules\Tenancy\Models\Tenant;
@@ -39,6 +40,10 @@ class DemoCatalogSeeder extends Seeder
     {
         $tenant->update(['brand_color' => '#9a3412', 'description' => 'Pizzas no forno a lenha desde 1998. Meio a meio sem custo extra.']);
         $this->hours([2, 3, 4, 5, 6, 0], '18:00', '23:30');
+        $this->zones([
+            ['Orla', ['Pajuçara', 'Ponta Verde', 'Jatiúca'], '6.00', '30.00', '120.00', 40],
+            ['Centro e Farol', ['Centro', 'Farol', 'Poço'], '9.00', '40.00', null, 55],
+        ]);
 
         $menu = Menu::query()->create(['name' => 'Cardápio']);
         $pizzas = Category::query()->create(['menu_id' => $menu->id, 'name' => 'Pizzas', 'description' => 'Escolha até 2 sabores', 'sort_order' => 0]);
@@ -78,6 +83,7 @@ class DemoCatalogSeeder extends Seeder
         $tenant->update(['brand_color' => '#1e3a8a', 'description' => 'Smash burgers e batatas crocantes.']);
         $this->hours([1, 2, 3, 4, 5, 6, 0], '11:00', '15:00');
         $this->hours([5, 6], '18:00', '02:00');
+        $this->zones([['Bairros próximos', ['Jatiúca', 'Cruz das Almas', 'Mangabeiras'], '5.00', '25.00', '80.00', 35]]);
 
         $menu = Menu::query()->create(['name' => 'Cardápio']);
         $burgers = Category::query()->create(['menu_id' => $menu->id, 'name' => 'Burgers', 'sort_order' => 0]);
@@ -121,6 +127,22 @@ class DemoCatalogSeeder extends Seeder
         }
 
         return $group;
+    }
+
+    /**
+     * @param  list<array{0:string,1:list<string>,2:string,3:string|null,4:string|null,5:int}>  $zones
+     */
+    private function zones(array $zones): void
+    {
+        foreach (Branch::query()->get() as $branch) {
+            $branch->update(['delivery_enabled' => true, 'pickup_enabled' => true]);
+            foreach ($zones as $i => [$name, $neighborhoods, $fee, $min, $free, $eta]) {
+                DeliveryZone::query()->create([
+                    'branch_id' => $branch->id, 'name' => $name, 'neighborhoods_json' => $neighborhoods, 'fee' => $fee,
+                    'minimum_order' => $min, 'free_above' => $free, 'eta_minutes' => $eta, 'sort_order' => $i,
+                ]);
+            }
+        }
     }
 
     /**

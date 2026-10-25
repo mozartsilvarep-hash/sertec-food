@@ -6,7 +6,7 @@ Docker local, CI, lint, testes, Laravel, Vue, MariaDB, Redis, migrations iniciai
 ## Sprint 1 — Catálogo ✅ concluída (24/10/2026)
 CRUD categorias/produtos/variantes/opções, upload seguro, disponibilidade, storefront. Incluir pizza meio a meio e horários de funcionamento (referência: `docs/REFERENCES.md`).
 
-## Sprint 2 — Pedidos
+## Sprint 2 — Pedidos ✅ concluída (24/10/2026)
 Carrinho, precificação no servidor, checkout sem login, retirada/entrega, snapshots e máquina de estados. Incluir `order_totals` e zonas de entrega por bairro/raio/polígono.
 
 ## Sprint 3 — Pagamento
