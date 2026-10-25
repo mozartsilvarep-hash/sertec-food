@@ -1,11 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import AdminLayout from './layouts/AdminLayout.vue'
 import { loadSession, me } from './session'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', name: 'login', component: () => import('./pages/LoginPage.vue'), meta: { guest: true } },
-    { path: '/', name: 'home', component: () => import('./pages/HomePage.vue') },
+    {
+      path: '/',
+      component: AdminLayout,
+      children: [
+        { path: '', name: 'home', component: () => import('./pages/TenantsPage.vue') },
+        { path: 'novo', name: 'tenant-new', component: () => import('./pages/TenantNewPage.vue') },
+        { path: 'estabelecimentos/:id', name: 'tenant', component: () => import('./pages/TenantPage.vue'), props: true },
+        { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
+      ],
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
