@@ -38,7 +38,6 @@
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files {path} /index.php
 		}
 	}
@@ -46,7 +45,6 @@
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 		}
 	}
@@ -62,7 +60,6 @@ http://127.0.0.1:8081 {
 	root * /var/www/backend/public
 	php_fastcgi app:9000 {
 		root /var/www/backend/public
-		index off
 		try_files /index.php
 	}
 }
@@ -112,7 +109,6 @@ https:// {
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 			env REQUEST_URI /__storefront
 		}

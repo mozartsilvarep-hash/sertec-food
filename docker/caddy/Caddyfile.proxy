@@ -6,6 +6,10 @@
 # as SPAs e o PHP. Ativado por CADDY_CONFIG=Caddyfile.proxy (ver
 # docs/DEPLOY-AAPANEL.md). Mantenha as rotas iguais às do Caddyfile principal.
 #
+# PHP: cada php_fastcgi tem "root * …" antes e try_files explícito. Não use
+# "index off": nessa versão do Caddy ele desliga o try_files e nenhuma rota
+# chega ao PHP (resposta 200 vazia).
+#
 # Segurança:
 # - IP do cliente: vem do X-Forwarded-For SOMENTE quando a conexão chega de
 #   rede privada (o proxy local). Em modo estrito, o Caddy lê o cabeçalho da
@@ -45,7 +49,6 @@
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files {path} /index.php
 			env REMOTE_ADDR {client_ip}
 			env HTTPS on
@@ -57,7 +60,6 @@
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 			env REMOTE_ADDR {client_ip}
 			env HTTPS on
@@ -110,7 +112,6 @@ http:// {
 		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 			env REQUEST_URI /__storefront
 			env REMOTE_ADDR {client_ip}
