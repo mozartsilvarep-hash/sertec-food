@@ -249,7 +249,7 @@ onMounted(async () => {
     <STextArea v-model="form.notes" label="Observações para o restaurante (opcional)" :maxlength="300" />
     <p class="-mt-4 text-sm text-muted">Usamos seus dados só para este pedido. <RouterLink to="/privacidade" class="font-medium text-brand-700 underline">Política de privacidade</RouterLink></p>
 
-    <section aria-label="Cupom" class="grid gap-2">
+    <section aria-label="Cupom de desconto" class="grid gap-2">
       <button v-if="!couponOpen && !coupon" type="button" class="justify-self-start text-sm font-semibold text-brand-700 hover:underline" @click="couponOpen = true">Tem cupom de desconto?</button>
       <div v-else-if="!coupon" class="flex items-end gap-2">
         <div class="flex-1"><STextField v-model="couponCode" label="Cupom" :error="couponError" @keydown.enter.prevent="applyCoupon" /></div>

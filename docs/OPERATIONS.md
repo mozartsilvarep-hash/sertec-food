@@ -114,6 +114,19 @@ O dinheiro cai direto na conta do restaurante; a SerTec não intermedia. No pain
 
 Sem webhook, os pagamentos ainda são confirmados pela reconciliação, que roda a cada minuto, mas com mais atraso.
 
+## 6.1 Promoções no site do restaurante (ex.: Yris Cakes)
+
+O site institucional pode mostrar as promoções e a faixa de aviso direto da loja:
+
+1. O restaurante usa um **domínio próprio** para a loja (item 5), por exemplo `loja.yriscakes.com.br`, e o torna principal. Os links do feed precisam ser do domínio do site.
+2. Painel do restaurante → **Promoções → Vitrine e aviso**: em "Sites autorizados", cadastrar `https://yriscakes.com.br` e `https://www.yriscakes.com.br`, se o site usar os dois.
+3. No site, em `public/assets/js/config.js`:
+   - `feedLoja: "https://loja.yriscakes.com.br/api/v1/vitrine/promocoes.json"`;
+   - `usarFeedLoja: true`.
+4. Na política de segurança do site (CSP), acrescentar `https://loja.yriscakes.com.br` em `img-src` para as fotos.
+
+O feed segue o contrato v1, tem cache de 60 s e não contém dados de clientes.
+
 ## 7. Backups
 
 O container `backup` roda `ops/backup.sh` todo dia às 03:30 de Maceió:

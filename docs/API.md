@@ -169,3 +169,28 @@ Toda escrita bem-sucedida do painel gera registro de auditoria automático (`Aud
 - `GET /api/v1/internal/tls-ask?domain=` (só rede interna): 200 para o host admin e domínios verificados — autorização do certificado sob demanda.
 - `GET /api/v1/internal/health` (só rede interna): `{ok, checks{database, cache, queue, scheduler}}` 200/503. Externo: `/up`.
 
+## Implementado na Sprint 6 — Promoções e cupons
+
+### Público
+- `GET /menus` e `GET /products/{id}`: produtos ganham `promo_price_from` e `promotion{id, percent_bp, label, featured, ends_at}`. O carrinho devolve `original_unit_price` e `promotion_label` por item. O preço cobrado continua sendo calculado no servidor.
+- `GET /storefront`: `announcement{text, link, link_label, starts_at, ends_at}` quando há faixa vigente.
+- `POST /carts/{token}/coupon` `{code, phone?}` → `{code, label, description, discount_type, discount, free_delivery}`. É só prévia: as regras por cliente só valem com `phone`.
+- `POST /checkout` aceita `coupon`; a resposta ganha `discount_total`. Erros:
+  - `coupon_invalid`: inexistente, inativo, fora do período ou plano sem cupons;
+  - `coupon_min_subtotal` (com `details.min_subtotal`);
+  - `coupon_exhausted`;
+  - `coupon_customer_limit`;
+  - `coupon_first_order_only`;
+  - `payment_method_unavailable`: pagamento online com total zero.
+- `GET /vitrine/promocoes.json`: feed **contrato v1** com `versao`, `atualizadoEm`, `loja.aberta`, `faixa{texto, link, rotuloLink, inicio, fim}` e `promocoes[{id, titulo, descricao, imagem, imagemAlt, precoDe, precoPor, selo, url, inicio, fim, destaque}]`.
+  - Datas em ISO 8601 com o fuso do estabelecimento; destaques primeiro; no máximo 20 itens.
+  - `url` abre o produto no cardápio (`/?produto=ID`).
+  - Cabeçalhos: `Access-Control-Allow-Origin` só para as origens cadastradas (correspondência exata), `Vary: Origin`, `Cache-Control: public, max-age=60`.
+
+### Painel (`marketing.manage`, proprietário e gerente)
+| Rota | Observações |
+|---|---|
+| `GET/POST /merchant/promotions`, `PATCH/DELETE /merchant/promotions/{id}` | `{product_id, percent?, promo_price?, starts_at?, ends_at?, featured?, badge?, active?}`; `promo_price` vira percentual sobre o "a partir de"; 409 `promotion_overlap` |
+| `GET/POST /merchant/coupons`, `PATCH/DELETE /merchant/coupons/{id}` | exige o recurso de plano `coupons`; código único (maiúsculas); 409 `coupon_used` ao apagar cupom já usado |
+| `GET/PUT /merchant/storefront-feed` | `{announcement{text, link(https), link_label, starts_at, ends_at}, feed_origins[https://host]}` → inclui `feed_url` |
+
