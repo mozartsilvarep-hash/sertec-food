@@ -3,7 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 
 const only = process.argv[2]
-const specs = readdirSync(new URL('.', import.meta.url)).filter((f) => /^s\d-.*\.mjs$/.test(f) && (!only || f.includes(only))).sort()
+// Ordem numérica (s2 antes de s10). s99 troca senha: roda por último.
+const num = (f) => Number(/^s(\d+)-/.exec(f)[1])
+const specs = readdirSync(new URL('.', import.meta.url)).filter((f) => /^s\d+-.*\.mjs$/.test(f) && (!only || f.includes(only))).sort((a, b) => num(a) - num(b))
 let failed = 0
 for (const spec of specs) {
   console.log(`\n▶ ${spec}`)

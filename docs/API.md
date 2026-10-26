@@ -242,3 +242,24 @@ Toda escrita bem-sucedida do painel gera registro de auditoria automático (`Aud
 | POST | `admin/system/mail/test` (superadmin) | — | envia para o próprio usuário; 422 `mail_failed` com o motivo |
 
 Throttle `password-reset`: 5 por minuto por IP e 10 por hora por e-mail.
+
+## Implementado na Sprint 10 — Caixa
+
+Todas as rotas abaixo ficam sob `merchant/cash`, com o recurso de plano `cashbook`.
+
+| Método | Rota | Permissão | Corpo / resposta |
+|---|---|---|---|
+| GET | `session?branch=` | cash.operate | caixa aberto (ou `null`) com `expected_amount` e `by_method` |
+| POST | `session` | cash.operate | `{branch?, opening_amount}`; 409 `cash_already_open` |
+| POST | `session/{id}/close` | cash.operate | `{counted_amount, notes?}`; devolve `expected_amount`, `counted_amount` e `difference` |
+| POST | `entries` | cash.operate | `{branch?, category, method, amount, description?}`; categorias manuais; 409 `cash_closed` |
+| POST | `sales` | cash.operate | `{branch?, items[{product_id, variant_id?} \| {description, unit_price}, quantity], method, discount?, received?}`; devolve `change` |
+| GET | `entries` | cash.operate | só o caixa aberto, ou o período para `cash.manage` (`from`, `to`, `branch`, `session`, `type`, `category`) |
+| POST | `entries/{id}/void` | cash.manage | `{reason}`; 409 se já estornado ou se o caixa estiver fechado |
+| GET | `summary` | cash.manage | `{in, out, balance, by_method, by_category, by_day}` |
+| GET | `sessions` | cash.manage | últimos 60 fechamentos |
+| GET | `entries.csv` | cash.manage | CSV com `;` e BOM |
+
+Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, responde 422 `branch_required`.
+
+`reports/summary` agora também devolve `top_products`, `by_day`, `by_hour` e `by_fulfillment`.

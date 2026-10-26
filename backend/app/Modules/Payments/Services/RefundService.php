@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payments\Services;
 
+use App\Modules\Cash\Services\CashBook;
 use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Enums\PaymentStatus;
 use App\Modules\Ordering\Models\Order;
@@ -107,8 +108,10 @@ final class RefundService
                     'status' => $full ? PaymentAttemptStatus::Refunded : PaymentAttemptStatus::PartiallyRefunded,
                 ])->save();
 
-                Order::query()->whereKey($locked->order_id)->lockForUpdate()->firstOrFail()
-                    ->forceFill(['payment_status' => $full ? PaymentStatus::Refunded : PaymentStatus::PartiallyRefunded])->save();
+                $order = Order::query()->whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
+                $order->forceFill(['payment_status' => $full ? PaymentStatus::Refunded : PaymentStatus::PartiallyRefunded])->save();
+                // Pedido que já estava no caixa: o estorno sai do caixa.
+                app(CashBook::class)->recordRefund($order, $refund);
             }
 
             $this->audit->record('payment.refunded', $locked, [

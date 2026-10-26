@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ordering\Services;
 
+use App\Modules\Cash\Services\CashBook;
 use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Enums\CancellationReason;
 use App\Modules\Ordering\Enums\OrderStatus;
@@ -116,6 +117,11 @@ final class OrderTransitions
         }
 
         $locked->save();
+
+        if ($next === OrderStatus::Completed) {
+            // Livro-caixa: pedido concluído entra sozinho (uma vez só).
+            app(CashBook::class)->recordOrder($locked);
+        }
 
         OrderStatusHistory::query()->create([
             'order_id' => $locked->id,

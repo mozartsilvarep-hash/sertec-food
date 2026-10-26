@@ -13,6 +13,8 @@ const router = useRouter()
 const links = computed(() => [
   { to: '/pedidos', label: 'Pedidos', show: can('orders.view') },
   { to: '/historico', label: 'Histórico', show: can('orders.view') },
+  { to: '/caixa', label: 'Caixa', show: can('cash.operate') },
+  { to: '/relatorios', label: 'Relatórios', show: can('reports.view') },
   { to: '/', label: 'Unidades', show: can('branches.view') },
   { to: '/cardapio', label: 'Cardápio', show: can('catalog.view') },
   { to: '/opcoes', label: 'Opções e sabores', show: can('catalog.view') },

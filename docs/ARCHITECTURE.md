@@ -322,3 +322,40 @@ Usa o broker de senha do Laravel: o token fica como hash em `password_reset_toke
 
 ### D70 — SMTP próprio e teste pelo painel
 O envio usa o mailer `smtp` com os dados do `.env.production`; o código não guarda nenhuma credencial. O painel SerTec → Sistema mostra a configuração, sem a senha. O botão de teste envia só para o próprio superadmin, sem destinatário livre, para não virar ferramenta de spam. Os e-mails têm modelo HTML e uma versão em texto puro, em português.
+
+## Decisões da Sprint 10 — Caixa (mini PDV) e relatórios
+
+### D71 — Livro-caixa por unidade
+Módulo `Cash`, com duas tabelas:
+- `cash_sessions`: abertura com troco inicial e fechamento com o dinheiro contado. Ficam registrados o esperado e a diferença, e só pode haver um caixa aberto por unidade (trava na unidade).
+- `cash_entries`: cada lançamento tem tipo (entrada/saída), categoria fixa, forma de pagamento, valor positivo, descrição e itens.
+
+Regras:
+- **Lançamentos não são apagados**, só estornados com motivo, e não podem ser estornados depois que o caixa foi fechado.
+- **Só a forma "dinheiro"** mexe no valor esperado da gaveta. Reforço e sangria são sempre em dinheiro.
+- **Categorias fixas** para o relatório: venda no balcão, pedido do cardápio, reforço, outra entrada; sangria, fornecedores, funcionários, contas, estorno, outra saída.
+
+### D72 — Entradas automáticas
+- Um pedido concluído vira entrada "Pedido do cardápio" (`source = order:ID`, único). O pagamento na entrega entra como dinheiro ou cartão; o pago pelo site, como "Pago pelo site".
+- Um reembolso de pedido que já estava no caixa vira saída "Estorno de pedido" (`refund:ID`).
+- Essas entradas entram no caixa aberto da unidade, se houver.
+
+### D73 — Venda de balcão
+- Itens do cardápio usam o preço do tamanho, calculado pelo servidor (sem adicionais nem promoções; é uma venda simples de balcão).
+- Itens avulsos usam o valor digitado pelo próprio operador.
+- Aceita desconto. O troco é calculado no servidor, e um valor recebido menor que o total é recusado.
+- Só funciona com o caixa aberto.
+
+### D74 — Permissões e plano
+- `cash.operate` (proprietário, gerente e atendente): abrir, fechar, vender e lançar. Atendente presa a uma unidade só opera aquela unidade e só vê o caixa aberto.
+- `cash.manage` (proprietário e gerente): estornar, ver o relatório do período e o histórico de fechamentos, e exportar CSV (com BOM e fórmulas neutralizadas).
+- O recurso `cashbook` está liberado em todos os planos como brinde. A migration liga o recurso nos planos existentes sem regravar o resto, e a SerTec pode desligar por plano depois.
+
+### Relatórios de pedidos
+`reports/summary` ganhou:
+- mais vendidos (top 10, só concluídos);
+- faturamento por dia;
+- pedidos por hora (pico);
+- entrega × retirada.
+
+A nova tela "Relatórios" tem atalhos de período.
