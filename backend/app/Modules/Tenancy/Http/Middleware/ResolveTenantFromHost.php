@@ -25,27 +25,7 @@ class ResolveTenantFromHost
 
     public function handle(Request $request, Closure $next): Response
     {
-        $host = TenantDomain::normalize($request->getHost());
-
-        if ($host === TenantDomain::normalize((string) config('tenancy.admin_host'))) {
-            throw new NotFoundHttpException;
-        }
-
-        // Única consulta sem escopo do fluxo de requisição: ainda não há tenant.
-        $domain = TenantDomain::withoutGlobalScope(TenantScope::class)
-            ->where('hostname', $host)
-            ->whereNotNull('verified_at')
-            ->first();
-
-        if ($domain === null) {
-            throw new NotFoundHttpException;
-        }
-
-        $tenant = Tenant::query()->find($domain->tenant_id);
-
-        if ($tenant === null) {
-            throw new NotFoundHttpException;
-        }
+        $tenant = self::lookup($request->getHost()) ?? throw new NotFoundHttpException;
 
         if (! $tenant->status->isOperational()) {
             throw ApiException::tenantUnavailable();
@@ -54,5 +34,26 @@ class ResolveTenantFromHost
         $request->attributes->set('tenant', $tenant);
 
         return $this->context->run($tenant, fn () => $next($request));
+    }
+
+    /**
+     * Tenant dono do host (domínio verificado), em qualquer situação; null se
+     * o host for desconhecido ou o do painel SerTec.
+     */
+    public static function lookup(string $rawHost): ?Tenant
+    {
+        $host = TenantDomain::normalize($rawHost);
+
+        if ($host === TenantDomain::normalize((string) config('tenancy.admin_host'))) {
+            return null;
+        }
+
+        // Única consulta sem escopo do fluxo de requisição: ainda não há tenant.
+        $domain = TenantDomain::withoutGlobalScope(TenantScope::class)
+            ->where('hostname', $host)
+            ->whereNotNull('verified_at')
+            ->first();
+
+        return $domain === null ? null : Tenant::query()->find($domain->tenant_id);
     }
 }

@@ -5,7 +5,7 @@ DC  := docker compose
 PHP := $(DC) exec php
 ART := $(PHP) php artisan
 
-.PHONY: help setup env up down restart logs sh migrate fresh seed rollback-check test test-back test-front lint lint-back lint-front ci
+.PHONY: help e2e-prepare ops-status setup env up down restart logs sh migrate fresh seed rollback-check test test-back test-front lint lint-back lint-front ci
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -79,3 +79,11 @@ lint-front:
 	$(DC) exec node pnpm typecheck
 
 ci: lint rollback-check test ## O mesmo que o GitHub Actions roda
+
+e2e-prepare: ## Zera o banco LOCAL e prepara a demonstração para os testes E2E (ver e2e/README.md)
+	$(DC) exec php php artisan migrate:fresh --seed --force
+	$(DC) exec php php artisan demo:prepare-e2e $${E2E_PASSWORD:-e2e-local-123}
+
+ops-status: ## Saúde da instalação (banco, cache, fila, agendador)
+	$(DC) exec php php artisan ops:status
+

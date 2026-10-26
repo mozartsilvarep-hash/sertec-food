@@ -6,19 +6,28 @@ use App\Modules\Catalog\Http\Controllers\MenuController;
 use App\Modules\Catalog\Http\Controllers\OptionGroupController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\PublicCatalogController;
+use App\Modules\Identity\Http\Controllers\AccountController;
 use App\Modules\Identity\Http\Controllers\MerchantAuthController;
+use App\Modules\Identity\Http\Controllers\StaffController;
 use App\Modules\Identity\Permissions as P;
 use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
+use App\Modules\Ordering\Http\Controllers\PrivacyController;
 use App\Modules\Ordering\Http\Controllers\ReportController;
 use App\Modules\Ordering\Http\Controllers\TrackingController;
 use App\Modules\Payments\Http\Controllers\MercadoPagoWebhookController;
 use App\Modules\Payments\Http\Controllers\PaymentSettingsController;
 use App\Modules\Payments\Http\Controllers\RefundController;
+use App\Modules\Platform\Features\Feature;
+use App\Modules\Platform\Http\Controllers\AdminAuditController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
+use App\Modules\Platform\Http\Controllers\AdminDomainController;
+use App\Modules\Platform\Http\Controllers\AdminTenantController;
+use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Platform\Http\Controllers\MerchantAuditController;
+use App\Modules\Platform\Http\Controllers\TlsAskController;
 use App\Modules\Platform\Http\Middleware\AuditMutations;
 use App\Modules\Tenancy\Http\Controllers\BranchController;
 use App\Modules\Tenancy\Http\Controllers\BranchHoursController;
@@ -75,6 +84,24 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
             Route::get('branches/{branch}', [BranchController::class, 'show'])->name('branches.show');
             Route::get('branches/{branch}/hours', [BranchHoursController::class, 'show'])->name('branches.hours.show');
         });
+        Route::middleware('permission:'.P::BRANCHES_MANAGE)->group(function () {
+            Route::patch('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
+            Route::post('branches', [BranchController::class, 'store'])
+                ->middleware('feature:'.Feature::MULTI_BRANCH)->name('branches.store');
+        });
+
+        // Minha conta e equipe
+        Route::post('me/password', [AccountController::class, 'password'])
+            ->middleware('throttle:login')->name('me.password');
+        Route::middleware('permission:'.P::STAFF_MANAGE)->group(function () {
+            Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+            Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+            Route::patch('staff/{user}', [StaffController::class, 'update'])->name('staff.update');
+            Route::delete('staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
+            Route::post('staff/{user}/password', [StaffController::class, 'resetPassword'])
+                ->middleware('throttle:payment-actions')->name('staff.password');
+        });
+
         Route::put('branches/{branch}/hours', [BranchHoursController::class, 'update'])
             ->middleware('permission:'.P::BRANCHES_MANAGE)->name('branches.hours.update');
 
@@ -133,6 +160,12 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
             ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
 
+        // LGPD: atendimento a titulares
+        Route::middleware('permission:'.P::SETTINGS_UPDATE)->group(function () {
+            Route::get('privacy/customer', [PrivacyController::class, 'show'])->name('privacy.show');
+            Route::post('privacy/customer/erase', [PrivacyController::class, 'erase'])->name('privacy.erase');
+        });
+
         // Relatórios e auditoria
         Route::middleware('permission:'.P::REPORTS_VIEW)->group(function () {
             Route::get('reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
@@ -161,5 +194,23 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
     Route::middleware(['auth:sanctum', 'platform', SubstituteBindings::class])->group(function () {
         Route::post('auth/logout', [AdminAuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [AdminAuthController::class, 'me'])->name('me');
+
+        Route::get('tenants', [AdminTenantController::class, 'index'])->name('tenants.index');
+        Route::post('tenants', [AdminTenantController::class, 'store'])->name('tenants.store');
+        Route::get('tenants/{tenant}', [AdminTenantController::class, 'show'])->name('tenants.show');
+        Route::patch('tenants/{tenant}', [AdminTenantController::class, 'update'])->name('tenants.update');
+        Route::post('tenants/{tenant}/owner-password', [AdminTenantController::class, 'resetOwnerPassword'])->name('tenants.owner-password');
+        Route::post('tenants/{tenant}/domains', [AdminDomainController::class, 'store'])->name('tenants.domains.store');
+        Route::post('tenants/{tenant}/domains/{domain}/token', [AdminDomainController::class, 'regenerate'])->name('tenants.domains.token');
+        Route::post('tenants/{tenant}/domains/{domain}/verify', [AdminDomainController::class, 'verify'])->name('tenants.domains.verify');
+        Route::post('tenants/{tenant}/domains/{domain}/primary', [AdminDomainController::class, 'primary'])->name('tenants.domains.primary');
+        Route::delete('tenants/{tenant}/domains/{domain}', [AdminDomainController::class, 'destroy'])->name('tenants.domains.destroy');
+        Route::get('plans', [AdminTenantController::class, 'plans'])->name('plans.index');
+        Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
     });
 });
+
+// Perguntado pelo Caddy antes de emitir certificado (on-demand TLS). A borda
+// bloqueia /api/v1/internal/* vindo de fora; só a rede interna alcança.
+Route::get('internal/tls-ask', TlsAskController::class)->middleware('throttle:60,1')->name('internal.tls-ask');
+Route::get('internal/health', HealthController::class)->middleware('throttle:60,1')->name('internal.health');

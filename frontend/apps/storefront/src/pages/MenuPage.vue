@@ -102,6 +102,12 @@ onMounted(load)
           <ProductRow v-for="p in c.products" :key="p.id" :product="p" @open="open(p)" />
         </ul>
       </section>
+
+      <footer class="mt-12 border-t border-line pt-6 pb-24 text-center text-sm text-muted">
+        <RouterLink to="/privacidade" class="hover:text-ink hover:underline">Privacidade</RouterLink>
+        <span aria-hidden="true"> · </span>
+        <span>Cardápio digital SerTec Food</span>
+      </footer>
     </main>
 
     <ProductSheet :product-id="openProduct" :branch-id="branchId" @close="openProduct = null" />

@@ -1,0 +1,14 @@
+{
+  "name": "sertec-food-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Testes ponta a ponta no navegador contra o ambiente local (ver README.md)",
+  "scripts": {
+    "fake-mp": "node fake-mercadopago.mjs",
+    "test": "node run.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.63.0",
+    "qrcode": "1.5.4"
+  }
+}
