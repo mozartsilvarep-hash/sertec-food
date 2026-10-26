@@ -15,6 +15,7 @@ use App\Modules\Identity\Http\Controllers\MerchantAuthController;
 use App\Modules\Identity\Http\Controllers\PasswordResetController;
 use App\Modules\Identity\Http\Controllers\StaffController;
 use App\Modules\Identity\Permissions as P;
+use App\Modules\Loyalty\Http\Controllers\LoyaltyController;
 use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\CouponController;
@@ -214,6 +215,14 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         // Pagamentos online
         Route::post('orders/{order}/refunds', [RefundController::class, 'store'])
             ->middleware(['permission:'.P::PAYMENTS_REFUND, 'throttle:payment-actions'])->name('orders.refunds.store');
+        // Cartão fidelidade — recurso por plano (brinde: liberado em todos).
+        Route::middleware(['feature:'.Feature::LOYALTY, 'permission:'.P::MARKETING_MANAGE])->prefix('loyalty')->name('loyalty.')->group(function () {
+            Route::get('/', [LoyaltyController::class, 'show'])->name('show');
+            Route::put('/', [LoyaltyController::class, 'update'])->name('update');
+            Route::get('card', [LoyaltyController::class, 'card'])->name('card');
+            Route::post('card/adjust', [LoyaltyController::class, 'adjust'])->name('card.adjust');
+        });
+
         // Caixa (mini PDV) — recurso por plano (brinde: liberado em todos).
         Route::middleware(['feature:'.Feature::CASHBOOK])->prefix('cash')->name('cash.')->group(function () {
             Route::middleware('permission:'.P::CASH_OPERATE)->group(function () {

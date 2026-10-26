@@ -1,3 +1,4 @@
+import type { LoyaltyStatus } from './catalog'
 import { request } from './http'
 
 type Data<T> = { data: T }
@@ -82,6 +83,8 @@ export interface CheckoutPayload {
   }
   payment: { method: PaymentMethod; change_for?: string | null }
   coupon?: string | null
+  /** Usar o prêmio do cartão fidelidade deste celular. */
+  use_loyalty?: boolean
   notes?: string | null
 }
 
@@ -142,6 +145,7 @@ export interface TrackedOrder {
   totals: { code: string; label: string; amount: string }[]
   timeline: { status: string; label: string; at: string }[]
   payment: PublicPayment | null
+  loyalty?: LoyaltyStatus | null
   final: boolean
   steps: { status: string; label: string }[]
 }
@@ -151,6 +155,7 @@ export interface CustomerLookup {
   known: boolean
   first_name: string | null
   saved_address: { street: string; number: string; neighborhood: string } | null
+  loyalty?: LoyaltyStatus | null
 }
 
 /** "Acompanhar pelo celular": só a situação dos pedidos das últimas 24 h. */
@@ -414,3 +419,30 @@ export const marketingApi = {
     request<Data<FeedSettings>>('/merchant/storefront-feed', { method: 'PUT', body }).then((r) => r.data),
 }
 
+/* ---------- Painel: cartão fidelidade ---------- */
+
+export interface LoyaltyProgramInput {
+  active: boolean
+  stamps_required: number
+  min_order: string | null
+  reward_type: 'fixed' | 'percent'
+  reward_amount: string | null
+  reward_percent: string | null
+  reward_max: string | null
+}
+export interface LoyaltyProgramView extends LoyaltyProgramInput { reward_label: string | null }
+export interface LoyaltyCardView {
+  phone: string
+  stamps: number
+  rewards: number
+  required: number | null
+  history: { type: string; stamps: number; rewards: number; amount: string | null; order_number: number | null; note: string | null; by: string | null; at: string }[]
+}
+
+export const loyaltyApi = {
+  get: () => request<Data<LoyaltyProgramView>>('/merchant/loyalty').then((r) => r.data),
+  save: (body: LoyaltyProgramInput) => request<Data<LoyaltyProgramView>>('/merchant/loyalty', { method: 'PUT', body }).then((r) => r.data),
+  card: (phone: string) => request<Data<LoyaltyCardView>>(`/merchant/loyalty/card${filterQuery({ phone })}`).then((r) => r.data),
+  adjust: (phone: string, stamps: number, note: string | null) =>
+    request<Data<{ stamps: number; rewards: number }>>('/merchant/loyalty/card/adjust', { method: 'POST', body: { phone, stamps, note } }).then((r) => r.data),
+}

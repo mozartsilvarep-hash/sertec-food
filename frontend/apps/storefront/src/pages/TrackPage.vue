@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ApiError, formatMoney, formatTime, formatTotal, orderApi, type TrackedOrder } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
+import LoyaltyStamps from '../components/LoyaltyStamps.vue'
 import PaymentPanel from '../components/PaymentPanel.vue'
 import { store } from '../shop'
 import { contactMessage, orderMessage, phoneDigits, whatsappLink } from '../whatsapp'
@@ -139,6 +140,8 @@ onBeforeUnmount(() => clearTimeout(timer))
           {{ order.payment_method_label }} · {{ order.fulfillment_type === 'delivery' ? `Entrega em ${order.neighborhood}` : `Retirada em ${order.branch.name}` }}
         </p>
       </section>
+
+      <LoyaltyStamps v-if="order.loyalty" class="mt-6" :status="order.loyalty" :title="order.status === 'completed' ? 'Seu cartão fidelidade' : 'Cartão fidelidade (o selo entra quando o pedido for concluído)'" />
 
       <div v-if="storePhone" class="mt-6 grid gap-2 sm:grid-cols-2">
         <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Falar no WhatsApp sobre o pedido nº {{ order.number }}</a>

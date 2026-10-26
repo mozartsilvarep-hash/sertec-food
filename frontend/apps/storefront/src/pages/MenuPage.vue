@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ApiError, publicCatalogApi, type ProductSummary, type PublicMenu } from '@sertec/api-client'
+import { ApiError, formatMoney, publicCatalogApi, type ProductSummary, type PublicMenu } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import CartBar from '../components/CartBar.vue'
 import ProductRow from '../components/ProductRow.vue'
@@ -69,6 +69,9 @@ onMounted(async () => {
       <a v-if="store.announcement.link" :href="store.announcement.link" class="ml-1 font-semibold whitespace-nowrap underline underline-offset-2">{{ store.announcement.link_label ?? 'Saiba mais' }}</a>
     </p>
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
+    <p v-if="store.loyalty" class="border-b border-line bg-brand-50 px-4 py-2.5 text-center text-sm">
+      <strong>Cartão fidelidade:</strong> a cada {{ store.loyalty.stamps_required }} pedidos<template v-if="store.loyalty.min_order && Number(store.loyalty.min_order) > 0"> acima de {{ formatMoney(store.loyalty.min_order) }}</template>, ganhe {{ store.loyalty.reward_label }}.
+    </p>
 
     <RouterLink
       :to="recentOrder ? `/pedido/${recentOrder}` : '/acompanhar'"

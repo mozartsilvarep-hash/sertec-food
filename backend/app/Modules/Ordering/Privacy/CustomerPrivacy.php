@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ordering\Privacy;
 
+use App\Modules\Loyalty\Models\LoyaltyCard;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\Order;
@@ -25,7 +26,7 @@ final class CustomerPrivacy
     public const ANONYMOUS = 'Cliente (dados removidos)';
 
     /**
-     * @return array{customer: array<string, mixed>|null, orders: list<array<string, mixed>>}
+     * @return array{customer: array<string, mixed>|null, orders: list<array<string, mixed>>, loyalty: array{stamps: int, rewards: int}|null}
      */
     public function report(string $phone): array
     {
@@ -41,6 +42,7 @@ final class CustomerPrivacy
                 'number' => $o->order_number, 'placed_at' => $o->placed_at->toIso8601String(), 'status' => $o->status->value,
                 'name' => $o->customer_name, 'address' => $o->address_snapshot_json, 'total' => $o->total,
             ])->values()->all(),
+            'loyalty' => ($card = LoyaltyCard::query()->where('phone', $phone)->first()) === null ? null : ['stamps' => $card->stamps, 'rewards' => $card->rewards],
         ];
     }
 
@@ -56,6 +58,7 @@ final class CustomerPrivacy
         return DB::transaction(function () use ($phone) {
             $count = $this->scrub(Order::query()->where('customer_phone', $phone)->whereNull('anonymized_at'));
             Customer::query()->where('phone', $phone)->delete();
+            LoyaltyCard::query()->where('phone', $phone)->delete(); // histórico cai junto (cascade)
 
             return $count;
         });
@@ -72,6 +75,8 @@ final class CustomerPrivacy
             Customer::query()->where(fn ($q) => $q->whereNull('last_order_at')->orWhere('last_order_at', '<', $before))
                 ->whereDoesntHave('orders', fn ($q) => $q->whereNull('anonymized_at'))
                 ->delete();
+            // Cartão fidelidade sem movimento no prazo de retenção.
+            LoyaltyCard::query()->where('updated_at', '<', $before)->delete();
 
             return $count;
         });

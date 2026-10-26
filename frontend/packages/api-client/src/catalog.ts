@@ -36,6 +36,38 @@ export interface StorefrontInfo {
   /** Formas aceitas; Pix e cartão pelo site só aparecem com o Mercado Pago conectado. */
   payment_methods?: { method: 'cash' | 'card_on_delivery' | 'pix' | 'online_card'; label: string; online: boolean }[]
   announcement?: Announcement | null
+  /** Cartão fidelidade ativo (null = sem programa). */
+  loyalty?: LoyaltyRule | null
+}
+
+export interface LoyaltyRule {
+  stamps_required: number
+  reward_label: string
+  min_order: string | null
+  reward_type: 'fixed' | 'percent'
+  reward_amount: string | null
+  reward_percent_bp: number | null
+  reward_max: string | null
+}
+
+/** Selos e prêmios de um celular (sem dados pessoais). */
+export interface LoyaltyStatus {
+  stamps: number
+  required: number
+  rewards: number
+  reward_label: string
+}
+
+/** Prévia do desconto do prêmio sobre os itens (o servidor recalcula no checkout). */
+export function loyaltyRewardCents(rule: LoyaltyRule, itemsCents: number): number {
+  let value: number
+  if (rule.reward_type === 'percent') {
+    value = Math.floor((itemsCents * (rule.reward_percent_bp ?? 0) + 5000) / 10000)
+    if (rule.reward_max) value = Math.min(value, Math.round(Number(rule.reward_max) * 100))
+  } else {
+    value = Math.round(Number(rule.reward_amount ?? 0) * 100)
+  }
+  return Math.max(0, Math.min(value, itemsCents))
 }
 
 export interface ProductSummary {

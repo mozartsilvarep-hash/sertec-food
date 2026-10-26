@@ -17,11 +17,11 @@ class PlanSeeder extends Seeder
         $plans = [
             'cardapio' => [
                 'name' => 'Cardápio Digital',
-                'features' => [Feature::THERMAL_PRINT, Feature::CASHBOOK],
+                'features' => [Feature::THERMAL_PRINT, Feature::CASHBOOK, Feature::LOYALTY],
             ],
             'site-cardapio' => [
                 'name' => 'Site Profissional + Cardápio',
-                'features' => [Feature::SITE_MODE, Feature::CUSTOM_DOMAIN, Feature::THERMAL_PRINT, Feature::COUPONS, Feature::REPORTS, Feature::CASHBOOK],
+                'features' => [Feature::SITE_MODE, Feature::CUSTOM_DOMAIN, Feature::THERMAL_PRINT, Feature::COUPONS, Feature::REPORTS, Feature::CASHBOOK, Feature::LOYALTY],
             ],
         ];
 

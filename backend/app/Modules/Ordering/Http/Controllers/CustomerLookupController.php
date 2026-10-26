@@ -17,16 +17,16 @@ use Illuminate\Http\Request;
  */
 class CustomerLookupController
 {
-    public function __construct(private readonly CustomerDirectory $directory) {}
-
-    public function customer(Request $request): JsonResponse
+    // Serviços que dependem do tenant entram por método, nunca pelo construtor:
+    // a instância do controller é reaproveitada entre requisições.
+    public function customer(Request $request, CustomerDirectory $directory): JsonResponse
     {
-        return new JsonResponse(['data' => $this->directory->publicLookup($this->phone($request))]);
+        return new JsonResponse(['data' => $directory->publicLookup($this->phone($request))]);
     }
 
-    public function orders(Request $request): JsonResponse
+    public function orders(Request $request, CustomerDirectory $directory): JsonResponse
     {
-        return new JsonResponse(['data' => $this->directory->recentOrders($this->phone($request))]);
+        return new JsonResponse(['data' => $directory->recentOrders($this->phone($request))]);
     }
 
     private function phone(Request $request): string

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ordering\Http\Resources;
 
+use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Order;
 use App\Modules\Ordering\Models\OrderStatusHistory;
@@ -47,6 +48,8 @@ class TrackedOrderResource extends JsonResource
                 'at' => $h->created_at->toIso8601String(),
             ])->values(),
             'payment' => PaymentPresenter::public($this->resource),
+            // Cartão fidelidade do celular do pedido (só selos/prêmios, sem dados pessoais).
+            'loyalty' => app(LoyaltyService::class)->status($this->customer_phone),
             'final' => $this->status->isFinal(),
             'steps' => array_map(fn (OrderStatus $s) => ['status' => $s->value, 'label' => $s->label()], array_values(array_filter(
                 [...($this->payment_method->isOnline() ? [OrderStatus::AwaitingPayment] : []), OrderStatus::PendingAcceptance, OrderStatus::Accepted, OrderStatus::Preparing, OrderStatus::Ready, OrderStatus::OutForDelivery, OrderStatus::Completed],

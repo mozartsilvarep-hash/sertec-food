@@ -2,11 +2,12 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ApiError, cartApi, centsToString, customerApi, formatMoney, orderApi, toCents,
+  ApiError, cartApi, centsToString, customerApi, formatMoney, loyaltyRewardCents, orderApi, toCents,
   type CheckoutPayload, type CouponPreview, type CustomerLookup, type FulfillmentType, type PaymentMethod, type PublicZone,
 } from '@sertec/api-client'
 import { SAlert, SButton, STextArea, STextField } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
+import LoyaltyStamps from '../components/LoyaltyStamps.vue'
 import { branch, cart, forgetCustomer, loadCart, rememberCustomer, rememberOrder, savedCustomer, store } from '../shop'
 
 const router = useRouter()
@@ -128,7 +129,16 @@ const discountCents = computed(() => {
   if (!coupon.value) return 0
   return coupon.value.free_delivery ? feeCents.value : Math.min(toCents(coupon.value.discount), subtotalCents.value)
 })
-const totalCents = computed(() => subtotalCents.value + feeCents.value - discountCents.value)
+// Cartão fidelidade: prêmio sobre os itens depois do cupom (prévia; o servidor recalcula).
+const useLoyalty = ref(true)
+const loyaltyStatus = computed(() => known.value?.loyalty ?? null)
+const loyaltyCents = computed(() => {
+  const rule = store.value?.loyalty
+  if (!rule || !useLoyalty.value || !loyaltyStatus.value?.rewards) return 0
+  const couponOnItems = coupon.value && !coupon.value.free_delivery ? discountCents.value : 0
+  return loyaltyRewardCents(rule, Math.max(0, subtotalCents.value - couponOnItems))
+})
+const totalCents = computed(() => subtotalCents.value + feeCents.value - discountCents.value - loyaltyCents.value)
 
 async function applyCoupon() {
   if (!cart.value?.token || !couponCode.value.trim()) return
@@ -170,6 +180,7 @@ function payload(): CheckoutPayload {
       change_for: form.method === 'cash' && form.needsChange && form.changeFor ? centsToString(toCents(form.changeFor.replace(',', '.'))) : null,
     },
     coupon: coupon.value?.code ?? null,
+    use_loyalty: loyaltyCents.value > 0,
     notes: form.notes.trim() || null,
   }
 }
@@ -208,6 +219,7 @@ async function submit() {
       }
       if (error.code === 'cart_invalid' || error.code === 'cart_not_found') await loadCart()
       if (error.code === 'saved_address_missing') typeAnotherAddress()
+      if (error.code === 'loyalty_no_reward') useLoyalty.value = false
     } else {
       message.value = 'Não foi possível enviar. Tente novamente.'
     }
@@ -242,6 +254,12 @@ onMounted(async () => {
         <button type="button" class="font-semibold text-brand-700 underline" @click="forgetMe">Esquecer meus dados</button>
       </p>
       <STextField v-model="form.name" label="Nome" autocomplete="name" :error="err('customer.name')" />
+      <template v-if="loyaltyStatus">
+        <LoyaltyStamps :status="loyaltyStatus" />
+        <label v-if="loyaltyStatus.rewards > 0" class="-mt-2 inline-flex items-center gap-2 text-sm font-medium">
+          <input v-model="useLoyalty" type="checkbox" class="size-4 accent-brand-600"> Usar meu prêmio neste pedido ({{ loyaltyStatus.reward_label }})
+        </label>
+      </template>
     </fieldset>
 
     <fieldset>
@@ -355,6 +373,7 @@ onMounted(async () => {
       <p v-for="d in cart.discounts ?? []" :key="d.label" class="flex justify-between text-success"><span>{{ d.label }}</span><span class="tabular-nums">− {{ formatMoney(d.amount) }}</span></p>
       <p v-if="form.type === 'delivery'" class="flex justify-between"><span class="text-muted">Entrega</span><span class="tabular-nums">{{ zone ? (feeCents === 0 ? 'Grátis' : formatMoney(centsToString(feeCents))) : 'escolha o bairro' }}</span></p>
       <p v-if="coupon && discountCents > 0" class="flex justify-between text-success"><span>{{ coupon.label }}</span><span class="tabular-nums">− {{ formatMoney(centsToString(discountCents)) }}</span></p>
+      <p v-if="loyaltyCents > 0" class="flex justify-between text-success"><span>Cartão fidelidade</span><span class="tabular-nums">− {{ formatMoney(centsToString(loyaltyCents)) }}</span></p>
       <p class="mt-1 flex justify-between text-base font-bold"><span>Total</span><span class="tabular-nums">{{ formatMoney(centsToString(totalCents)) }}</span></p>
       <p v-if="belowMinimum && zone" class="text-danger">Pedido mínimo para {{ form.neighborhood }}: {{ formatMoney(zone.minimum_order) }}.</p>
     </section>
