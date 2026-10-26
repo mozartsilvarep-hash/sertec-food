@@ -16,6 +16,7 @@ export const router = createRouter({
       return token ? { path: `/pedido/${token}`, replace: true } : { path: '/', replace: true }
     } },
     { path: '/pedido/:token', name: 'track', component: () => import('./pages/TrackPage.vue'), props: true },
+    { path: '/privacidade', name: 'privacy', component: () => import('./pages/PrivacyPage.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

@@ -1,0 +1,128 @@
+# Produção do SerTec Food num servidor (VPS) com Docker.
+#   cp .env.production.example .env.production   # e preencha
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Passo a passo completo: docs/OPERATIONS.md
+name: sertec-food-prod
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/prod/Dockerfile
+    target: app
+  image: sertec-food-app:${SERTEC_VERSION:-latest}
+  env_file: .env.production
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    LOG_CHANNEL: stderr
+    LOG_STDERR_FORMATTER: Monolog\Formatter\JsonFormatter
+    DB_CONNECTION: mariadb
+    DB_HOST: mariadb
+    REDIS_HOST: redis
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: database
+    SESSION_SECURE_COOKIE: "true"
+    STOREFRONT_INDEX: /srv/www/storefront/index.html
+  volumes:
+    - storage:/var/www/backend/storage/app
+  depends_on:
+    mariadb:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/prod/Dockerfile
+      target: web
+    image: sertec-food-web:${SERTEC_VERSION:-latest}
+    env_file: .env.production
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - storage:/srv/storage-root:ro
+    # As fotos ficam em storage/app/public dentro do volume.
+    command: sh -c "ln -sfn /srv/storage-root/public /srv/storage && caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+    depends_on: [app]
+    restart: unless-stopped
+
+  app:
+    <<: *app
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan ops:status >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 120s
+
+  worker:
+    <<: *app
+    command: php artisan queue:work redis --tries=3 --backoff=10 --max-time=3600 --sleep=1
+
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-sertec_food}
+      MARIADB_USER: ${DB_USERNAME:-sertec}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD}
+    command:
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=256M
+    volumes:
+      - mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Backup diário (banco + fotos) com retenção; ver ops/backup.sh.
+  backup:
+    image: mariadb:11.4
+    env_file: .env.production
+    environment:
+      DB_HOST: mariadb
+    entrypoint: ["/bin/sh", "/ops/backup-loop.sh"]
+    volumes:
+      - ./ops:/ops:ro
+      - storage:/data/storage:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mariadb:
+  redis:
+  storage:
+  caddy_data:
+  caddy_config:

@@ -140,3 +140,32 @@ Cancelar/recusar um pedido pago online dispara o reembolso total automaticamente
 
 Toda escrita bem-sucedida do painel gera registro de auditoria automático (`AuditMutations`): ação = nome da rota sem `merchant.` (ex.: `products.update`), entidade e nomes dos registros afetados — nunca o corpo da requisição.
 
+## Implementado na Sprint 5 — Piloto
+
+### Painel SerTec (host admin, sessão de plataforma; escrita = superadmin)
+| Rota | Observações |
+|---|---|
+| `GET /admin/tenants?q=&status=&cursor=` | lista com host principal, plano, Mercado Pago (test/live) e pedidos em 30 dias |
+| `POST /admin/tenants` `{name, slug, owner_name, owner_email, plan?, timezone?, activate}` | cria tenant + subdomínio verificado + Matriz + dono; `owner_password` só na resposta (null se o e-mail já tinha conta). 409 `slug_taken`, 422 `slug_invalid`, `plan_not_found` |
+| `GET /admin/tenants/{id}` | ficha: dono, domínios, unidades, equipe, pedidos, Mercado Pago (sem segredos) |
+| `PATCH /admin/tenants/{id}` `{name?, status?, plan?}` | cancelado não volta; auditado como `tenant.updated` com antes/depois |
+| `POST /admin/tenants/{id}/owner-password` | nova senha temporária (uma vez) e fim das sessões do dono |
+| `POST /admin/tenants/{id}/domains` `{hostname}` | domínio próprio: devolve `txt_name`, `txt_value`, `cname_target`; 422 `domain_invalid`/`domain_reserved`, 409 `domain_taken` |
+| `POST …/domains/{d}/token` · `…/verify` · `…/primary` · `DELETE …/domains/{d}` | novo token; verificação por TXT (`domain_not_verified`); principal só se verificado; não remove o principal nem o da plataforma |
+| `GET /admin/audit?tenant=&action=&scope=platform` | trilha de toda a plataforma |
+| `GET /admin/plans` | planos |
+
+### Painel do restaurante
+| Rota | Permissão | Observações |
+|---|---|---|
+| `GET/POST /merchant/staff`, `PATCH/DELETE /merchant/staff/{user}`, `POST /merchant/staff/{user}/password` | `staff.manage` | funções gerente/atendente/cozinha (nunca proprietário); ninguém altera o próprio vínculo; proprietários protegidos; senha só é criada/redefinida para conta **exclusiva** do estabelecimento (409 `shared_account`); desativar/redefinir encerra sessões |
+| `POST /merchant/me/password` `{current_password, password, password_confirmation}` | qualquer membro | mín. 10 com letras e números; encerra as outras sessões |
+| `PATCH /merchant/branches/{id}` `{name?, phone?, address?{street, number, neighborhood, city, state, zip}, active?}` | `branches.manage` | telefone normalizado; 409 `last_branch` |
+| `POST /merchant/branches` | `branches.manage` + plano `multi_branch` | |
+| `GET /merchant/privacy/customer?phone=` · `POST /merchant/privacy/customer/erase {phone}` | `settings.update` | LGPD: relatório e anonimização (409 `order_in_progress`); auditoria só com hash do telefone |
+
+### Infraestrutura
+- `GET /__storefront` (qualquer host de restaurante, usado pelo Caddy): HTML do cardápio com título, descrição, canonical, `theme-color` e Open Graph do restaurante; 404 `noindex` para host desconhecido.
+- `GET /api/v1/internal/tls-ask?domain=` (só rede interna): 200 para o host admin e domínios verificados — autorização do certificado sob demanda.
+- `GET /api/v1/internal/health` (só rede interna): `{ok, checks{database, cache, queue, scheduler}}` 200/503. Externo: `/up`.
+

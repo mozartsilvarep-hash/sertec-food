@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/dist
+backend/vendor
+backend/.env
+backend/storage/app/*
+backend/storage/framework/*/*
+backend/storage/logs/*
+backend/bootstrap/cache/*.php
+backend/composer.offline.*
+.env
+.env.production
+backups
+e2e/shots

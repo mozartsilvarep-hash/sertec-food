@@ -1,0 +1,121 @@
+# Borda de produção do SerTec Food.
+# - HTTPS automático (Let's Encrypt) com emissão sob demanda: cada subdomínio
+#   de restaurante e cada domínio próprio VERIFICADO ganha certificado no
+#   primeiro acesso. O Caddy pergunta antes ao app (/internal/tls-ask), então
+#   nomes desconhecidos apontados para o servidor não geram certificado.
+# - SPAs estáticas servidas aqui; /api vai por FastCGI direto ao PHP-FPM
+#   (REMOTE_ADDR = IP real do cliente; nenhum proxy precisa ser confiável).
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://127.0.0.1:8081/api/v1/internal/tls-ask
+	}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		# Imagens do Pix vêm em data:, fotos do próprio host; nada de terceiros
+		# além do link (navegação) para o Mercado Pago.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+}
+
+(api) {
+	# Rotas internas nunca respondem de fora (handle mais específico vence).
+	handle /api/v1/internal/* {
+		respond 404
+	}
+	handle /api/* {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files {path} /index.php
+		}
+	}
+	handle /up {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files /index.php
+		}
+	}
+	handle_path /storage/* {
+		root * /srv/storage
+		header Cache-Control "public, max-age=2592000, immutable"
+		file_server
+	}
+}
+
+# Endpoint interno (só localhost): o Caddy consulta antes de emitir certificado.
+http://127.0.0.1:8081 {
+	php_fastcgi app:9000 {
+		root /var/www/backend/public
+		index off
+		try_files /index.php
+	}
+}
+
+# Painel SerTec
+{$TENANCY_ADMIN_HOST} {
+	import security_headers
+	import api
+	handle {
+		root * /srv/www/admin
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Cardápios: subdomínios de plataforma e domínios próprios verificados.
+https:// {
+	tls {
+		on_demand
+	}
+	import security_headers
+	import api
+
+	# Painel do restaurante
+	handle /painel/* {
+		root * /srv/www/merchant
+		uri strip_prefix /painel
+		try_files {path} /index.html
+		file_server
+	}
+	redir /painel /painel/ 308
+
+	# Arquivos do cardápio (assets com hash: cache longo)
+	@asset {
+		path /assets/* /robots.txt /favicon.ico
+	}
+	handle @asset {
+		root * /srv/www/storefront
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Qualquer outra rota do cardápio: HTML com meta tags do restaurante.
+	# REQUEST_URI vai fixo para a rota do Laravel (o PHP recebe o URI original
+	# por padrão).
+	handle {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files /index.php
+			env REQUEST_URI /__storefront
+		}
+	}
+}
+
+# HTTP → HTTPS (inclusive para o desafio ACME, tratado pelo próprio Caddy).
+http:// {
+	redir https://{host}{uri} 308
+}

@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Modules\Identity\Access\TenantAccess;
 use App\Modules\Payments\Gateway\MercadoPagoGateway;
 use App\Modules\Payments\Gateway\PaymentGateway;
+use App\Modules\Platform\Domains\DnsResolver;
+use App\Modules\Platform\Domains\SystemDnsResolver;
 use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -23,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(FeatureGate::class);
 
         $this->app->bind(PaymentGateway::class, MercadoPagoGateway::class);
+        $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
     }
 
     public function boot(): void
@@ -35,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
             $email = strtolower((string) $request->input('email'));
 
             return [
-                Limit::perMinute(5)->by('login:'.$request->getHost().'|'.$email.'|'.$request->ip()),
+                Limit::perMinute((int) config('auth.login_per_minute', 5))->by('login:'.$request->getHost().'|'.$email.'|'.$request->ip()),
                 Limit::perMinute(30)->by('login-ip:'.$request->ip()),
             ];
         });

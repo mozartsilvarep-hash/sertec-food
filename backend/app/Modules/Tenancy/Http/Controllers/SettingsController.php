@@ -7,6 +7,7 @@ use App\Modules\Tenancy\Support\BrandColor;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Configurações visíveis do estabelecimento. Nome e slug são alterados
@@ -36,6 +37,7 @@ class SettingsController
 
         $tenant = $context->get();
         $tenant->fill($data)->save();
+        Cache::forget("storefront-meta:{$tenant->id}");
         $audit->record('tenant.settings_updated', $tenant, ['fields' => array_keys($data)]);
 
         return new JsonResponse(['data' => $this->present($context)]);

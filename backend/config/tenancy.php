@@ -27,4 +27,10 @@ return [
     | Formato aceito para slug: DNS label, 3-63 chars, minúsculas, dígitos e hífen.
     */
     'slug_pattern' => '/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])$/',
+
+    /*
+    | HTML do cardápio gerado pelo build (produção). O StorefrontShellController
+    | injeta título/descrição/Open Graph do restaurante antes de entregar.
+    */
+    'storefront_index' => env('STOREFRONT_INDEX', '/srv/www/storefront/index.html'),
 ];

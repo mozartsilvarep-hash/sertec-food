@@ -15,8 +15,8 @@ Mercado Pago sandbox, credenciais por tenant, webhook inbox, idempotência, reco
 ## Sprint 4 — Operação ✅ concluída (25/10/2026)
 Painel em tempo real, alertas, acompanhamento por token, histórico e auditoria. Entregue: pulso de pedidos (≤ 3 s, também com a aba em segundo plano), alerta sonoro/título/notificação e destaque de aceite atrasado, comanda para térmica 58/80 mm, histórico com busca e filtros, resumo do período, exportação CSV, auditoria automática do painel com tela para o proprietário e contato do restaurante (WhatsApp/telefone) no acompanhamento.
 
-## Sprint 5 — Piloto
-Subdomínios, HTTPS, backups, observabilidade, LGPD, testes E2E, piloto com 2–3 restaurantes.
+## Sprint 5 — Piloto ✅ concluída (25/10/2026, falta só o piloto em si)
+Subdomínios, HTTPS, backups, observabilidade, LGPD, testes E2E, piloto com 2–3 restaurantes. Entregue: painel SerTec (cadastro/ativação/suspensão de restaurantes, senha do proprietário, plano, domínio próprio com verificação por DNS, auditoria da plataforma), equipe e "Minha conta" no painel do restaurante, edição de unidades, stack de produção (Caddy com HTTPS automático sob demanda, cabeçalhos de segurança/CSP, PHP-FPM, fila, agendador), meta tags/Open Graph por restaurante, saúde e logs JSON, backup diário criptografado com teste de restauração, LGPD (política, retenção automática, atendimento ao titular) e suíte E2E no repositório. **Para o piloto (decisões da SerTec):** servidor, domínio/DNS, revisão jurídica da política de privacidade e contratos (DPA), cópia externa dos backups, preços dos planos.
 
 ## Pós-MVP
 Cobrança self-service, WhatsApp Cloud API, impressão térmica, cupons avançados, relatórios, PDV e IA.
