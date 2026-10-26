@@ -53,7 +53,7 @@ CMD ["php-fpm"]
 
 # ---------- 4. Web: Caddy (HTTPS automático) + SPAs ----------
 FROM caddy:2.10-alpine AS web
-COPY docker/caddy/Caddyfile /etc/caddy/Caddyfile
+COPY docker/caddy/Caddyfile docker/caddy/Caddyfile.proxy /etc/caddy/
 COPY --from=frontend /src/frontend/apps/storefront/dist /srv/www/storefront
 COPY --from=frontend /src/frontend/apps/merchant/dist /srv/www/merchant
 COPY --from=frontend /src/frontend/apps/admin/dist /srv/www/admin

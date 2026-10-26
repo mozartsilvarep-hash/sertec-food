@@ -1,0 +1,119 @@
+# Borda do SerTec Food ATRÁS DE OUTRO SERVIDOR WEB (ex.: Nginx do aaPanel).
+#
+# Use quando as portas 80/443 do servidor já são de outro programa. Quem
+# termina o HTTPS (certificados Let's Encrypt) é o servidor da frente; este
+# Caddy só escuta HTTP numa porta local (127.0.0.1:8088 no compose) e entrega
+# as SPAs e o PHP. Ativado por CADDY_CONFIG=Caddyfile.proxy (ver
+# docs/DEPLOY-AAPANEL.md). Mantenha as rotas iguais às do Caddyfile principal.
+#
+# Segurança:
+# - IP do cliente: vem do X-Forwarded-For SOMENTE quando a conexão chega de
+#   rede privada (o proxy local). Em modo estrito, o Caddy lê o cabeçalho da
+#   direita para a esquerda e para no primeiro IP não confiável, então um
+#   X-Forwarded-For forjado pelo visitante não é aceito. O PHP recebe esse IP
+#   em REMOTE_ADDR; o Laravel continua sem confiar em proxy (TRUSTED_PROXIES
+#   vazio).
+# - O PHP recebe HTTPS=on: o servidor da frente só repassa tráfego HTTPS
+#   (o redirecionamento HTTP → HTTPS é configurado lá).
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+}
+
+(api) {
+	handle /api/v1/internal/* {
+		respond 404
+	}
+	handle /api/* {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files {path} /index.php
+			env REMOTE_ADDR {client_ip}
+			env HTTPS on
+			env REQUEST_SCHEME https
+			env SERVER_PORT 443
+		}
+	}
+	handle /up {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files /index.php
+			env REMOTE_ADDR {client_ip}
+			env HTTPS on
+			env REQUEST_SCHEME https
+			env SERVER_PORT 443
+		}
+	}
+	handle_path /storage/* {
+		root * /srv/storage
+		header Cache-Control "public, max-age=2592000, immutable"
+		file_server
+	}
+}
+
+# Painel SerTec
+http://{$TENANCY_ADMIN_HOST} {
+	import security_headers
+	import api
+	handle {
+		root * /srv/www/admin
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Cardápios: subdomínios de plataforma e domínios próprios verificados
+# (o app recusa hosts desconhecidos).
+http:// {
+	import security_headers
+	import api
+
+	handle /painel/* {
+		root * /srv/www/merchant
+		uri strip_prefix /painel
+		try_files {path} /index.html
+		file_server
+	}
+	redir /painel /painel/ 308
+
+	@asset {
+		path /assets/* /robots.txt /favicon.ico
+	}
+	handle @asset {
+		root * /srv/www/storefront
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	handle {
+		php_fastcgi app:9000 {
+			root /var/www/backend/public
+			index off
+			try_files /index.php
+			env REQUEST_URI /__storefront
+			env REMOTE_ADDR {client_ip}
+			env HTTPS on
+			env REQUEST_SCHEME https
+			env SERVER_PORT 443
+		}
+	}
+}

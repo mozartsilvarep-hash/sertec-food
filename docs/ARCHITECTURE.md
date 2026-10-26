@@ -237,3 +237,15 @@ Tipos: percentual (com teto opcional), valor fixo (limitado ao subtotal) e entre
 ### D59 — Faixa de aviso
 Texto, link HTTPS opcional e período, guardados no tenant. Aparece no topo do cardápio e no feed (`faixa`). Fora do período, some dos dois.
 
+
+## Decisões de implantação
+
+### D60 — Instalação atrás do Nginx do aaPanel
+Servidores com aaPanel já usam as portas 80/443 para outros sites. Nesse caso o SerTec Food não disputa as portas:
+- O container `web` publica só em `127.0.0.1:8088` (`WEB_HTTP_BIND`/`WEB_HTTPS_BIND`) e usa `docker/caddy/Caddyfile.proxy` (`CADDY_CONFIG`). O Nginx do aaPanel faz o HTTPS e repassa.
+- **IP real:** o Caddy só aceita `X-Forwarded-For` de redes privadas (o próprio proxy local) e em modo estrito (lê da direita para a esquerda e para no primeiro IP público). Um `X-Forwarded-For` forjado pelo visitante não muda o IP, mesmo que o Nginx use `$proxy_add_x_forwarded_for`. O PHP recebe o IP em `REMOTE_ADDR`, e o Laravel continua sem confiar em proxy (`TRUSTED_PROXIES` vazio). Assim os limites por IP e a auditoria continuam corretos.
+- **Esquema:** o PHP recebe `HTTPS=on`, então URLs geradas (canonical, links do feed, URLs do Mercado Pago) saem em `https://`.
+- **Certificados:** ficam com o aaPanel, um site por host. Não há emissão sob demanda; por isso `/internal/tls-ask` não é usado nesse modo e continua bloqueado de fora.
+- **CI:** sobe as imagens de produção atrás de um Nginx configurado como o do aaPanel e confere IP real, HTTPS, CSP e o bloqueio da rota interna.
+
+O modo padrão (Caddy dono das portas, certificados automáticos) continua igual. Guia: `docs/DEPLOY-AAPANEL.md`.
