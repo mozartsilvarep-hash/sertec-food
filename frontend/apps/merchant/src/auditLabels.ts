@@ -30,6 +30,13 @@ const LABELS: Record<string, string> = {
   'availability.update': 'Marcou disponibilidade (esgotado)',
   'branches.hours.update': 'Alterou horários',
   'delivery.update': 'Alterou entrega/retirada',
+  'promotions.store': 'Criou promoção',
+  'promotions.update': 'Alterou promoção',
+  'promotions.destroy': 'Removeu promoção',
+  'coupons.store': 'Criou cupom',
+  'coupons.update': 'Alterou cupom',
+  'coupons.destroy': 'Removeu cupom',
+  'storefront-feed.update': 'Alterou vitrine/faixa de aviso',
 }
 
 export function auditLabel(action: string): string {

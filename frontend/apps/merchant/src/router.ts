@@ -15,6 +15,7 @@ export const router = createRouter({
         { path: '', name: 'home', component: () => import('./pages/HomePage.vue') },
         { path: 'pedidos', name: 'orders', component: () => import('./pages/OrdersPage.vue') },
         { path: 'historico', name: 'history', component: () => import('./pages/HistoryPage.vue') },
+        { path: 'promocoes', name: 'marketing', component: () => import('./pages/MarketingPage.vue') },
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
         { path: 'equipe', name: 'team', component: () => import('./pages/TeamPage.vue') },
         { path: 'minha-conta', name: 'account', component: () => import('./pages/AccountPage.vue') },

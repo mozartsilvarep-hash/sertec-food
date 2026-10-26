@@ -20,6 +20,8 @@ export interface GroupCheck {
 
 export interface PricePreview {
   unitCents: number
+  /** Preço cheio (sem promoção); igual a unitCents quando não há promoção. */
+  originalCents: number
   unitPrice: string
   groups: GroupCheck[]
   valid: boolean
@@ -62,9 +64,14 @@ export function previewPrice(product: PublicProduct, selection: Selection): Pric
     groups.push({ groupId: group.id, selected, ok: message === null, message })
   }
 
+  // Promoção: mesmo arredondamento do servidor (Promotion::apply).
+  const bp = product.promotion?.percent_bp ?? 0
+  const discounted = bp > 0 ? Math.floor((cents * (10000 - bp) + 5000) / 10000) : cents
+
   return {
-    unitCents: cents,
-    unitPrice: centsToString(cents),
+    unitCents: discounted,
+    originalCents: cents,
+    unitPrice: centsToString(discounted),
     groups,
     valid: variant !== undefined && groups.every((g) => g.ok),
   }

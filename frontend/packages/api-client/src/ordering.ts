@@ -14,6 +14,8 @@ export interface CartLine {
   notes: string | null
   options: { group_name: string; option_name: string; quantity: number }[]
   unit_price: string | null
+  original_unit_price?: string | null
+  promotion_label?: string | null
   line_total: string | null
   valid: boolean
   problem: { reason: string; message: string } | null
@@ -44,6 +46,18 @@ export const cartApi = {
   update: (token: string, itemId: string, body: { quantity?: number; notes?: string | null }) =>
     request<Data<CartView>>(`/carts/${enc(token)}/items/${enc(itemId)}`, { method: 'PATCH', body }).then((r) => r.data),
   remove: (token: string, itemId: string) => request<Data<CartView>>(`/carts/${enc(token)}/items/${enc(itemId)}`, { method: 'DELETE' }).then((r) => r.data),
+  /** Prévia do cupom (o checkout valida de novo). */
+  coupon: (token: string, code: string, phone?: string | null) =>
+    request<Data<CouponPreview>>(`/carts/${enc(token)}/coupon`, { method: 'POST', body: { code, phone: phone || null } }).then((r) => r.data),
+}
+
+export interface CouponPreview {
+  code: string
+  label: string
+  description: string | null
+  discount_type: 'percent' | 'fixed' | 'free_delivery'
+  discount: string
+  free_delivery: boolean
 }
 
 /* ---------- Checkout e acompanhamento (público) ---------- */
@@ -60,6 +74,7 @@ export interface CheckoutPayload {
     address?: { street: string; number: string; complement?: string | null; neighborhood: string; reference?: string | null } | null
   }
   payment: { method: PaymentMethod; change_for?: string | null }
+  coupon?: string | null
   notes?: string | null
 }
 
@@ -71,6 +86,7 @@ export interface CheckoutResult {
   payment_method: PaymentMethod
   fulfillment_type: FulfillmentType
   total: string
+  discount_total?: string
   eta_minutes: number | null
   payment_required: boolean
   payment_expires_at: string | null
@@ -286,3 +302,75 @@ export const CANCELLATION_REASONS: { value: CancellationReason; label: string }[
   { value: 'customer_unreachable', label: 'Não conseguimos contato' },
   { value: 'other', label: 'Outro motivo' },
 ]
+
+/* ---------- Painel: promoções, cupons e vitrine ---------- */
+
+export interface MerchantPromotion {
+  id: string
+  product: { id: string; name: string }
+  percent: string
+  label: string
+  badge: string | null
+  featured: boolean
+  active: boolean
+  state: 'running' | 'scheduled' | 'ended' | 'paused'
+  starts_at: string | null
+  ends_at: string | null
+}
+
+export interface PromotionInput {
+  product_id?: string
+  percent?: string | null
+  promo_price?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  featured?: boolean
+  badge?: string | null
+  active?: boolean
+}
+
+export type CouponType = 'percent' | 'fixed' | 'free_delivery'
+
+export interface MerchantCoupon {
+  id: string
+  code: string
+  description: string | null
+  discount_type: CouponType
+  percent: string | null
+  amount: string | null
+  max_discount: string | null
+  min_subtotal: string | null
+  starts_at: string | null
+  ends_at: string | null
+  usage_limit: number | null
+  per_customer_limit: number | null
+  first_order_only: boolean
+  times_used: number
+  discount_given: string
+  active: boolean
+}
+
+export type CouponInput = Partial<Omit<MerchantCoupon, 'id' | 'times_used' | 'discount_given'>>
+
+export interface FeedSettings {
+  announcement: { text: string; link: string | null; link_label: string | null; starts_at: string | null; ends_at: string | null } | null
+  announcement_active: boolean
+  feed_origins: string[]
+  feed_url: string
+}
+
+export const marketingApi = {
+  promotions: () => request<Data<MerchantPromotion[]>>('/merchant/promotions').then((r) => r.data),
+  createPromotion: (body: PromotionInput) => request<Data<MerchantPromotion>>('/merchant/promotions', { method: 'POST', body }).then((r) => r.data),
+  updatePromotion: (id: string, body: PromotionInput) =>
+    request<Data<MerchantPromotion>>(`/merchant/promotions/${enc(id)}`, { method: 'PATCH', body }).then((r) => r.data),
+  deletePromotion: (id: string) => request<void>(`/merchant/promotions/${enc(id)}`, { method: 'DELETE' }),
+  coupons: () => request<Data<MerchantCoupon[]>>('/merchant/coupons').then((r) => r.data),
+  createCoupon: (body: CouponInput) => request<Data<MerchantCoupon>>('/merchant/coupons', { method: 'POST', body }).then((r) => r.data),
+  updateCoupon: (id: string, body: CouponInput) => request<Data<MerchantCoupon>>(`/merchant/coupons/${enc(id)}`, { method: 'PATCH', body }).then((r) => r.data),
+  deleteCoupon: (id: string) => request<void>(`/merchant/coupons/${enc(id)}`, { method: 'DELETE' }),
+  feed: () => request<Data<FeedSettings>>('/merchant/storefront-feed').then((r) => r.data),
+  saveFeed: (body: { announcement?: FeedSettings['announcement']; feed_origins?: string[] }) =>
+    request<Data<FeedSettings>>('/merchant/storefront-feed', { method: 'PUT', body }).then((r) => r.data),
+}
+

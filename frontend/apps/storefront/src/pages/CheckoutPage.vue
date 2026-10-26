@@ -2,8 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ApiError, centsToString, formatMoney, orderApi, toCents,
-  type CheckoutPayload, type FulfillmentType, type PaymentMethod, type PublicZone,
+  ApiError, cartApi, centsToString, formatMoney, orderApi, toCents,
+  type CheckoutPayload, type CouponPreview, type FulfillmentType, type PaymentMethod, type PublicZone,
 } from '@sertec/api-client'
 import { SAlert, SButton, STextArea, STextField } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
@@ -57,7 +57,37 @@ const feeCents = computed(() => {
 const belowMinimum = computed(() =>
   form.type === 'delivery' && zone.value?.minimum_order ? subtotalCents.value < toCents(zone.value.minimum_order) : false,
 )
-const totalCents = computed(() => subtotalCents.value + feeCents.value)
+// Cupom: prévia pelo servidor; o checkout valida tudo de novo.
+const couponOpen = ref(false)
+const couponCode = ref('')
+const coupon = ref<CouponPreview | null>(null)
+const couponError = ref<string | null>(null)
+const couponBusy = ref(false)
+const discountCents = computed(() => {
+  if (!coupon.value) return 0
+  return coupon.value.free_delivery ? feeCents.value : Math.min(toCents(coupon.value.discount), subtotalCents.value)
+})
+const totalCents = computed(() => subtotalCents.value + feeCents.value - discountCents.value)
+
+async function applyCoupon() {
+  if (!cart.value?.token || !couponCode.value.trim()) return
+  couponBusy.value = true
+  couponError.value = null
+  try {
+    coupon.value = await cartApi.coupon(cart.value.token, couponCode.value.trim(), form.phone || null)
+  } catch (e) {
+    coupon.value = null
+    couponError.value = e instanceof ApiError ? e.message : 'Não foi possível validar o cupom.'
+  } finally {
+    couponBusy.value = false
+  }
+}
+
+function removeCoupon() {
+  coupon.value = null
+  couponCode.value = ''
+  couponError.value = null
+}
 const err = (k: string) => errors.value[k]?.[0] ?? null
 
 function payload(): CheckoutPayload {
@@ -77,6 +107,7 @@ function payload(): CheckoutPayload {
       method: form.method,
       change_for: form.method === 'cash' && form.needsChange && form.changeFor ? centsToString(toCents(form.changeFor.replace(',', '.'))) : null,
     },
+    coupon: coupon.value?.code ?? null,
     notes: form.notes.trim() || null,
   }
 }
@@ -100,6 +131,10 @@ async function submit() {
     if (error instanceof ApiError) {
       errors.value = error.fieldErrors
       message.value = Object.keys(error.fieldErrors).length ? 'Confira os campos destacados.' : error.message
+      if (error.code.startsWith('coupon_')) {
+        couponError.value = error.message
+        coupon.value = null
+      }
       if (error.code === 'cart_invalid' || error.code === 'cart_not_found') await loadCart()
     } else {
       message.value = 'Não foi possível enviar. Tente novamente.'
@@ -214,9 +249,23 @@ onMounted(async () => {
     <STextArea v-model="form.notes" label="Observações para o restaurante (opcional)" :maxlength="300" />
     <p class="-mt-4 text-sm text-muted">Usamos seus dados só para este pedido. <RouterLink to="/privacidade" class="font-medium text-brand-700 underline">Política de privacidade</RouterLink></p>
 
+    <section aria-label="Cupom" class="grid gap-2">
+      <button v-if="!couponOpen && !coupon" type="button" class="justify-self-start text-sm font-semibold text-brand-700 hover:underline" @click="couponOpen = true">Tem cupom de desconto?</button>
+      <div v-else-if="!coupon" class="flex items-end gap-2">
+        <div class="flex-1"><STextField v-model="couponCode" label="Cupom" :error="couponError" @keydown.enter.prevent="applyCoupon" /></div>
+        <SButton variant="secondary" :loading="couponBusy" @click="applyCoupon">Aplicar</SButton>
+      </div>
+      <p v-else class="flex items-center justify-between gap-3 rounded-(--radius-control) border border-success bg-success/5 px-3 py-2 text-sm" role="status">
+        <span><strong>{{ coupon.code }}</strong><template v-if="coupon.description"> · {{ coupon.description }}</template></span>
+        <button type="button" class="font-medium text-muted hover:text-ink" @click="removeCoupon">Remover</button>
+      </p>
+      <p v-if="coupon && couponError" class="text-sm text-danger">{{ couponError }}</p>
+    </section>
+
     <section aria-label="Resumo" class="grid gap-1 border-t border-line pt-4 text-sm">
       <p class="flex justify-between"><span class="text-muted">Subtotal</span><span class="tabular-nums">{{ formatMoney(cart.subtotal) }}</span></p>
       <p v-if="form.type === 'delivery'" class="flex justify-between"><span class="text-muted">Entrega</span><span class="tabular-nums">{{ zone ? (feeCents === 0 ? 'Grátis' : formatMoney(centsToString(feeCents))) : 'escolha o bairro' }}</span></p>
+      <p v-if="coupon && discountCents > 0" class="flex justify-between text-success"><span>{{ coupon.label }}</span><span class="tabular-nums">− {{ formatMoney(centsToString(discountCents)) }}</span></p>
       <p class="mt-1 flex justify-between text-base font-bold"><span>Total</span><span class="tabular-nums">{{ formatMoney(centsToString(totalCents)) }}</span></p>
       <p v-if="belowMinimum && zone" class="text-danger">Pedido mínimo para {{ form.neighborhood }}: {{ formatMoney(zone.minimum_order) }}.</p>
     </section>
