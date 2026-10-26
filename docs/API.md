@@ -229,3 +229,16 @@ Toda escrita bem-sucedida do painel gera registro de auditoria automático (`Aud
 - **Carrinho:** `discounts[] {label, amount}`, `discount_total` e `net_subtotal`.
 - **Pedido:** linha `promotion` em `totals`.
 - **Erros:** fora do dia ou horário, 422 `invalid_selection` com `details.reason = product_not_available_now`; item de combo indisponível, `option_invalid`.
+
+## Implementado na Sprint 9 — E-mail e "Esqueci a senha"
+
+| Método | Rota (host) | Corpo | Resposta |
+|---|---|---|---|
+| POST | `merchant/auth/forgot-password` (restaurante) | `{email}` | 200 `{message}` sempre igual |
+| POST | `merchant/auth/reset-password` (restaurante) | `{email, token, password, password_confirmation}` | 200; 422 `reset_link_invalid` |
+| POST | `admin/auth/forgot-password` (admin) | `{email}` | idem |
+| POST | `admin/auth/reset-password` (admin) | idem | idem |
+| GET | `admin/system/mail` | — | `{mailer, configured, host, port, from, from_name}` |
+| POST | `admin/system/mail/test` (superadmin) | — | envia para o próprio usuário; 422 `mail_failed` com o motivo |
+
+Throttle `password-reset`: 5 por minuto por IP e 10 por hora por e-mail.

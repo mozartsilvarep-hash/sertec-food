@@ -1,6 +1,7 @@
 export { default as SAlert } from './components/SAlert.vue'
 export { default as SButton } from './components/SButton.vue'
 export { default as SLoginCard } from './components/SLoginCard.vue'
+export { default as SPasswordResetCard } from './components/SPasswordResetCard.vue'
 export { default as SPageState } from './components/SPageState.vue'
 export { default as SSheet } from './components/SSheet.vue'
 export { default as SStepper } from './components/SStepper.vue'

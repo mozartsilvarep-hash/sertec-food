@@ -54,6 +54,15 @@ docker compose version   # precisa ser 2.20 ou mais novo
 
 **Firewall:** no aaPanel (Security) e no painel da OVH, mantenha abertas só as portas SSH, 80, 443 e a do próprio aaPanel. **Não abra a 8088 nem a 8443.**
 
+**Saída de internet dos containers:** o ufw do Ubuntu vem com "deny (routed)", e isso impede os containers de acessar a internet. Sem essa saída, o build falha e o sistema não alcança o Mercado Pago nem o servidor de e-mail. Libere e confira:
+
+```bash
+ufw default allow routed && ufw reload && systemctl restart docker
+docker run --rm alpine sh -c 'wget -q -T 10 -O /dev/null https://registry.npmjs.org/ && echo OK || echo FALHOU'
+```
+
+Isso não abre nenhuma porta para quem vem de fora.
+
 ## 3. Baixar o sistema
 
 ```bash
@@ -225,6 +234,10 @@ Depois:
 - **Mercado Pago:** siga `docs/OPERATIONS.md`, item 6. A URL do webhook é `https://loja.yriscakes.com.br/api/v1/webhooks/mercadopago`.
 - **Site yriscakes.com.br:** siga `docs/OPERATIONS.md`, item 6.1, para ligar as promoções.
 - **Pedido de teste:** faça um, com pagamento na entrega, e conclua no painel.
+
+## 10.1 E-mail
+
+Para o "Esqueci a senha" funcionar, preencha o bloco `MAIL_*` do `.env.production` com os dados da caixa de envio. Depois rode `sf up -d --force-recreate app worker scheduler` e teste em **Painel SerTec → Sistema**. Detalhes em `docs/OPERATIONS.md`, item 6.2.
 
 ## 11. Backups
 

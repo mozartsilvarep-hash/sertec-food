@@ -73,6 +73,9 @@ async function onSubmit() {
           Entrar
         </SButton>
       </form>
+      <div v-if="$slots.footer" class="mt-4 text-center text-sm">
+        <slot name="footer" />
+      </div>
     </div>
   </main>
 </template>
