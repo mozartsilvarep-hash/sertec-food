@@ -128,3 +128,15 @@ Cancelar/recusar um pedido pago online dispara o reembolso total automaticamente
 ### Chamadas ao Mercado Pago (sem SDK)
 `GET /users/me`, `POST /v1/payments` (Pix), `POST /checkout/preferences` (Checkout Pro, sem boleto/lotérica), `GET /v1/payments/{id}`, `GET /v1/payments/search?external_reference=`, `POST /v1/payments/{id}/refunds`. Criações com `X-Idempotency-Key`; timeout de 10 s; logs só com operação e status HTTP.
 
+## Implementado na Sprint 4 — Operação
+
+| Rota | Permissão | Observações |
+|---|---|---|
+| `GET /merchant/orders/pulse` | `orders.view` | `{version, pending, oldest_pending_at}`; 90/min por usuário. `version` muda a cada alteração em pedido das unidades do usuário. |
+| `GET /merchant/orders?view=&from=&to=&q=&payment_method=&branch=&cursor=` | `orders.view` | `from`/`to` em `AAAA-MM-DD` no fuso do estabelecimento (máx. 1 ano); `q` busca nº, nome (LIKE escapado) e celular (≥ 4 dígitos). Pedidos `awaiting_payment` nunca aparecem. |
+| `GET /merchant/reports/summary` (mesmos filtros) | `reports.view` | `{orders, completed, cancelled, in_progress, revenue, average_ticket, refunded, by_payment_method[]}` — faturamento = concluídos. |
+| `GET /merchant/reports/orders.csv` (mesmos filtros + `view`) | `reports.view` | CSV `;` com BOM UTF-8, valores com vírgula, **sem telefone e endereço**; células iniciadas por `= + - @` neutralizadas; 6/min; exportação auditada. |
+| `GET /merchant/audit?action=&cursor=` | `audit.view` (só proprietário) | `{id, action, actor{id,name}, entity_type, entity_id, metadata, ip, at}`; filtro por prefixo da ação. |
+
+Toda escrita bem-sucedida do painel gera registro de auditoria automático (`AuditMutations`): ação = nome da rota sem `merchant.` (ex.: `products.update`), entidade e nomes dos registros afetados — nunca o corpo da requisição.
+

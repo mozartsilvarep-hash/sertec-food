@@ -33,6 +33,9 @@ final class Permissions
 
     public const REPORTS_VIEW = 'reports.view';
 
+    /** Ver a trilha de auditoria do estabelecimento (só o proprietário). */
+    public const AUDIT_VIEW = 'audit.view';
+
     /** Conectar/desconectar a conta do Mercado Pago (só o proprietário). */
     public const PAYMENTS_MANAGE = 'payments.manage';
 
@@ -56,6 +59,7 @@ final class Permissions
             self::ORDERS_VIEW => 'Ver pedidos',
             self::ORDERS_MANAGE => 'Operar pedidos',
             self::REPORTS_VIEW => 'Ver relatórios',
+            self::AUDIT_VIEW => 'Ver auditoria',
             self::PAYMENTS_MANAGE => 'Gerenciar conta de pagamentos',
             self::PAYMENTS_REFUND => 'Reembolsar pagamentos',
         ];
@@ -72,7 +76,7 @@ final class Permissions
 
         return [
             Role::OWNER => ['name' => 'Proprietário', 'permissions' => $all],
-            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE]))],
+            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE, self::AUDIT_VIEW]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
                 self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
             ]],

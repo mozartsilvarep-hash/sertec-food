@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ApiError, CANCELLATION_REASONS, describeError, formatMoney, formatTime, merchantOrdersApi, paymentsApi, toCents,
   type CancellationReason, type MerchantOrder, type OrderStatus,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet } from '@sertec/ui'
+import { LATE_AFTER_MINUTES, now, pulse } from '../live'
 import { notify } from '../notify'
 import { can, me } from '../session'
 
@@ -43,8 +44,13 @@ const columns = computed(() => {
   ]
 })
 
+/** Pedido novo sem aceite há 5 min ou mais (mesmo limite da faixa ao vivo). */
+function isLate(o: MerchantOrder): boolean {
+  return o.status === 'pending_acceptance' && (now.value - new Date(o.placed_at).getTime()) / 60_000 >= LATE_AFTER_MINUTES
+}
+
 function minutesAgo(iso: string): string {
-  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+  const m = Math.max(0, Math.round((now.value - new Date(iso).getTime()) / 60000))
   return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : `às ${formatTime(iso, tz.value)}`
 }
 
@@ -131,10 +137,15 @@ function actionLabel(status: OrderStatus): string {
   } as Record<string, string>)[status] ?? status
 }
 
+// Recarrega quando o pulso muda (pedido novo, status, pagamento).
+watch(() => pulse.value?.version, (v, old) => {
+  if (old !== undefined && v !== old) void load(true)
+})
+
 onMounted(() => {
   void load()
-  // Atualização periódica até o painel em tempo real (Sprint 4).
-  timer = setInterval(() => load(true), 15_000)
+  // Rede de segurança caso o pulso falhe; o normal é o watch acima.
+  timer = setInterval(() => load(true), 60_000)
 })
 onBeforeUnmount(() => clearInterval(timer))
 </script>
@@ -164,14 +175,14 @@ onBeforeUnmount(() => clearInterval(timer))
         <li v-for="o in col.items" :key="o.id">
           <button
             type="button" class="w-full rounded-(--radius-card) border bg-surface p-4 text-left hover:border-ink"
-            :class="o.status === 'pending_acceptance' ? 'border-brand-600 ring-2 ring-brand-100' : 'border-line'" @click="open(o)"
+            :class="o.status !== 'pending_acceptance' ? 'border-line' : isLate(o) ? 'border-danger ring-2 ring-danger/20' : 'border-brand-600 ring-2 ring-brand-100'" @click="open(o)"
           >
             <span class="flex items-baseline justify-between gap-2">
               <span class="flex items-center gap-2">
                 <span class="font-display text-lg font-bold">#{{ o.number }}</span>
                 <span v-if="paidOnline(o)" class="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-success">Pago online</span>
               </span>
-              <span class="text-sm text-muted">{{ minutesAgo(o.placed_at) }}</span>
+              <span class="text-sm" :class="isLate(o) ? 'font-semibold text-danger' : 'text-muted'">{{ minutesAgo(o.placed_at) }}</span>
             </span>
             <span class="mt-1 block text-sm">{{ o.customer.name }} · {{ o.fulfillment_type === 'delivery' ? o.address?.neighborhood : 'Retirada' }}</span>
             <span class="mt-1 flex items-baseline justify-between text-sm">
@@ -192,7 +203,10 @@ onBeforeUnmount(() => clearInterval(timer))
             <h2 class="font-display text-2xl font-bold">Pedido #{{ selected.number }}</h2>
             <p class="text-sm text-muted">{{ selected.status_label }} · {{ formatTime(selected.placed_at, tz) }} · {{ selected.branch.name }}</p>
           </div>
-          <button type="button" class="-mr-2 grid size-10 place-items-center rounded-full text-2xl text-muted hover:bg-canvas" aria-label="Fechar" @click="selected = null">×</button>
+          <div class="flex items-center gap-1">
+            <RouterLink :to="`/pedidos/${selected.id}/imprimir`" class="rounded-lg px-3 py-2 text-sm font-semibold text-brand-700 hover:bg-canvas">Imprimir</RouterLink>
+            <button type="button" class="-mr-2 grid size-10 place-items-center rounded-full text-2xl text-muted hover:bg-canvas" aria-label="Fechar" @click="selected = null">×</button>
+          </div>
         </div>
 
         <dl class="mt-4 grid gap-3 text-sm">

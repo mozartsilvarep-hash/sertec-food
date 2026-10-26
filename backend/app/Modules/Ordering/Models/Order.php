@@ -6,6 +6,7 @@ use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Enums\PaymentStatus;
+use App\Modules\Ordering\Services\OrderPulse;
 use App\Modules\Payments\Models\Payment;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use App\Modules\Tenancy\Models\Branch;
@@ -58,6 +59,12 @@ class Order extends Model
     protected $guarded = ['id', 'tenant_id'];
 
     protected $hidden = ['id', 'tenant_id', 'tracking_token_hash'];
+
+    protected static function booted(): void
+    {
+        // Qualquer mudança no pedido avisa o painel (depois do commit).
+        static::saved(fn (Order $order) => OrderPulse::bump($order));
+    }
 
     /** @return list<string> */
     public function uniqueIds(): array

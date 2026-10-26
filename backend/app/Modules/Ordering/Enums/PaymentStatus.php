@@ -16,4 +16,17 @@ enum PaymentStatus: string
     case Refunded = 'refunded';
     case PartiallyRefunded = 'partially_refunded';
     case Voided = 'voided';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Pending => 'Pendente',
+            self::Paid => 'Pago',
+            self::Failed => 'Falhou',
+            self::Expired => 'Expirado',
+            self::Refunded => 'Reembolsado',
+            self::PartiallyRefunded => 'Reembolsado em parte',
+            self::Voided => 'Anulado',
+        };
+    }
 }

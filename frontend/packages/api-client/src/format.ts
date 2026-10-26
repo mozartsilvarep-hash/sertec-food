@@ -40,3 +40,16 @@ export function openingLabel(
   const when = day(next) === day(now) ? 'hoje' : day(next) === day(tomorrow) ? 'amanhã' : weekdayFmt(timeZone).format(next)
   return `Fechado · abre ${when} às ${formatTime(status.next_opening_at, timeZone)}`
 }
+
+/** "25/10/2026 19:42" no fuso do estabelecimento. */
+export function formatDateTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    .format(new Date(iso))
+    .replace(',', '')
+}
+
+/** Data de hoje (AAAA-MM-DD) no fuso informado. */
+export function todayIn(timeZone: string, offsetDays = 0): string {
+  const d = new Date(Date.now() + offsetDays * 86_400_000)
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+}

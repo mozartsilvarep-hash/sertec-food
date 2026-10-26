@@ -12,8 +12,8 @@ Carrinho, precificação no servidor, checkout sem login, retirada/entrega, snap
 ## Sprint 3 — Pagamento ✅ concluída (25/10/2026, aguardando homologação com credenciais de teste reais)
 Mercado Pago sandbox, credenciais por tenant, webhook inbox, idempotência, reconciliação, reembolso básico. Entregue: Pix no site (QR + copia e cola), cartão pelo Checkout Pro, pedido só chega ao restaurante depois do pagamento confirmado, reembolso total/parcial e automático ao cancelar. **Pendente de decisão:** conexão por OAuth ("Conectar com Mercado Pago") em vez de colar o Access Token — exige registrar o app SerTec no Mercado Pago.
 
-## Sprint 4 — Operação
-Painel em tempo real, alertas, acompanhamento por token, histórico e auditoria.
+## Sprint 4 — Operação ✅ concluída (25/10/2026)
+Painel em tempo real, alertas, acompanhamento por token, histórico e auditoria. Entregue: pulso de pedidos (≤ 3 s, também com a aba em segundo plano), alerta sonoro/título/notificação e destaque de aceite atrasado, comanda para térmica 58/80 mm, histórico com busca e filtros, resumo do período, exportação CSV, auditoria automática do painel com tela para o proprietário e contato do restaurante (WhatsApp/telefone) no acompanhamento.
 
 ## Sprint 5 — Piloto
 Subdomínios, HTTPS, backups, observabilidade, LGPD, testes E2E, piloto com 2–3 restaurantes.
