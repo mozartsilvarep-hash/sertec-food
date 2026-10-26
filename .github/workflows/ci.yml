@@ -161,7 +161,8 @@ jobs:
             echo "::error title=Atrás do aaPanel::$diag"; exit 1
           }
           A='Host: admin.cardapios.example.test'
-          curl -fsS -H "$A" http://127.0.0.1:8099/up >/dev/null || fail 'health /up'
+          # Laravel de verdade (o Caddy responde 200 vazio quando não repassa ao PHP).
+          curl -fsS -H "$A" http://127.0.0.1:8099/up | grep -q 'SerTec Food' || fail 'health /up não chegou ao Laravel'
           curl -fsSI -H "$A" http://127.0.0.1:8099/ | grep -qi '^content-security-policy:' || fail 'painel SerTec sem CSP'
           [ "$(curl -s -o /dev/null -w '%{http_code}' -H "$A" 'http://127.0.0.1:8099/api/v1/internal/tls-ask?domain=x')" = 404 ] || fail 'rota interna exposta'
           html=$(curl -sS -w '\nHTTP %{http_code}' -H 'Host: demo.cardapios.example.test' http://127.0.0.1:8099/)
