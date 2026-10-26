@@ -3,12 +3,14 @@
 namespace App\Modules\Ordering\Services;
 
 use App\Modules\Catalog\Pricing\PriceQuote;
+use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Enums\PaymentStatus;
 use App\Modules\Ordering\Models\Cart;
 use App\Modules\Ordering\Models\CartItem;
+use App\Modules\Ordering\Models\Coupon;
 use App\Modules\Ordering\Models\CouponRedemption;
 use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\IdempotencyKey;
@@ -52,6 +54,7 @@ final class CheckoutService
         private readonly TenantContext $context,
         private readonly CouponService $coupons,
         private readonly CustomerDirectory $customers,
+        private readonly LoyaltyService $loyalty,
     ) {}
 
     /**
@@ -150,7 +153,16 @@ final class CheckoutService
             ['discount_cents' => $discount, 'label' => $couponLabel] = $this->coupons->evaluate($coupon, $netSubtotal, $deliveryQuote['fee_cents'], $phone);
         }
 
-        $total = $netSubtotal + $deliveryQuote['fee_cents'] - $discount;
+        // Cartão fidelidade: prêmio sobre os itens (depois do cupom), travado.
+        $loyalty = null;
+        $loyaltyDiscount = 0;
+        if (! empty($data['use_loyalty'])) {
+            $itemsBase = $netSubtotal - ($coupon !== null && $coupon->discount_type !== Coupon::FREE_DELIVERY ? $discount : 0);
+            $loyalty = $this->loyalty->reserve($phone, max(0, $itemsBase));
+            $loyaltyDiscount = $loyalty['discount_cents'];
+        }
+
+        $total = $netSubtotal + $deliveryQuote['fee_cents'] - $discount - $loyaltyDiscount;
 
         /** @var array{method: string, change_for?: string|null} $paymentData */
         $paymentData = $data['payment'];
@@ -190,7 +202,7 @@ final class CheckoutService
             'delivery_zone_name' => $deliveryQuote['zone']?->name,
             'notes' => $data['notes'] ?? null,
             'subtotal' => Money::format($subtotal),
-            'discount_total' => Money::format($discount + $promotionDiscount),
+            'discount_total' => Money::format($discount + $promotionDiscount + $loyaltyDiscount),
             'delivery_fee' => Money::format($deliveryQuote['fee_cents']),
             'total' => Money::format($total),
             'eta_minutes' => $deliveryQuote['eta_minutes'],
@@ -206,6 +218,7 @@ final class CheckoutService
             ...array_map(fn (array $d) => ['promotion', $d['label'], $d['amount_cents']], $view['discounts']),
             ...($fulfillment === FulfillmentType::Delivery ? [['delivery_fee', 'Entrega'.($deliveryQuote['zone'] ? ' ('.$deliveryQuote['zone']->name.')' : ''), $deliveryQuote['fee_cents']]] : []),
             ...($coupon !== null && $discount > 0 ? [['discount', (string) $couponLabel, $discount]] : []),
+            ...($loyalty !== null && $loyaltyDiscount > 0 ? [['loyalty', $loyalty['label'], $loyaltyDiscount]] : []),
             ['total', 'Total', $total],
         ];
         foreach ($lines as $position => [$code, $label, $amount]) {
@@ -218,6 +231,10 @@ final class CheckoutService
                 'amount' => Money::format($discount), 'status' => CouponRedemption::APPLIED,
             ]);
             $coupon->increment('times_used');
+        }
+
+        if ($loyalty !== null) {
+            $this->loyalty->consume($loyalty['card'], $order, $loyaltyDiscount);
         }
 
         OrderStatusHistory::query()->create(['order_id' => $order->id, 'old_status' => null, 'new_status' => $order->status]);

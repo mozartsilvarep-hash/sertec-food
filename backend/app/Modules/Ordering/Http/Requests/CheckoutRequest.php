@@ -49,6 +49,8 @@ class CheckoutRequest extends FormRequest
             'payment.method' => ['required', Rule::enum(PaymentMethod::class)],
             'payment.change_for' => ['nullable', 'string', ProductRequest::MONEY],
             'coupon' => ['nullable', 'string', 'max:30'],
+            // Usar o prêmio do cartão fidelidade deste celular.
+            'use_loyalty' => ['sometimes', 'boolean'],
             'notes' => ['nullable', 'string', 'max:300'],
         ];
     }

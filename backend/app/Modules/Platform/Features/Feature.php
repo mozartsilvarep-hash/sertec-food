@@ -27,6 +27,9 @@ final class Feature
     /** Caixa / mini PDV (livro-caixa, venda de balcão). */
     public const CASHBOOK = 'cashbook';
 
+    /** Cartão fidelidade (selos por celular). */
+    public const LOYALTY = 'loyalty';
+
     /**
      * @return list<string>
      */
@@ -34,7 +37,7 @@ final class Feature
     {
         return [
             self::SITE_MODE, self::CUSTOM_DOMAIN, self::MULTI_BRANCH, self::COUPONS,
-            self::REPORTS, self::THERMAL_PRINT, self::WHATSAPP_NOTIFICATIONS, self::CASHBOOK,
+            self::REPORTS, self::THERMAL_PRINT, self::WHATSAPP_NOTIFICATIONS, self::CASHBOOK, self::LOYALTY,
         ];
     }
 }

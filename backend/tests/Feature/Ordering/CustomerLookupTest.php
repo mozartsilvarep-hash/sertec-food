@@ -28,7 +28,7 @@ function lookup($tenant, string $phone)
 }
 
 it('celular desconhecido: só "não conhecido"; telefone inválido em português', function () {
-    lookup($this->a, '(82) 99876-5432')->assertOk()->assertExactJson(['data' => ['known' => false, 'first_name' => null, 'saved_address' => null]]);
+    lookup($this->a, '(82) 99876-5432')->assertOk()->assertExactJson(['data' => ['known' => false, 'first_name' => null, 'saved_address' => null, 'loyalty' => null]]);
     lookup($this->a, '123')->assertStatus(422)->assertJsonPath('details.fields.phone.0', 'Informe um celular com DDD, ex.: (79) 99999-0000.');
 });
 
@@ -40,6 +40,7 @@ it('cliente conhecido: primeiro nome, rua e bairro — nunca número, complement
         'known' => true,
         'first_name' => 'Maria',
         'saved_address' => ['street' => 'Av. Álvaro Otacílio', 'number' => '•••', 'neighborhood' => 'Pajucara'],
+        'loyalty' => null, // sem cartão fidelidade ativo
     ]);
     $raw = $res->getContent();
     expect($raw)->not->toContain('1000')->not->toContain('Apto')->not->toContain('padaria')->not->toContain('Souza');

@@ -263,3 +263,13 @@ Todas as rotas abaixo ficam sob `merchant/cash`, com o recurso de plano `cashboo
 Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, responde 422 `branch_required`.
 
 `reports/summary` agora também devolve `top_products`, `by_day`, `by_hour` e `by_fulfillment`.
+
+## Implementado na Sprint 11 — Cartão fidelidade
+
+- `GET storefront` → `loyalty: {stamps_required, reward_label, min_order, reward_type, reward_amount, reward_percent_bp, reward_max}` ou `null`.
+- `POST customers/lookup` e acompanhamento do pedido → `loyalty: {stamps, required, rewards, reward_label}` ou `null`.
+- Checkout: `use_loyalty: true` usa 1 prêmio (linha `loyalty` nos totais); sem prêmio, 422 `loyalty_no_reward`.
+- Painel (`marketing.manage`, recurso `loyalty`):
+  - `GET/PUT merchant/loyalty` `{active, stamps_required (2–50), min_order?, reward_type (fixed|percent), reward_amount?, reward_percent?, reward_max?}`;
+  - `GET merchant/loyalty/card?phone=` devolve selos, prêmios e o histórico (últimos 50);
+  - `POST merchant/loyalty/card/adjust` `{phone, stamps (±1..50), note?}`.

@@ -359,3 +359,32 @@ Regras:
 - entrega × retirada.
 
 A nova tela "Relatórios" tem atalhos de período.
+
+## Decisões da Sprint 11 — Cartão fidelidade
+
+### D75 — Selos por celular, sem cadastro
+O cartão é o celular do cliente dentro de cada restaurante (`loyalty_cards`, único por tenant e telefone). A regra fica em `loyalty_programs`, uma por restaurante:
+- quantos selos valem um prêmio;
+- pedido mínimo para ganhar selo;
+- tipo de prêmio: valor fixo ou percentual com teto.
+
+Como o cartão funciona:
+- **Selo:** é dado quando o pedido é **concluído** (`OrderTransitions`) e o valor dos itens, sem a entrega, atinge o mínimo. Cada pedido dá no máximo um selo (único no histórico).
+- **Prêmio:** a cada N selos completos, vira 1 prêmio.
+- **Histórico:** `loyalty_ledger` registra selo, prêmio usado, prêmio devolvido e ajuste manual.
+
+### D76 — Prêmio no checkout
+O prêmio é pedido com `use_loyalty`. O cartão é travado (FOR UPDATE) e o desconto é aplicado sobre os itens, depois de "leve N, pague M" e do cupom. Ele entra em `order_totals` como `loyalty` e soma em `discount_total`.
+- **Sem prêmio:** 422 `loyalty_no_reward`.
+- **Pedido recusado ou cancelado:** o prêmio volta (`restoreFor`, junto com a anulação do cupom).
+
+### D77 — Privacidade e plano
+O que o público vê é só a contagem de selos e prêmios (`customers/lookup`, acompanhamento), sem dados pessoais.
+- **Pedido de exclusão (LGPD):** apaga o cartão e o histórico.
+- **Retenção:** cartões sem movimento no prazo de retenção são apagados.
+- **Relatório do titular:** inclui o cartão.
+- **Ajuste manual pelo painel** (ex.: compra no balcão): fica auditado, com o telefone guardado só como hash.
+- **Plano:** o recurso `loyalty` está liberado em todos os planos como brinde, desligável por plano.
+
+### Nota técnica
+Controllers não recebem pelo construtor serviços que dependem do tenant, porque a instância é reaproveitada entre requisições. Isso já vinha documentado em `MerchantAuthController`. `CustomerLookupController` passou a receber `CustomerDirectory` por parâmetro do método.

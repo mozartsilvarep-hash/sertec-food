@@ -36,10 +36,10 @@ SMTP próprio (@sertecsolution.com.br), recuperação de senha nos dois painéis
 ## Sprint 10 — Caixa (mini PDV) ✅ concluída (26/10/2026)
 Livro-caixa por unidade, abrir/fechar com conferência, venda de balcão com troco, entradas/saídas, pedidos concluídos e estornos entram sozinhos, relatório do caixa e CSV; tela "Relatórios" com mais vendidos, dias e horários de pico. Recurso `cashbook` (brinde em todos os planos, desligável por plano).
 
-## Sprint 11 — Cartão fidelidade (próxima)
-Selos por celular com regras da loja; progresso e resgate no checkout.
+## Sprint 11 — Cartão fidelidade ✅ concluída (26/10/2026)
+Selos por celular (pedido concluído acima do mínimo), prêmio fixo ou percentual com teto, resgate no checkout, devolução ao cancelar, ajuste manual no painel e histórico. Recurso `loyalty` (brinde em todos os planos).
 
-## Sprint 12 — Marca e visual
+## Sprint 12 — Marca e visual (próxima)
 Logo, capa, cores e CNPJ da loja; cardápio redesenhado.
 
 ## Sprint 13 — Cobrança da SerTec

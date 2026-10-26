@@ -4,6 +4,7 @@ namespace App\Modules\Ordering\Services;
 
 use App\Modules\Cash\Services\CashBook;
 use App\Modules\Identity\Models\User;
+use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\CancellationReason;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentStatus;
@@ -105,6 +106,7 @@ final class OrderTransitions
         $refundOnline = false;
         if ($isCancel) {
             CouponService::voidFor($locked);
+            LoyaltyService::restoreFor($locked);
             $locked->cancelled_at = $now;
             $locked->cancellation_reason = $reason?->value;
             $locked->cancellation_note = $actor !== null ? $note : null;
@@ -121,6 +123,8 @@ final class OrderTransitions
         if ($next === OrderStatus::Completed) {
             // Livro-caixa: pedido concluído entra sozinho (uma vez só).
             app(CashBook::class)->recordOrder($locked);
+            // Cartão fidelidade: selo do pedido concluído.
+            app(LoyaltyService::class)->stampFor($locked);
         }
 
         OrderStatusHistory::query()->create([

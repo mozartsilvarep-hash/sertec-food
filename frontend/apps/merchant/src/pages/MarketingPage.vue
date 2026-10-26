@@ -5,13 +5,14 @@ import {
   type CouponInput, type CouponType, type FeedSettings, type MerchantCoupon, type MerchantPromotion, type Product,
 } from '@sertec/api-client'
 import { SAlert, SButton, SPageState, STextField } from '@sertec/ui'
+import LoyaltyPanel from '../components/LoyaltyPanel.vue'
 import { notify } from '../notify'
 
 /**
  * Promoções (desconto por produto), cupons e vitrine (faixa de aviso e feed
  * de promoções para o site do restaurante).
  */
-type Tab = 'promotions' | 'coupons' | 'feed'
+type Tab = 'promotions' | 'coupons' | 'loyalty' | 'feed'
 const tab = ref<Tab>('promotions')
 const state = ref<'loading' | 'ready' | 'error' | 'offline'>('loading')
 const promotions = ref<MerchantPromotion[]>([])
@@ -192,6 +193,7 @@ async function copyFeed() {
 const tabs = computed(() => [
   { key: 'promotions' as const, label: 'Promoções' },
   { key: 'coupons' as const, label: 'Cupons' },
+  { key: 'loyalty' as const, label: 'Fidelidade' },
   { key: 'feed' as const, label: 'Vitrine e aviso' },
 ])
 const input = 'min-h-11 w-full rounded-(--radius-control) border border-line bg-surface px-3'
@@ -342,6 +344,9 @@ onMounted(load)
         </div>
       </template>
     </section>
+
+    <!-- Fidelidade -->
+    <LoyaltyPanel v-else-if="tab === 'loyalty'" />
 
     <!-- Vitrine -->
     <form v-else-if="feed" class="grid max-w-3xl gap-6" novalidate aria-label="Vitrine e aviso" @submit.prevent="saveFeed">

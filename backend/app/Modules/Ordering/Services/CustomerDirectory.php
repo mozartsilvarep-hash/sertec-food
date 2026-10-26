@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ordering\Services;
 
+use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\Order;
@@ -19,17 +20,20 @@ use Carbon\CarbonImmutable;
  */
 final class CustomerDirectory
 {
+    public function __construct(private readonly LoyaltyService $loyalty) {}
+
     /** Últimas 24 h em "acompanhar pelo celular". */
     public const TRACK_HOURS = 24;
 
     /**
-     * @return array{known: bool, first_name: string|null, saved_address: array{street: string, number: string, neighborhood: string}|null}
+     * @return array{known: bool, first_name: string|null, saved_address: array{street: string, number: string, neighborhood: string}|null, loyalty: array{stamps: int, required: int, rewards: int, reward_label: string}|null}
      */
     public function publicLookup(string $phone): array
     {
         $customer = Customer::query()->where('phone', $phone)->first();
+        $loyalty = $this->loyalty->status($phone);
         if ($customer === null) {
-            return ['known' => false, 'first_name' => null, 'saved_address' => null];
+            return ['known' => false, 'first_name' => null, 'saved_address' => null, 'loyalty' => $loyalty];
         }
 
         $address = $this->savedAddress($phone);
@@ -42,6 +46,7 @@ final class CustomerDirectory
                 'number' => '•••',
                 'neighborhood' => $address['neighborhood'],
             ],
+            'loyalty' => $loyalty,
         ];
     }
 
