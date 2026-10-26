@@ -47,7 +47,8 @@ class AuditMutations
             if ($value instanceof Model) {
                 $entity ??= $value;
                 $refs[$key] = (string) ($value->getAttribute('public_id') ?? $value->getKey());
-                if (is_string($value->getAttribute('name'))) {
+                // Nem todo recurso tem "name" (ex.: lançamento de caixa).
+                if (array_key_exists('name', $value->getAttributes()) && is_string($value->getAttribute('name'))) {
                     $refs[$key.'_name'] = mb_substr($value->getAttribute('name'), 0, 80);
                 }
             }

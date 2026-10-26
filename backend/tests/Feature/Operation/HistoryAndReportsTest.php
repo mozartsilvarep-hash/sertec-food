@@ -73,7 +73,13 @@ it('resumo: faturamento só de concluídos, por forma de pagamento, ticket médi
         ->assertJsonPath('data.by_payment_method', [
             ['method' => 'card_on_delivery', 'label' => 'Cartão na entrega', 'orders' => 1, 'total' => '80.00'],
             ['method' => 'cash', 'label' => 'Dinheiro', 'orders' => 1, 'total' => '40.00'],
-        ]);
+        ])
+        // Mais vendidos (só concluídos), dia, horário e tipo de entrega.
+        ->assertJsonPath('data.top_products.0', ['name' => 'Pizza', 'quantity' => 3, 'total' => '120.00'])
+        ->assertJsonCount(1, 'data.top_products')
+        ->assertJsonPath('data.by_day.0', ['date' => now('America/Sao_Paulo')->toDateString(), 'orders' => 2, 'revenue' => '120.00'])
+        ->assertJsonPath('data.by_hour.0.orders', 2)
+        ->assertJsonPath('data.by_fulfillment', ['delivery' => 0, 'pickup' => 2]);
 });
 
 it('CSV: separador ;, BOM, valores com vírgula, fórmulas neutralizadas e sem telefone; exportação auditada', function () {

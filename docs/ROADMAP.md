@@ -33,10 +33,10 @@ Produto por dia da semana e horário, combos com produtos do cardápio, "leve N,
 ## Sprint 9 — E-mail e "Esqueci a senha" ✅ concluída (26/10/2026)
 SMTP próprio (@sertecsolution.com.br), recuperação de senha nos dois painéis, tela "Sistema" com e-mail de teste.
 
-## Sprint 10 — Caixa (mini PDV) (próxima)
-Livro-caixa, abrir/fechar caixa, venda de balcão, pedidos entram no caixa, relatórios melhores; recurso por plano (brinde agora, cobrável depois).
+## Sprint 10 — Caixa (mini PDV) ✅ concluída (26/10/2026)
+Livro-caixa por unidade, abrir/fechar com conferência, venda de balcão com troco, entradas/saídas, pedidos concluídos e estornos entram sozinhos, relatório do caixa e CSV; tela "Relatórios" com mais vendidos, dias e horários de pico. Recurso `cashbook` (brinde em todos os planos, desligável por plano).
 
-## Sprint 11 — Cartão fidelidade
+## Sprint 11 — Cartão fidelidade (próxima)
 Selos por celular com regras da loja; progresso e resgate no checkout.
 
 ## Sprint 12 — Marca e visual

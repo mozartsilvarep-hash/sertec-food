@@ -45,6 +45,12 @@ final class Permissions
     /** Reembolsar pagamentos online. */
     public const PAYMENTS_REFUND = 'payments.refund';
 
+    /** Caixa: abrir/fechar, venda de balcão e lançamentos do dia. */
+    public const CASH_OPERATE = 'cash.operate';
+
+    /** Caixa: estornar lançamentos, relatórios e exportação. */
+    public const CASH_MANAGE = 'cash.manage';
+
     /**
      * @return array<string, string> chave => descrição
      */
@@ -66,6 +72,8 @@ final class Permissions
             self::AUDIT_VIEW => 'Ver auditoria',
             self::PAYMENTS_MANAGE => 'Gerenciar conta de pagamentos',
             self::PAYMENTS_REFUND => 'Reembolsar pagamentos',
+            self::CASH_OPERATE => 'Operar o caixa',
+            self::CASH_MANAGE => 'Gerenciar o caixa e relatórios do caixa',
         ];
     }
 
@@ -83,6 +91,7 @@ final class Permissions
             Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE, self::AUDIT_VIEW]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
                 self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
+                self::CASH_OPERATE,
             ]],
             Role::KITCHEN => ['name' => 'Cozinha', 'permissions' => [
                 self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,

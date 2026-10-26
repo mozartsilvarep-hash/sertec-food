@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Cash\Http\Controllers\CashController;
 use App\Modules\Catalog\Http\Controllers\AvailabilityController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\MenuController;
@@ -213,6 +214,24 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         // Pagamentos online
         Route::post('orders/{order}/refunds', [RefundController::class, 'store'])
             ->middleware(['permission:'.P::PAYMENTS_REFUND, 'throttle:payment-actions'])->name('orders.refunds.store');
+        // Caixa (mini PDV) — recurso por plano (brinde: liberado em todos).
+        Route::middleware(['feature:'.Feature::CASHBOOK])->prefix('cash')->name('cash.')->group(function () {
+            Route::middleware('permission:'.P::CASH_OPERATE)->group(function () {
+                Route::get('session', [CashController::class, 'current'])->name('session');
+                Route::post('session', [CashController::class, 'open'])->name('open');
+                Route::post('session/{session}/close', [CashController::class, 'close'])->name('close');
+                Route::post('entries', [CashController::class, 'entry'])->name('entries.store');
+                Route::post('sales', [CashController::class, 'sale'])->name('sales.store');
+                Route::get('entries', [CashController::class, 'entries'])->name('entries.index');
+            });
+            Route::middleware('permission:'.P::CASH_MANAGE)->group(function () {
+                Route::post('entries/{entry}/void', [CashController::class, 'void'])->name('entries.void');
+                Route::get('summary', [CashController::class, 'summary'])->name('summary');
+                Route::get('sessions', [CashController::class, 'sessions'])->name('sessions');
+                Route::get('entries.csv', [CashController::class, 'csv'])->name('entries.csv');
+            });
+        });
+
         Route::middleware('permission:'.P::PAYMENTS_MANAGE)->group(function () {
             Route::get('payments/mercadopago', [PaymentSettingsController::class, 'show'])->name('payments.mercadopago.show');
             Route::put('payments/mercadopago', [PaymentSettingsController::class, 'update'])

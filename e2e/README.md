@@ -12,7 +12,8 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s6-promocoes.mjs` | promoção "de/por", cupom de primeiro pedido, faixa, feed v1 com CORS, link profundo, desconto no checkout |
 | `s7-clientes.mjs` | senha em português, zona vazia/remover, bairros de Aracaju, WhatsApp com o pedido, mesmo aparelho preenche, outro aparelho com endereço parcial, acompanhar pelo celular, painel com endereço completo |
 | `s8-cardapio.mjs` | produto só em certos dias (bloqueado com aviso), combo com produtos do cardápio e preço "de", "leve 2, pague 1" no carrinho/checkout/acompanhamento, "Chamar no WhatsApp" no painel |
-| `s9-senha.mjs` | "Esqueci a senha" no painel da loja (link do e-mail, regra de senha, entra com a nova, link não vale 2×) e no painel SerTec. Lê o link do log (`MAIL_MAILER=log`); rode por último |
+| `s10-caixa.mjs` | abrir caixa, venda de balcão com troco, sangria, gaveta esperada, fechar com falta, relatório do caixa e relatórios de pedidos |
+| `s99-senha.mjs` | "Esqueci a senha" no painel da loja (link do e-mail, regra de senha, entra com a nova, link não vale 2×) e no painel SerTec. Lê o link do log (`MAIL_MAILER=log`); rode por último |
 
 ## Como rodar
 

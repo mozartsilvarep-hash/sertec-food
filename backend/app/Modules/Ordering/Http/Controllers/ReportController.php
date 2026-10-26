@@ -7,6 +7,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Models\Order;
+use App\Modules\Ordering\Models\OrderItem;
 use App\Modules\Ordering\Services\OrderFilters;
 use App\Modules\Payments\Enums\RefundStatus;
 use App\Modules\Payments\Models\Refund;
@@ -48,7 +49,31 @@ class ReportController
             ->whereHas('payment', fn ($p) => $p->whereIn('order_id', (clone $base)->select('id')))
             ->sum('amount');
 
+        // Mais vendidos, dias, horários de pico e entrega × retirada (só concluídos).
+        $completedIds = (clone $base)->where('status', OrderStatus::Completed)->select('id');
+        $top = OrderItem::query()->whereIn('order_id', $completedIds)
+            ->selectRaw('product_name_snapshot AS name, SUM(quantity) AS qty, SUM(line_total) AS total')
+            ->groupBy('product_name_snapshot')->orderByDesc('qty')->orderByDesc('total')->limit(10)->toBase()->get();
+        $days = $hours = [];
+        $fulfillment = ['delivery' => 0, 'pickup' => 0];
+        foreach ((clone $base)->where('status', OrderStatus::Completed)->get(['placed_at', 'total', 'fulfillment_type']) as $o) {
+            $local = $o->placed_at->setTimezone($timezone);
+            $d = $local->format('Y-m-d');
+            $days[$d] ??= ['date' => $d, 'orders' => 0, 'revenue' => 0];
+            $days[$d]['orders']++;
+            $days[$d]['revenue'] += Money::toCents((string) $o->total);
+            $h = (int) $local->format('G');
+            $hours[$h] = ($hours[$h] ?? 0) + 1;
+            $fulfillment[$o->fulfillment_type->value]++;
+        }
+        ksort($days);
+        ksort($hours);
+
         return new JsonResponse(['data' => [
+            'top_products' => $top->map(fn ($r) => ['name' => $r->name, 'quantity' => (int) $r->qty, 'total' => Money::format(Money::toCents(number_format((float) $r->total, 2, '.', '')))])->values(),
+            'by_day' => array_values(array_map(fn ($r) => [...$r, 'revenue' => Money::format($r['revenue'])], $days)),
+            'by_hour' => array_map(fn ($h, $c) => ['hour' => $h, 'orders' => $c], array_keys($hours), array_values($hours)),
+            'by_fulfillment' => $fulfillment,
             'orders' => array_sum(array_map('intval', $byStatus->all())),
             'completed' => $completed,
             'cancelled' => (int) ($byStatus[OrderStatus::Cancelled->value] ?? 0) + (int) ($byStatus[OrderStatus::Rejected->value] ?? 0),

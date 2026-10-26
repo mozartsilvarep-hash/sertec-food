@@ -289,6 +289,10 @@ export interface ReportSummary {
   average_ticket: string
   refunded: string
   by_payment_method: { method: PaymentMethod; label: string; orders: number; total: string }[]
+  top_products?: { name: string; quantity: number; total: string }[]
+  by_day?: { date: string; orders: number; revenue: string }[]
+  by_hour?: { hour: number; orders: number }[]
+  by_fulfillment?: { delivery: number; pickup: number }
 }
 
 export interface AuditEntry {

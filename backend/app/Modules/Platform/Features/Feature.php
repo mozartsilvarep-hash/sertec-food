@@ -24,6 +24,9 @@ final class Feature
 
     public const WHATSAPP_NOTIFICATIONS = 'whatsapp_notifications';
 
+    /** Caixa / mini PDV (livro-caixa, venda de balcão). */
+    public const CASHBOOK = 'cashbook';
+
     /**
      * @return list<string>
      */
@@ -31,7 +34,7 @@ final class Feature
     {
         return [
             self::SITE_MODE, self::CUSTOM_DOMAIN, self::MULTI_BRANCH, self::COUPONS,
-            self::REPORTS, self::THERMAL_PRINT, self::WHATSAPP_NOTIFICATIONS,
+            self::REPORTS, self::THERMAL_PRINT, self::WHATSAPP_NOTIFICATIONS, self::CASHBOOK,
         ];
     }
 }
