@@ -280,3 +280,31 @@ Depois, o botão manda só o número do pedido. O telefone usado é o da unidade
 
 ### Zonas de entrega
 O botão "Remover" fica no topo de cada zona, e uma zona totalmente vazia é descartada ao salvar. O painel também sugere os bairros de Aracaju, que entram com um toque.
+
+## Decisões da Sprint 8 — Cardápio
+
+### D65 — Disponibilidade por dia da semana e horário
+`products.available_days` (0 = domingo … 6 = sábado; nulo = todos), `available_from` e `available_until` (opcionais).
+- **Regras:** valem no fuso do restaurante. Uma faixa que passa da meia-noite conta para o dia em que começou. A checagem é feita no `PriceCalculator`, e por isso vale no carrinho e no checkout. Um item que já estava no carrinho fica inválido se o horário acabar.
+- **No cardápio:** o produto continua visível, bloqueado, com o rótulo "Só sáb. e dom." ou "Das 11h às 15h".
+
+### D66 — Combos reaproveitam os grupos de opções
+Um combo é um produto `kind=combo` com preço fixo. Cada parte ("Escolha 2 bolos de pote") vira um grupo de opções "dono" do combo (`option_groups.owner_product_id`):
+- tipo adicional, com mínimo = máximo = quantidade;
+- uma opção por produto do cardápio (`options.product_id`), sem preço próprio.
+
+Assim, o preço, a validação, o carrinho e os registros do pedido usam o motor existente sem caminho novo. Regras adicionais:
+- **Disponibilidade:** cada item escolhido segue o produto (ativo, estoque na unidade, dia e horário).
+- **Edição:** os grupos do combo não aparecem na lista de opções e só mudam pela tela do combo.
+- **Proibido:** combo dentro de combo e combo contendo a si mesmo.
+- **Economia exibida:** `compare_at` soma o item avulso mais barato de cada parte.
+
+### D67 — "Leve N, pague M"
+É uma promoção `type=bundle` com `buy_quantity` e `pay_quantity`, calculada no carrinho sobre a quantidade total do produto. As unidades grátis saem das mais baratas.
+- Entra em `order_totals` como `promotion` e soma em `orders.discount_total`.
+- O pedido mínimo e o cupom valem sobre o subtotal já descontado.
+- Continua valendo uma promoção vigente por produto, de qualquer tipo.
+- No feed do site, vai com o selo e sem `precoDe`.
+
+### D68 — WhatsApp do cliente no painel
+O detalhe do pedido tem o botão "Chamar no WhatsApp", um link `wa.me` para o celular do cliente com a mensagem "Olá, Ana! Aqui é da Loja, sobre o seu pedido nº 12." Não há integração paga, como em D64.

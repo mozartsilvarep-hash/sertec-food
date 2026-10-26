@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  ApiError, CANCELLATION_REASONS, describeError, formatMoney, formatTime, merchantOrdersApi, paymentsApi, toCents,
+  ApiError, CANCELLATION_REASONS, describeError, formatMoney, formatTime, formatTotal, merchantOrdersApi, paymentsApi, toCents,
   type CancellationReason, type MerchantOrder, type OrderStatus,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet } from '@sertec/ui'
@@ -13,6 +13,15 @@ const view = ref<'active' | 'finished'>('active')
 const orders = ref<MerchantOrder[]>([])
 const state = ref<'loading' | 'ready' | 'error' | 'offline'>('loading')
 const selected = ref<MerchantOrder | null>(null)
+// Conversa com o cliente já com o número do pedido (link wa.me, sem integração paga).
+const customerWhatsApp = computed(() => {
+  const o = selected.value
+  const digits = o?.customer.phone.replace(/\D/g, '') ?? ''
+  if (!o || (digits.length !== 10 && digits.length !== 11)) return null
+  const first = o.customer.name.split(' ')[0] ?? ''
+  const text = `Olá${first ? `, ${first}` : ''}! Aqui é da ${me.value?.tenant.name ?? o.branch.name}, sobre o seu pedido nº ${o.number}.`
+  return `https://wa.me/55${digits}?text=${encodeURIComponent(text)}`
+})
 const acting = ref(false)
 const eta = ref(40)
 const cancelling = ref<OrderStatus | null>(null)
@@ -210,7 +219,13 @@ onBeforeUnmount(() => clearInterval(timer))
         </div>
 
         <dl class="mt-4 grid gap-3 text-sm">
-          <div><dt class="font-semibold">Cliente</dt><dd>{{ selected.customer.name }} · <a :href="`tel:${selected.customer.phone.replace(/\D/g, '')}`" class="text-brand-700 underline">{{ selected.customer.phone }}</a></dd></div>
+          <div>
+            <dt class="font-semibold">Cliente</dt>
+            <dd>{{ selected.customer.name }} · <a :href="`tel:${selected.customer.phone.replace(/\D/g, '')}`" class="text-brand-700 underline">{{ selected.customer.phone }}</a></dd>
+            <dd v-if="customerWhatsApp" class="mt-2">
+              <a :href="customerWhatsApp" target="_blank" rel="noopener" class="inline-flex min-h-10 items-center rounded-(--radius-control) bg-[#1f7a4d] px-3 text-sm font-semibold text-white hover:bg-[#17603c]">Chamar no WhatsApp</a>
+            </dd>
+          </div>
           <div v-if="selected.fulfillment_type === 'delivery' && selected.address">
             <dt class="font-semibold">Entrega ({{ selected.delivery_zone }})</dt>
             <dd>{{ selected.address.street }}, {{ selected.address.number }}<template v-if="selected.address.complement"> — {{ selected.address.complement }}</template><br>{{ selected.address.neighborhood }}<template v-if="selected.address.reference"> · Ref.: {{ selected.address.reference }}</template></dd>
@@ -238,7 +253,7 @@ onBeforeUnmount(() => clearInterval(timer))
           </li>
         </ul>
         <dl class="mt-2 grid gap-1 text-sm">
-          <div v-for="t in selected.totals ?? []" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'font-bold'"><dt>{{ t.label }}</dt><dd class="tabular-nums">{{ formatMoney(t.amount) }}</dd></div>
+          <div v-for="t in selected.totals ?? []" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'font-bold'"><dt>{{ t.label }}</dt><dd class="tabular-nums">{{ formatTotal(t) }}</dd></div>
         </dl>
 
         <section v-if="canRefund && refundable > 0" class="mt-6 grid gap-3 rounded-(--radius-card) border border-line p-4" aria-label="Reembolso">

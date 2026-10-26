@@ -212,3 +212,20 @@ Toda escrita bem-sucedida do painel gera registro de auditoria automático (`Aud
 
 - Mensagens de validação em português (`backend/lang/pt_BR`); `APP_LOCALE` padrão `pt_BR`.
 - Senha nova (`POST merchant/me/password`): mínimo de 6 caracteres, com 1 letra maiúscula e 1 caractere especial (`PasswordPolicy`).
+
+## Implementado na Sprint 8 — Cardápio
+
+- **Produto** (`merchant/products`):
+  - `kind` (`item` | `combo`);
+  - `available_days` (0–6, vazio = todos), `available_from` / `available_until` (`HH:MM`);
+  - `combo_slots[] {id?, name, quantity, product_ids[]}` (obrigatório em combo).
+- **Resposta** do produto: `availability` (rótulo) e `combo_slots`.
+- **Cardápio público** (`menus`, `products/{id}`):
+  - `kind`, `availability` e `compare_at` (combo);
+  - `available` considera dia e horário;
+  - opções ganham `available` (itens de combo);
+  - `promotion.type`, `buy_quantity` e `pay_quantity`.
+- **Promoções** (`merchant/promotions`): `type: "bundle"` com `buy_quantity` (2–20) e `pay_quantity` (< leve).
+- **Carrinho:** `discounts[] {label, amount}`, `discount_total` e `net_subtotal`.
+- **Pedido:** linha `promotion` em `totals`.
+- **Erros:** fora do dia ou horário, 422 `invalid_selection` com `details.reason = product_not_available_now`; item de combo indisponível, `option_invalid`.

@@ -28,6 +28,7 @@ final class CatalogReader
     private const PRODUCT_RELATIONS = [
         'variants' => null,
         'optionGroups.options.variantPrices' => null,
+        'optionGroups.options.product.variants' => null,
     ];
 
     /**
@@ -46,6 +47,7 @@ final class CatalogReader
                 'categories.placements.product' => fn ($q) => $q->where('active', true),
                 'categories.placements.product.variants',
                 'categories.placements.product.optionGroups.options.variantPrices',
+                'categories.placements.product.optionGroups.options.product.variants',
             ])
             ->orderBy('sort_order')->orderBy('id')
             ->get();
@@ -76,8 +78,10 @@ final class CatalogReader
         $product->loadMissing(array_keys(self::PRODUCT_RELATIONS));
         $variants = $this->activeVariants($product);
 
+        $soldOut = $this->soldOut($branch);
+
         return [
-            ...$this->summary($product, $this->soldOut($branch), self::runningPromotions([$product->id])),
+            ...$this->summary($product, $soldOut, self::runningPromotions([$product->id])),
             'variants' => array_map(fn (ProductVariant $v) => [
                 'id' => $v->public_id,
                 'name' => $v->name,
@@ -98,6 +102,8 @@ final class CatalogReader
                         ->filter(fn (Option $o) => $o->active)
                         ->map(fn (Option $o) => [
                             'id' => $o->public_id,
+                            // Item de combo: segue o produto (esgotado, fora do dia, inativo).
+                            'available' => $o->product_id === null || $this->linkedAvailable($o, $soldOut),
                             'name' => $o->name,
                             'description' => $o->description,
                             'price_delta' => $o->price_delta,
@@ -143,20 +149,30 @@ final class CatalogReader
         $variants = $this->activeVariants($product);
         $priceFrom = $this->priceFrom($product, $variants);
         $promotion = $promotions[$product->id] ?? null;
+        $percent = $promotion !== null && ! $promotion->isBundle();
+        $schedule = $product->schedule();
 
         return [
             'id' => $product->public_id,
             'name' => $product->name,
             'description' => $product->description,
             'image_url' => ProductImageStore::url($product->image_key),
-            'available' => ! isset($soldOut[$product->id]),
+            'kind' => $product->kind,
+            'available' => ! isset($soldOut[$product->id]) && $schedule->isAvailableAt(),
+            // "Só sáb. e dom.", "Das 11h às 15h" (null = sempre).
+            'availability' => $schedule->label(),
+            // Combo: soma dos itens avulsos (o mais barato de cada espaço), para "economize".
+            'compare_at' => $product->isCombo() ? $this->comboCompareAt($product) : null,
             'has_options' => count($variants) > 1 || $product->optionGroups->contains(fn (OptionGroup $g) => $g->active),
             'price_from' => $priceFrom,
             // Preço exibido já com a promoção; o servidor recalcula no carrinho.
-            'promo_price_from' => $promotion === null || $priceFrom === null ? null : Money::format(Promotion::apply(Money::toCents($priceFrom), $promotion->percent_bp)),
+            'promo_price_from' => ! $percent || $priceFrom === null ? null : Money::format(Promotion::apply(Money::toCents($priceFrom), $promotion->percent_bp)),
             'promotion' => $promotion === null ? null : [
                 'id' => $promotion->public_id,
+                'type' => $promotion->type,
                 'percent_bp' => $promotion->percent_bp,
+                'buy_quantity' => $promotion->buy_quantity,
+                'pay_quantity' => $promotion->pay_quantity,
                 'label' => $promotion->label(),
                 'featured' => $promotion->featured,
                 'ends_at' => $promotion->ends_at?->toIso8601String(),
@@ -206,6 +222,35 @@ final class CatalogReader
         }
 
         return $best === null ? null : Money::format($best);
+    }
+
+    /**
+     * @param  array<int, true>  $soldOut
+     */
+    private function linkedAvailable(Option $option, array $soldOut): bool
+    {
+        $linked = $option->product;
+
+        return $linked !== null && $linked->active && ! $linked->trashed()
+            && ! isset($soldOut[$linked->id]) && $linked->schedule()->isAvailableAt();
+    }
+
+    private function comboCompareAt(Product $product): ?string
+    {
+        $total = 0;
+        foreach ($product->optionGroups->filter(fn (OptionGroup $g) => $g->active && $g->min_select > 0) as $group) {
+            $cheapest = $group->options
+                ->filter(fn (Option $o) => $o->active && $o->product !== null)
+                ->map(fn (Option $o) => $o->product?->variants->where('active', true)->map(fn (ProductVariant $v) => Money::toCents($v->price))->min())
+                ->filter(fn ($c) => $c !== null)
+                ->min();
+            if ($cheapest === null) {
+                return null;
+            }
+            $total += (int) $cheapest * $group->min_select;
+        }
+
+        return $total > 0 ? Money::format($total) : null;
     }
 
     /**

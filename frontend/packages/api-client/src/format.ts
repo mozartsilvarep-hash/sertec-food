@@ -53,3 +53,11 @@ export function todayIn(timeZone: string, offsetDays = 0): string {
   const d = new Date(Date.now() + offsetDays * 86_400_000)
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
 }
+
+/** Linhas de desconto nos totais do pedido (cupom, promoção, fidelidade) aparecem com "−". */
+export const DISCOUNT_TOTAL_CODES = ['discount', 'promotion', 'loyalty'] as const
+
+export function formatTotal(total: { code: string; amount: string }): string {
+  const value = formatMoney(total.amount)
+  return (DISCOUNT_TOTAL_CODES as readonly string[]).includes(total.code) ? `− ${value}` : value
+}

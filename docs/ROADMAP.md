@@ -27,13 +27,22 @@ No ar numa VPS da OVH com aaPanel: o Nginx do aaPanel cuida do HTTPS e o SerTec 
 ## Sprint 7 — Clientes e WhatsApp ✅ concluída (26/10/2026)
 Tudo em português, nova regra de senha, zonas de entrega com "Remover" visível e bairros de Aracaju. Cliente reconhecido pelo celular (endereço parcial em outro aparelho; preenchimento completo no mesmo aparelho), acompanhar pedido pelo celular e pedido enviado ao WhatsApp da loja com número, itens e total.
 
-## Sprint 8 — Cardápio (próxima)
-Disponibilidade por dia da semana, combos e "compre X, leve Y".
+## Sprint 8 — Cardápio ✅ concluída (26/10/2026)
+Produto por dia da semana e horário, combos com produtos do cardápio, "leve N, pague M" (ex.: compre 1, leve outro) e botão "Chamar no WhatsApp" no pedido do painel.
 
-## Sprint 9 — Marca e visual
+## Sprint 9 — E-mail e "Esqueci a senha" (próxima)
+SMTP próprio (@sertecsolution.com.br), recuperação de senha nos dois painéis, e-mail de teste.
+
+## Sprint 10 — Caixa (mini PDV)
+Livro-caixa, abrir/fechar caixa, venda de balcão, pedidos entram no caixa, relatórios melhores; recurso por plano (brinde agora, cobrável depois).
+
+## Sprint 11 — Cartão fidelidade
+Selos por celular com regras da loja; progresso e resgate no checkout.
+
+## Sprint 12 — Marca e visual
 Logo, capa, cores e CNPJ da loja; cardápio redesenhado.
 
-## Sprint 10 — Cobrança da SerTec
+## Sprint 13 — Cobrança da SerTec
 Planos com valor e período, vencimentos, e-mails de aviso (provedor a decidir) e pagamento da mensalidade por Pix na conta Mercado Pago da SerTec.
 
 ## Pós-MVP

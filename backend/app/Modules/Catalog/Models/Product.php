@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Catalog\Support\ProductSchedule;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,6 +21,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $description
  * @property string|null $image_key
  * @property bool $active
+ * @property string $kind item | combo
+ * @property list<int>|null $available_days 0 = domingo … 6 = sábado; null = todos
+ * @property string|null $available_from HH:MM:SS
+ * @property string|null $available_until HH:MM:SS
  * @property-read Collection<int, ProductVariant> $variants
  * @property-read Collection<int, OptionGroup> $optionGroups
  * @property-read Collection<int, MenuProduct> $placements
@@ -29,7 +34,11 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use BelongsToTenant, HasFactory, HasUlids, SoftDeletes;
 
-    protected $fillable = ['tenant_id', 'name', 'description', 'active'];
+    protected $fillable = ['tenant_id', 'name', 'description', 'active', 'kind', 'available_days', 'available_from', 'available_until'];
+
+    public const KIND_ITEM = 'item';
+
+    public const KIND_COMBO = 'combo';
 
     /** @return list<string> */
     public function uniqueIds(): array
@@ -44,7 +53,7 @@ class Product extends Model
 
     protected function casts(): array
     {
-        return ['active' => 'boolean'];
+        return ['active' => 'boolean', 'available_days' => 'array'];
     }
 
     /** @return HasMany<ProductVariant, $this> */
@@ -75,5 +84,15 @@ class Product extends Model
     protected static function newFactory(): ProductFactory
     {
         return ProductFactory::new();
+    }
+
+    public function isCombo(): bool
+    {
+        return $this->kind === self::KIND_COMBO;
+    }
+
+    public function schedule(): ProductSchedule
+    {
+        return ProductSchedule::for($this);
     }
 }

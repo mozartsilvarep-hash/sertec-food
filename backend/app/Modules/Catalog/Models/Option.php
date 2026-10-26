@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $public_id
  * @property int $tenant_id
  * @property int $option_group_id
+ * @property int|null $product_id produto do cardápio (item de combo)
  * @property string $name
  * @property string|null $description
  * @property string $price_delta
@@ -22,13 +23,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $active
  * @property-read OptionGroup $group
  * @property-read Collection<int, OptionVariantPrice> $variantPrices
+ * @property-read Product|null $product
  */
 class Option extends Model
 {
     use BelongsToTenant, HasUlids;
 
     protected $fillable = [
-        'tenant_id', 'option_group_id', 'name', 'description', 'price_delta', 'max_quantity', 'sort_order', 'active',
+        'tenant_id', 'option_group_id', 'product_id', 'name', 'description', 'price_delta', 'max_quantity', 'sort_order', 'active',
     ];
 
     /** @return list<string> */
@@ -57,5 +59,15 @@ class Option extends Model
     public function variantPrices(): HasMany
     {
         return $this->hasMany(OptionVariantPrice::class);
+    }
+
+    /**
+     * Produto representado por esta opção (itens de combo).
+     *
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 }

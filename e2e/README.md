@@ -11,6 +11,7 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s4-operacao.mjs` | alerta ao vivo em segundos, comanda 58/80 mm, histórico, CSV, auditoria |
 | `s6-promocoes.mjs` | promoção "de/por", cupom de primeiro pedido, faixa, feed v1 com CORS, link profundo, desconto no checkout |
 | `s7-clientes.mjs` | senha em português, zona vazia/remover, bairros de Aracaju, WhatsApp com o pedido, mesmo aparelho preenche, outro aparelho com endereço parcial, acompanhar pelo celular, painel com endereço completo |
+| `s8-cardapio.mjs` | produto só em certos dias (bloqueado com aviso), combo com produtos do cardápio e preço "de", "leve 2, pague 1" no carrinho/checkout/acompanhamento, "Chamar no WhatsApp" no painel |
 
 ## Como rodar
 

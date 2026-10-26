@@ -17,9 +17,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Promoções do cardápio (marketing.manage). O desconto é percentual; o
- * painel pode informar o preço promocional desejado e o servidor converte em
- * percentual sobre o "a partir de" do produto.
+ * Promoções do cardápio (marketing.manage).
+ * - percent: o painel pode informar o preço promocional desejado e o
+ *   servidor converte em percentual sobre o "a partir de" do produto;
+ * - bundle: "leve N, pague M" (ex.: compre 1, leve outro = leve 2, pague 1).
  */
 class PromotionController
 {
@@ -59,6 +60,9 @@ class PromotionController
     {
         $data = $request->validate([
             'product_id' => [$creating ? 'required' : 'sometimes', 'string', 'size:26'],
+            'type' => ['sometimes', 'in:percent,bundle'],
+            'buy_quantity' => ['nullable', 'integer', 'min:2', 'max:20'],
+            'pay_quantity' => ['nullable', 'integer', 'min:1', 'max:19'],
             'percent' => ['nullable', 'string', 'regex:/^\d{1,2}([.,]\d{1,2})?$/'],
             'promo_price' => ['nullable', 'string', 'regex:/^\d{1,6}([.,]\d{1,2})?$/'],
             'starts_at' => ['nullable', 'date'],
@@ -66,7 +70,7 @@ class PromotionController
             'featured' => ['sometimes', 'boolean'],
             'badge' => ['nullable', 'string', 'max:18'],
             'active' => ['sometimes', 'boolean'],
-        ], [], ['percent' => 'desconto', 'promo_price' => 'preço promocional', 'ends_at' => 'fim']);
+        ], [], ['percent' => 'desconto', 'promo_price' => 'preço promocional', 'ends_at' => 'fim', 'buy_quantity' => 'leve', 'pay_quantity' => 'pague']);
 
         if (isset($data['product_id'])) {
             $promotion->product_id = PublicIds::one(Product::class, $data['product_id'], 'product_id')->id;
@@ -74,7 +78,22 @@ class PromotionController
         /** @var Product $product */
         $product = Product::query()->with(['variants', 'optionGroups.options.variantPrices'])->findOrFail($promotion->product_id);
 
-        if (! empty($data['promo_price'])) {
+        if (isset($data['type'])) {
+            $promotion->type = $data['type'];
+        }
+        $promotion->type ??= Promotion::TYPE_PERCENT;
+
+        if ($promotion->isBundle()) {
+            foreach (['buy_quantity', 'pay_quantity'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $promotion->{$field} = $data[$field];
+                }
+            }
+            if (! $promotion->buy_quantity || $promotion->pay_quantity === null || $promotion->pay_quantity >= $promotion->buy_quantity) {
+                throw ValidationException::withMessages(['pay_quantity' => 'Em "leve N, pague M", o "pague" precisa ser menor que o "leve" (ex.: leve 2, pague 1).']);
+            }
+            $promotion->percent_bp = 0;
+        } elseif (! empty($data['promo_price'])) {
             $from = $this->priceFrom($product);
             $target = Money::toCents(str_replace(',', '.', $data['promo_price']));
             if ($from === null || $target <= 0 || $target >= $from) {
@@ -83,10 +102,13 @@ class PromotionController
             $promotion->percent_bp = (int) round((1 - $target / $from) * 10000);
         } elseif (! empty($data['percent'])) {
             $promotion->percent_bp = (int) round((float) str_replace(',', '.', $data['percent']) * 100);
-        } elseif ($creating) {
+        } elseif ($creating || ! $promotion->percent_bp) {
             throw ValidationException::withMessages(['percent' => 'Informe o desconto ou o preço promocional.']);
         }
-        if ($promotion->percent_bp < 1 || $promotion->percent_bp > 9000) {
+        if (! $promotion->isBundle()) {
+            $promotion->buy_quantity = $promotion->pay_quantity = null;
+        }
+        if (! $promotion->isBundle() && ($promotion->percent_bp < 1 || $promotion->percent_bp > 9000)) {
             throw ValidationException::withMessages(['percent' => 'O desconto vai de 0,01% a 90%.']);
         }
 
@@ -154,7 +176,10 @@ class PromotionController
         return [
             'id' => $p->public_id,
             'product' => ['id' => $p->product->public_id, 'name' => $p->product->name],
-            'percent' => rtrim(rtrim(number_format($p->percent_bp / 100, 2, '.', ''), '0'), '.'),
+            'type' => $p->type,
+            'percent' => $p->isBundle() ? null : rtrim(rtrim(number_format($p->percent_bp / 100, 2, '.', ''), '0'), '.'),
+            'buy_quantity' => $p->buy_quantity,
+            'pay_quantity' => $p->pay_quantity,
             'label' => $p->label(),
             'badge' => $p->badge,
             'featured' => $p->featured,

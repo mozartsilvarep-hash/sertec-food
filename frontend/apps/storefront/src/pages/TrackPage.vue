@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ApiError, formatMoney, formatTime, orderApi, type TrackedOrder } from '@sertec/api-client'
+import { ApiError, formatMoney, formatTime, formatTotal, orderApi, type TrackedOrder } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
 import PaymentPanel from '../components/PaymentPanel.vue'
@@ -132,7 +132,7 @@ onBeforeUnmount(() => clearTimeout(timer))
         <dl class="mt-3 grid gap-1 border-t border-line pt-3 text-sm">
           <div v-for="t in order.totals" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'text-base font-bold'">
             <dt :class="t.code !== 'total' && 'text-muted'">{{ t.label }}</dt>
-            <dd class="tabular-nums">{{ formatMoney(t.amount) }}</dd>
+            <dd class="tabular-nums">{{ formatTotal(t) }}</dd>
           </div>
         </dl>
         <p class="mt-3 text-sm text-muted">

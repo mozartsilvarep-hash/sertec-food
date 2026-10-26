@@ -27,6 +27,11 @@ export interface CartView {
   expires_at: string
   items: CartLine[]
   subtotal: string
+  /** Promoções "leve N, pague M" já calculadas (o checkout recalcula). */
+  discounts?: { label: string; amount: string }[]
+  discount_total?: string
+  /** Subtotal já com as promoções acima. */
+  net_subtotal?: string
   valid: boolean
   count: number
 }
@@ -333,7 +338,10 @@ export const CANCELLATION_REASONS: { value: CancellationReason; label: string }[
 export interface MerchantPromotion {
   id: string
   product: { id: string; name: string }
-  percent: string
+  type: 'percent' | 'bundle'
+  percent: string | null
+  buy_quantity: number | null
+  pay_quantity: number | null
   label: string
   badge: string | null
   featured: boolean
@@ -345,6 +353,9 @@ export interface MerchantPromotion {
 
 export interface PromotionInput {
   product_id?: string
+  type?: 'percent' | 'bundle'
+  buy_quantity?: number | null
+  pay_quantity?: number | null
   percent?: string | null
   promo_price?: string | null
   starts_at?: string | null

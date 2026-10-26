@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ApiError, catalogApi, describeError, type Category, type OptionGroup, type Product, type ProductInput, type VariantInput,
+  ApiError, catalogApi, describeError, type Category, type ComboSlot, type OptionGroup, type Product, type ProductInput, type VariantInput,
 } from '@sertec/api-client'
 import { SAlert, SButton, SPageState, SSwitch, STextArea, STextField } from '@sertec/ui'
 import { notify } from '../../notify'
@@ -12,11 +12,40 @@ const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const manage = can('catalog.manage')
 
-const form = reactive<ProductInput & { variants: VariantInput[] }>({
+type Form = ProductInput & { variants: VariantInput[]; available_days: number[]; available_from: string; available_until: string; combo_slots: ComboSlot[] }
+const form = reactive<Form>({
   name: '', description: '', active: true,
   variants: [{ name: 'Único', price: '' }],
   option_group_ids: [], category_ids: [],
+  kind: 'item', available_days: [], available_from: '', available_until: '', combo_slots: [],
 })
+const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+// Produtos que podem entrar num combo (não combos, não o próprio).
+const allProducts = ref<Product[]>([])
+const comboCandidates = computed(() => allProducts.value.filter((p) => p.kind !== 'combo' && p.id !== props.id && p.active))
+const isCombo = computed(() => form.kind === 'combo')
+
+async function loadAllProducts() {
+  const list: Product[] = []
+  let cursor: string | null = null
+  do {
+    const page = await catalogApi.products({ cursor, per_page: 100 })
+    list.push(...page.data)
+    cursor = page.meta.next_cursor
+  } while (cursor && list.length < 1000)
+  allProducts.value = list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+}
+
+function toggleDay(d: number) {
+  const i = form.available_days.indexOf(d)
+  if (i >= 0) form.available_days.splice(i, 1)
+  else form.available_days.push(d)
+  form.available_days.sort()
+}
+
+function addSlot() {
+  form.combo_slots.push({ name: '', quantity: 1, product_ids: [] })
+}
 const imageUrl = ref<string | null>(null)
 const categories = ref<Category[]>([])
 const groups = ref<OptionGroup[]>([])
@@ -37,7 +66,7 @@ function fieldError(key: string): string | null {
 async function load() {
   state.value = 'loading'
   try {
-    const [cats, opts] = await Promise.all([catalogApi.categories(), catalogApi.optionGroups()])
+    const [cats, opts] = await Promise.all([catalogApi.categories(), catalogApi.optionGroups(), loadAllProducts()])
     categories.value = cats
     groups.value = opts
     if (props.id) applyProduct(await catalogApi.product(props.id))
@@ -53,6 +82,11 @@ function applyProduct(p: Product) {
     name: p.name, description: p.description ?? '', active: p.active,
     variants: p.variants.map((v) => ({ id: v.id, name: v.name, price: v.price.replace('.', ','), active: v.active })),
     option_group_ids: [...p.option_group_ids], category_ids: [...p.category_ids],
+    kind: p.kind ?? 'item',
+    available_days: [...(p.available_days ?? [])],
+    available_from: p.available_from ?? '',
+    available_until: p.available_until ?? '',
+    combo_slots: (p.combo_slots ?? []).map((c) => ({ ...c, product_ids: [...c.product_ids] })),
   })
   imageUrl.value = p.image_url
 }
@@ -83,6 +117,10 @@ async function save() {
     ...form,
     description: form.description?.trim() || null,
     variants: form.variants.map((v) => ({ ...v, price: normalizePrice(v.price) })),
+    available_days: form.available_days.length ? form.available_days : null,
+    available_from: form.available_from || null,
+    available_until: form.available_until || null,
+    combo_slots: isCombo.value ? form.combo_slots.map((c) => ({ ...c, quantity: Number(c.quantity) || 1 })) : null,
   }
   try {
     const saved = props.id ? await catalogApi.updateProduct(props.id, payload) : await catalogApi.createProduct(payload)
@@ -149,8 +187,46 @@ onMounted(load)
       <SSwitch v-model="form.active" label="Visível no cardápio" />
     </section>
 
+    <fieldset class="grid gap-2">
+      <legend class="mb-2 font-semibold">Tipo</legend>
+      <div class="flex flex-wrap gap-2">
+        <label class="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+          <input v-model="form.kind" type="radio" value="item" class="accent-brand-600"> Produto
+        </label>
+        <label class="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+          <input v-model="form.kind" type="radio" value="combo" class="accent-brand-600" @change="form.combo_slots.length || addSlot()"> Combo
+        </label>
+      </div>
+      <p v-if="isCombo" class="text-sm text-muted">O cliente escolhe os itens de cada parte do combo entre os produtos que você marcar. Ele paga o preço do combo.</p>
+    </fieldset>
+
+    <section v-if="isCombo" aria-label="Itens do combo">
+      <h2 class="mb-3 font-semibold">Itens do combo</h2>
+      <SAlert v-if="fieldError('combo_slots')">{{ fieldError('combo_slots') }}</SAlert>
+      <ul class="grid gap-4">
+        <li v-for="(slot, i) in form.combo_slots" :key="slot.id ?? `s${i}`" class="grid gap-3 rounded-(--radius-card) border border-line bg-surface p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="min-w-48 flex-1"><STextField v-model="slot.name" :label="`Parte ${i + 1}`" placeholder="Ex.: Escolha 2 bolos de pote" :error="fieldError(`combo_slots.${i}.name`)" /></div>
+            <div class="w-28"><STextField :model-value="String(slot.quantity)" label="Quantidade" inputmode="numeric" :error="fieldError(`combo_slots.${i}.quantity`)" @update:model-value="slot.quantity = Number($event) || 1" /></div>
+            <button type="button" class="min-h-11 rounded-(--radius-control) border border-danger/40 px-3 text-sm font-semibold text-danger hover:bg-danger/5" :aria-label="`Remover parte ${i + 1} do combo`" @click="form.combo_slots.splice(i, 1)">Remover</button>
+          </div>
+          <div>
+            <p class="mb-2 text-sm font-medium">Produtos que podem entrar ({{ slot.product_ids.length }})</p>
+            <p v-if="fieldError(`combo_slots.${i}.product_ids`)" class="mb-2 text-sm text-danger">{{ fieldError(`combo_slots.${i}.product_ids`) }}</p>
+            <div class="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+              <label v-for="p in comboCandidates" :key="p.id" class="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+                <input type="checkbox" class="accent-brand-600" :checked="slot.product_ids.includes(p.id)" @change="toggle(slot.product_ids, p.id)">
+                {{ p.name }}
+              </label>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <SButton variant="secondary" class="mt-3" @click="addSlot">Adicionar parte do combo</SButton>
+    </section>
+
     <section>
-      <h2 class="mb-1 font-semibold">{{ singlePrice ? 'Preço' : 'Tamanhos e preços' }}</h2>
+      <h2 class="mb-1 font-semibold">{{ isCombo ? 'Preço do combo' : singlePrice ? 'Preço' : 'Tamanhos e preços' }}</h2>
       <p class="mb-3 text-sm text-muted">
         Em pizzas por sabor, deixe o preço do tamanho em 0,00 e defina o valor de cada sabor em Opções e sabores.
       </p>
@@ -192,6 +268,34 @@ onMounted(load)
           </label>
         </li>
       </ul>
+    </section>
+
+    <section aria-label="Quando está disponível">
+      <h2 class="mb-1 font-semibold">Quando está disponível</h2>
+      <p class="mb-3 text-sm text-muted">Sem dias marcados, o produto vale todos os dias. Fora do dia ou horário ele aparece no cardápio, mas não pode ser pedido.</p>
+      <div class="flex flex-wrap gap-1.5" role="group" aria-label="Dias da semana">
+        <button
+          v-for="(d, i) in DAYS"
+          :key="d"
+          type="button"
+          class="min-h-10 min-w-12 rounded-full border px-3 text-sm font-semibold"
+          :class="form.available_days.includes(i) ? 'border-brand-600 bg-brand-600 text-brand-contrast' : 'border-line hover:bg-canvas'"
+          :aria-pressed="form.available_days.includes(i)"
+          @click="toggleDay(i)"
+        >
+          {{ d }}
+        </button>
+      </div>
+      <div class="mt-4 flex flex-wrap items-end gap-3">
+        <label class="grid gap-1.5 text-sm font-medium">Das
+          <input v-model="form.available_from" type="time" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
+        </label>
+        <label class="grid gap-1.5 text-sm font-medium">Até
+          <input v-model="form.available_until" type="time" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
+        </label>
+        <SButton v-if="form.available_from || form.available_until" variant="ghost" @click="form.available_from = ''; form.available_until = ''">Sem horário</SButton>
+      </div>
+      <p v-if="fieldError('available_from') || fieldError('available_until')" class="mt-2 text-sm text-danger">{{ fieldError('available_from') ?? fieldError('available_until') }}</p>
     </section>
 
     <section v-if="!isNew">

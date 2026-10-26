@@ -43,7 +43,13 @@ export interface ProductSummary {
   name: string
   description: string | null
   image_url: string | null
+  /** "combo": itens escolhidos entre produtos do cardápio, preço fixo. */
+  kind?: 'item' | 'combo'
   available: boolean
+  /** "Só sáb. e dom.", "Das 11h às 15h" (null = sempre). */
+  availability?: string | null
+  /** Combo: soma dos itens avulsos, para mostrar a economia. */
+  compare_at?: string | null
   has_options: boolean
   price_from: string | null
   /** "A partir de" já com a promoção (exibição; o servidor recalcula). */
@@ -53,7 +59,11 @@ export interface ProductSummary {
 
 export interface ProductPromotion {
   id: string
+  /** percent: desconto no preço; bundle: "leve N, pague M" (aplicado no carrinho). */
+  type?: 'percent' | 'bundle'
   percent_bp: number
+  buy_quantity?: number | null
+  pay_quantity?: number | null
   label: string
   featured: boolean
   ends_at: string | null
@@ -82,6 +92,8 @@ export interface PublicOption {
   description: string | null
   price_delta: string
   max_quantity: number
+  /** Itens de combo seguem o produto (esgotado, fora do dia). */
+  available?: boolean
   /** Só em grupos "fraction": ULID da variante => preço do sabor. */
   prices: Record<string, string> | null
 }
@@ -125,6 +137,20 @@ export interface Product {
   variants: (VariantInput & { id: string; active: boolean })[]
   option_group_ids: string[]
   category_ids: string[]
+  kind: ProductKind
+  available_days: number[] | null
+  available_from: string | null
+  available_until: string | null
+  availability: string | null
+  combo_slots: ComboSlot[]
+}
+export type ProductKind = 'item' | 'combo'
+/** Espaço do combo: "Escolha 2 bolos de pote" entre estes produtos. */
+export interface ComboSlot {
+  id?: string | null
+  name: string
+  quantity: number
+  product_ids: string[]
 }
 export interface ProductInput {
   name: string
@@ -133,6 +159,12 @@ export interface ProductInput {
   variants: VariantInput[]
   option_group_ids: string[]
   category_ids: string[]
+  kind?: ProductKind
+  /** 0 = domingo … 6 = sábado; vazio = todos os dias. */
+  available_days?: number[] | null
+  available_from?: string | null
+  available_until?: string | null
+  combo_slots?: ComboSlot[] | null
 }
 export interface OptionInput {
   id?: string | null

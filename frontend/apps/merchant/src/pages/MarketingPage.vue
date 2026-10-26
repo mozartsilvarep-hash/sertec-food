@@ -63,7 +63,7 @@ const err = (k: string) => errors.value[k]?.[0] ?? null
 
 /* ---------- Promoções ---------- */
 const promoOpen = ref(false)
-const promo = reactive({ product_id: '', mode: 'price' as 'price' | 'percent', promo_price: '', percent: '', starts_at: '', ends_at: '', badge: '', featured: false })
+const promo = reactive({ product_id: '', mode: 'price' as 'price' | 'percent' | 'bundle', promo_price: '', percent: '', buy: '2', pay: '1', starts_at: '', ends_at: '', badge: '', featured: false })
 
 async function savePromotion() {
   saving.value = true
@@ -72,6 +72,9 @@ async function savePromotion() {
   try {
     const created = await marketingApi.createPromotion({
       product_id: promo.product_id,
+      type: promo.mode === 'bundle' ? 'bundle' : 'percent',
+      buy_quantity: promo.mode === 'bundle' ? Number(promo.buy) || null : null,
+      pay_quantity: promo.mode === 'bundle' ? Number(promo.pay) || null : null,
       promo_price: promo.mode === 'price' ? promo.promo_price : null,
       percent: promo.mode === 'percent' ? promo.percent : null,
       starts_at: promo.starts_at || null, ends_at: promo.ends_at || null,
@@ -232,12 +235,20 @@ onMounted(load)
           <div class="flex flex-wrap gap-4 text-sm">
             <label class="inline-flex items-center gap-2"><input v-model="promo.mode" type="radio" value="price" class="accent-brand-600"> Preço promocional ("de … por …")</label>
             <label class="inline-flex items-center gap-2"><input v-model="promo.mode" type="radio" value="percent" class="accent-brand-600"> Percentual</label>
+            <label class="inline-flex items-center gap-2"><input v-model="promo.mode" type="radio" value="bundle" class="accent-brand-600"> Leve mais, pague menos</label>
           </div>
-          <div class="w-48">
+          <div v-if="promo.mode === 'bundle'" class="flex flex-wrap items-end gap-3">
+            <div class="w-28"><STextField v-model="promo.buy" label="Leve" inputmode="numeric" :error="err('buy_quantity')" /></div>
+            <div class="w-28"><STextField v-model="promo.pay" label="Pague" inputmode="numeric" :error="err('pay_quantity')" /></div>
+            <SButton variant="ghost" @click="promo.buy = '2'; promo.pay = '1'">Compre 1, leve outro</SButton>
+            <SButton variant="ghost" @click="promo.buy = '3'; promo.pay = '2'">Leve 3, pague 2</SButton>
+          </div>
+          <div v-else class="w-48">
             <STextField v-if="promo.mode === 'price'" v-model="promo.promo_price" label="Por (R$)" :error="err('promo_price')" />
             <STextField v-else v-model="promo.percent" label="Desconto (%)" :error="err('percent')" />
           </div>
-          <p class="text-sm text-muted">No preço promocional, o desconto é calculado sobre o “a partir de” do produto e vale também para os outros tamanhos e adicionais.</p>
+          <p v-if="promo.mode === 'bundle'" class="text-sm text-muted">No carrinho, a cada {{ promo.buy || 'N' }} unidades do produto o cliente paga {{ promo.pay || 'M' }}. As unidades mais baratas saem de graça.</p>
+          <p v-else class="text-sm text-muted">No preço promocional, o desconto é calculado sobre o “a partir de” do produto e vale também para os outros tamanhos e adicionais.</p>
         </fieldset>
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="grid gap-1.5 text-sm font-medium">Início (opcional)<input v-model="promo.starts_at" type="datetime-local" :class="input"></label>
