@@ -53,7 +53,12 @@ CMD ["php-fpm"]
 
 # ---------- 4. Web: Caddy (HTTPS automático) + SPAs ----------
 FROM caddy:2.10-alpine AS web
-COPY docker/caddy/Caddyfile /etc/caddy/Caddyfile
+COPY docker/caddy/Caddyfile docker/caddy/Caddyfile.proxy /etc/caddy/
+# O php_fastcgi do Caddy só repassa ao PHP se /index.php existir no disco
+# DESTE container, sob o "root" do site (try_files). O código real fica no
+# container "app"; aqui basta um arquivo vazio com o mesmo caminho. Sem ele
+# o Caddy responde 200 vazio para toda rota do Laravel.
+RUN mkdir -p /var/www/backend/public && touch /var/www/backend/public/index.php
 COPY --from=frontend /src/frontend/apps/storefront/dist /srv/www/storefront
 COPY --from=frontend /src/frontend/apps/merchant/dist /srv/www/merchant
 COPY --from=frontend /src/frontend/apps/admin/dist /srv/www/admin

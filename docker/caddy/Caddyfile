@@ -35,16 +35,16 @@
 		respond 404
 	}
 	handle /api/* {
+		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files {path} /index.php
 		}
 	}
 	handle /up {
+		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 		}
 	}
@@ -57,9 +57,9 @@
 
 # Endpoint interno (só localhost): o Caddy consulta antes de emitir certificado.
 http://127.0.0.1:8081 {
+	root * /var/www/backend/public
 	php_fastcgi app:9000 {
 		root /var/www/backend/public
-		index off
 		try_files /index.php
 	}
 }
@@ -106,9 +106,9 @@ https:// {
 	# REQUEST_URI vai fixo para a rota do Laravel (o PHP recebe o URI original
 	# por padrão).
 	handle {
+		root * /var/www/backend/public
 		php_fastcgi app:9000 {
 			root /var/www/backend/public
-			index off
 			try_files /index.php
 			env REQUEST_URI /__storefront
 		}

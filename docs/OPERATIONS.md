@@ -32,6 +32,8 @@ Use `AAAA` também se o servidor tiver IPv6.
 
 ## 3. Primeira instalação
 
+> **Servidor com aaPanel** (ou outro Nginx/Apache já usando as portas 80/443): siga `docs/DEPLOY-AAPANEL.md`.
+
 ```bash
 git clone https://github.com/mozartsilvarep-hash/sertec-food.git && cd sertec-food
 cp .env.production.example .env.production   # preencha domínios, e-mail ACME e senhas fortes

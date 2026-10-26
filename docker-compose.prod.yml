@@ -41,16 +41,20 @@ services:
       target: web
     image: sertec-food-web:${SERTEC_VERSION:-latest}
     env_file: .env.production
+    # Padrão: este Caddy é o dono das portas 80/443 e emite os certificados.
+    # Atrás de outro servidor web (aaPanel): WEB_HTTP_BIND=127.0.0.1:8088,
+    # WEB_HTTPS_BIND=127.0.0.1:8443 e CADDY_CONFIG=Caddyfile.proxy
+    # (docs/DEPLOY-AAPANEL.md).
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${WEB_HTTP_BIND:-80}:80"
+      - "${WEB_HTTPS_BIND:-443}:443"
+      - "${WEB_HTTPS_BIND:-443}:443/udp"
     volumes:
       - caddy_data:/data
       - caddy_config:/config
       - storage:/srv/storage-root:ro
     # As fotos ficam em storage/app/public dentro do volume.
-    command: sh -c "ln -sfn /srv/storage-root/public /srv/storage && caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+    command: sh -c "ln -sfn /srv/storage-root/public /srv/storage && caddy run --config /etc/caddy/${CADDY_CONFIG:-Caddyfile} --adapter caddyfile"
     depends_on: [app]
     restart: unless-stopped
 
