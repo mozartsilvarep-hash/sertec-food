@@ -161,7 +161,8 @@ jobs:
           curl -fsS -H "$A" http://127.0.0.1:8099/up >/dev/null || fail 'health /up'
           curl -fsSI -H "$A" http://127.0.0.1:8099/ | grep -qi '^content-security-policy:' || fail 'painel SerTec sem CSP'
           [ "$(curl -s -o /dev/null -w '%{http_code}' -H "$A" 'http://127.0.0.1:8099/api/v1/internal/tls-ask?domain=x')" = 404 ] || fail 'rota interna exposta'
-          curl -fsS -H 'Host: demo.cardapios.example.test' http://127.0.0.1:8099/ | grep -q 'rel="canonical" href="https://demo.cardapios.example.test/"' || fail 'PHP não recebeu HTTPS'
+          html=$(curl -sS -w '\nHTTP %{http_code}' -H 'Host: demo.cardapios.example.test' http://127.0.0.1:8099/)
+          grep -q 'rel="canonical" href="https://demo.cardapios.example.test/"' <<<"$html" || fail "PHP não recebeu HTTPS: $(grep -oE '<link rel=\"canonical\"[^>]*>|<title>[^<]*</title>|HTTP [0-9]+' <<<"$html" | tr '\n' ' ')$(head -c 300 <<<"$html" | tr '\n' ' ')"
           # Visitante 203.0.113.9 forjando X-Forwarded-For: 6.6.6.6 (o Nginx acrescenta o IP real à direita).
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$A" -H 'Sec-Fetch-Site: same-origin' -H 'Content-Type: application/json' -H 'Accept: application/json' \
             -H 'X-Forwarded-For: 6.6.6.6, 203.0.113.9' -d '{"email":"ninguem@example.test","password":"senha-errada-123"}' http://127.0.0.1:8088/api/v1/admin/auth/login)
