@@ -91,15 +91,16 @@ it('remove da equipe; isolamento entre tenants e permissão', function () {
 it('usuário troca a própria senha e as outras sessões caem', function () {
     DB::table('sessions')->insert(['id' => str_repeat('o', 40), 'user_id' => $this->owner->id, 'payload' => '', 'last_activity' => time()]);
     $url = tenantUrl($this->a, 'merchant/me/password');
+    $try = fn (string $current, string $new) => withSession($this->session)->postJson($url, ['current_password' => $current, 'password' => $new, 'password_confirmation' => $new]);
 
-    withSession($this->session)->postJson($url, ['current_password' => 'errada', 'password' => 'NovaSenha123', 'password_confirmation' => 'NovaSenha123'])
-        ->assertStatus(422)->assertJsonPath('code', 'current_password_invalid');
-    withSession($this->session)->postJson($url, ['current_password' => 'password', 'password' => 'curta', 'password_confirmation' => 'curta'])
-        ->assertStatus(422)->assertJsonPath('code', 'validation_failed');
-    withSession($this->session)->postJson($url, ['current_password' => 'password', 'password' => 'NovaSenha123', 'password_confirmation' => 'NovaSenha123'])
-        ->assertNoContent();
+    $try('errada', 'Nova@1')->assertStatus(422)->assertJsonPath('code', 'current_password_invalid');
+    // Regra: 6+ caracteres, 1 maiúscula, 1 especial — mensagens em português.
+    $try('password', 'No@1')->assertStatus(422)->assertJsonPath('details.fields.password.0', 'O campo nova senha precisa ter ao menos 6 caracteres.');
+    $try('password', 'nova@1')->assertStatus(422)->assertJsonPath('details.fields.password.0', 'A nova senha precisa ter ao menos uma letra maiúscula.');
+    $try('password', 'Nova12')->assertStatus(422)->assertJsonPath('details.fields.password.0', 'A nova senha precisa ter ao menos um caractere especial (ex.: ! @ # $ %).');
+    $try('password', 'Nova@1')->assertNoContent();
 
-    expect(Hash::check('NovaSenha123', $this->owner->fresh()->password))->toBeTrue()
+    expect(Hash::check('Nova@1', $this->owner->fresh()->password))->toBeTrue()
         ->and(DB::table('sessions')->where('id', str_repeat('o', 40))->exists())->toBeFalse();
 });
 
