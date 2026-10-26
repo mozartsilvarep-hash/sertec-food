@@ -37,7 +37,7 @@ async function save() {
     <SAlert v-if="message">{{ message }}</SAlert>
     <STextField v-model="form.current" label="Senha atual" type="password" autocomplete="current-password" :error="errors.current_password?.[0] ?? null" />
     <STextField v-model="form.password" label="Nova senha" type="password" autocomplete="new-password" :error="errors.password?.[0] ?? null" />
-    <p class="-mt-2 text-sm text-muted">Pelo menos 10 caracteres, com letras e números.</p>
+    <p class="-mt-2 text-sm text-muted">Mínimo de 6 caracteres, com ao menos 1 letra maiúscula e 1 caractere especial (ex.: ! @ # $ %).</p>
     <STextField v-model="form.confirm" label="Repita a nova senha" type="password" autocomplete="new-password" />
     <div><SButton type="submit" :loading="saving">Trocar senha</SButton></div>
   </form>

@@ -249,3 +249,34 @@ Servidores com aaPanel já usam as portas 80/443 para outros sites. Nesse caso o
 - **CI:** sobe as imagens de produção atrás de um Nginx configurado como o do aaPanel e confere IP real, HTTPS, CSP e o bloqueio da rota interna.
 
 O modo padrão (Caddy dono das portas, certificados automáticos) continua igual. Guia: `docs/DEPLOY-AAPANEL.md`.
+
+## Decisões da Sprint 7 — Clientes pelo celular e WhatsApp
+
+### D61 — Idioma e regra de senha
+O padrão passou a ser `pt_BR`, com as traduções do framework em `backend/lang/pt_BR`. Antes, as mensagens de validação saíam em inglês. A senha escolhida pela SerTec tem no mínimo 6 caracteres, com 1 maiúscula e 1 caractere especial (`PasswordPolicy`). Contra tentativa de adivinhar, vale o limite de login, que continua igual.
+
+### D62 — Cliente reconhecido pelo celular, com endereço parcial
+Qualquer pessoa pode digitar o celular de outra. Por isso `customers/lookup` devolve só:
+- primeiro nome;
+- rua e bairro do último endereço, com o número escondido.
+
+Quando o cliente escolhe "usar este endereço", o navegador manda `use_saved_address`, e o endereço completo vai do banco direto para o pedido, sem passar pelo navegador. Quem fizer um pedido assim com o celular alheio não descobre o endereço:
+- o acompanhamento público mostra só o bairro;
+- a mensagem do WhatsApp também não leva rua nem número.
+
+Pedidos anonimizados (LGPD) nunca entram. No mesmo aparelho, os dados completos ficam no `localStorage`, com o botão "Esquecer meus dados". A política de privacidade descreve os dois mecanismos.
+
+### D63 — Acompanhar pelo celular
+`orders/lookup` lista só número, horário, situação, total e unidade dos pedidos das últimas 24 h. Os detalhes continuam exigindo o link com token, guardado no aparelho que fez o pedido. As duas consultas por celular têm um limitador próprio, apertado por IP e por número, para dificultar a varredura de números.
+
+### D64 — Pedido pelo WhatsApp sem integração paga
+O WhatsApp entra por link `wa.me`, sem API paga. Logo depois do pedido, um botão abre o WhatsApp da loja com a mensagem pronta:
+- número do pedido;
+- itens;
+- total e pagamento;
+- bairro.
+
+Depois, o botão manda só o número do pedido. O telefone usado é o da unidade ("Telefone / WhatsApp"), fixo ou celular. Uma integração oficial (WhatsApp Business API), com aviso automático, é paga e fica para quando a SerTec decidir.
+
+### Zonas de entrega
+O botão "Remover" fica no topo de cada zona, e uma zona totalmente vazia é descartada ao salvar. O painel também sugere os bairros de Aracaju, que entram com um toque.

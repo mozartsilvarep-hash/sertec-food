@@ -194,3 +194,21 @@ Toda escrita bem-sucedida do painel gera registro de auditoria automático (`Aud
 | `GET/POST /merchant/coupons`, `PATCH/DELETE /merchant/coupons/{id}` | exige o recurso de plano `coupons`; código único (maiúsculas); 409 `coupon_used` ao apagar cupom já usado |
 | `GET/PUT /merchant/storefront-feed` | `{announcement{text, link(https), link_label, starts_at, ends_at}, feed_origins[https://host]}` → inclui `feed_url` |
 
+
+## Implementado na Sprint 7 — Clientes e WhatsApp
+
+### Público (host do tenant, `throttle:phone-lookup`: 10/min e 60/h por IP, 20/h por celular)
+
+| Método | Rota | Corpo | Resposta |
+|---|---|---|---|
+| POST | `/customers/lookup` | `{phone}` | `{known, first_name, saved_address: {street, number: "•••", neighborhood} \| null}` — nunca número, complemento, referência ou sobrenome |
+| POST | `/orders/lookup` | `{phone}` | lista dos pedidos das últimas 24 h: `{number, placed_at, status, status_label, fulfillment_type, total, branch}` — sem nome nem endereço |
+
+### Checkout
+
+- `fulfillment.use_saved_address: true` (entrega): dispensa `fulfillment.address`; o servidor usa o endereço completo do último pedido com entrega daquele celular. Sem endereço salvo: 422 `saved_address_missing`.
+
+### Idioma
+
+- Mensagens de validação em português (`backend/lang/pt_BR`); `APP_LOCALE` padrão `pt_BR`.
+- Senha nova (`POST merchant/me/password`): mínimo de 6 caracteres, com 1 letra maiúscula e 1 caractere especial (`PasswordPolicy`).

@@ -27,10 +27,24 @@ describe('Acompanhamento', () => {
     await flushPromises()
 
     expect(wrapper.find('h2').text()).toBe('Em preparo')
-    expect(wrapper.text()).toContain('Pedido #12')
+    expect(wrapper.text()).toContain('Pedido nº 12')
     expect(wrapper.text()).toContain('cerca de 30 min para retirar')
     expect(wrapper.text()).toContain('(etapa atual)')
     expect(wrapper.text()).toContain('Calabresa')
+    wrapper.unmount()
+  })
+
+  it('pedido recém-feito: botão verde envia o pedido nº pelo WhatsApp da loja', async () => {
+    vi.spyOn(orderApi, 'track').mockResolvedValue({ ...order, status: 'pending_acceptance', status_label: 'Aguardando confirmação', branch: { name: 'Centro', phone: '(79) 99888-7766' } })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<p/>' } }] })
+    const wrapper = mount(TrackPage, { props: { token: 't' }, global: { plugins: [router] } })
+    await flushPromises()
+    const send = wrapper.findAll('a').find((a) => a.text() === 'Enviar pedido nº 12 pelo WhatsApp')!
+    const href = decodeURIComponent(send.attributes('href')!)
+    expect(href).toMatch(/^https:\/\/wa\.me\/5579998887766\?text=/)
+    expect(href).toContain('pedido nº 12')
+    expect(href).toContain('1× Pizza (Calabresa)')
+    expect(href).toContain('Retirada em Centro')
     wrapper.unmount()
   })
 

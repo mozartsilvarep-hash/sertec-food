@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { ApiError, cartApi, orderApi } from '@sertec/api-client'
+import { ApiError, cartApi, customerApi, orderApi } from '@sertec/api-client'
 import CheckoutPage from './CheckoutPage.vue'
 import { branchId, cart, store } from '../shop'
 
@@ -20,7 +20,11 @@ beforeEach(() => {
   branchId.value = 'B1'
   cart.value = { ...CART }
   vi.spyOn(cartApi, 'get').mockResolvedValue(CART)
-  try { localStorage.setItem('sertec:cart:pizzaria', CART.token) } catch { /* jsdom */ }
+  vi.spyOn(customerApi, 'lookup').mockResolvedValue({ known: false, first_name: null, saved_address: null })
+  try {
+    localStorage.clear()
+    localStorage.setItem('sertec:cart:pizzaria', CART.token)
+  } catch { /* jsdom */ }
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -138,5 +142,51 @@ describe('Checkout', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(spy.mock.calls[0]![0].coupon).toBe('PIZZA5')
+  })
+
+  it('cliente conhecido pelo celular: oferece o endereço salvo (número escondido) e o servidor completa', async () => {
+    vi.mocked(customerApi.lookup).mockResolvedValue({ known: true, first_name: 'Ana', saved_address: { street: 'Rua das Flores', number: '•••', neighborhood: 'ponta verde' } })
+    const spy = vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 3, status: 'pending_acceptance', payment_status: 'pending', payment_method: 'card_on_delivery', fulfillment_type: 'delivery', total: '47.00', eta_minutes: 50, payment_required: false, payment_expires_at: null, tracking_token: 'f'.repeat(40) })
+    const { wrapper } = await mountPage()
+    const byLabel = (text: string) => wrapper.findAll('label').find((l) => l.text().startsWith(text))!
+    await wrapper.find(`#${byLabel('Celular').attributes('for')}`).setValue('(79) 99988-7766')
+    await flushPromises()
+
+    expect(customerApi.lookup).toHaveBeenCalledWith('(79) 99988-7766')
+    expect(wrapper.text()).toContain('Olá, Ana!')
+    expect(wrapper.find('[aria-label="Endereço do último pedido"]').text()).toContain('Rua das Flores, nº ••• · Ponta Verde')
+    expect(wrapper.find('#bairro').exists()).toBe(false)
+    expect((wrapper.find(`#${byLabel('Nome').attributes('for')}`).element as HTMLInputElement).value).toBe('Ana')
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(spy.mock.calls[0]![0].fulfillment).toEqual({ type: 'delivery', zone_id: 'Z1', use_saved_address: true, address: null })
+
+    // "Usar outro endereço" volta aos campos.
+    await wrapper.findAll('button').find((b) => b.text() === 'Usar outro endereço')?.trigger('click')
+  })
+
+  it('mesmo aparelho: o próximo pedido vem preenchido; "Esquecer meus dados" limpa', async () => {
+    vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 1, status: 'pending_acceptance', payment_status: 'pending', payment_method: 'card_on_delivery', fulfillment_type: 'delivery', total: '47.00', eta_minutes: 50, payment_required: false, payment_expires_at: null, tracking_token: 'f'.repeat(40) })
+    const first = await mountPage()
+    await fill(first.wrapper)
+    await first.wrapper.find('form').trigger('submit')
+    await flushPromises()
+    first.wrapper.unmount()
+
+    cart.value = { ...CART }
+    vi.mocked(customerApi.lookup).mockClear()
+    const { wrapper } = await mountPage()
+    const byLabel = (text: string) => wrapper.findAll('label').find((l) => l.text().startsWith(text))!
+    await wrapper.find(`#${byLabel('Celular').attributes('for')}`).setValue('(82) 99999-0000')
+    await flushPromises()
+    expect(customerApi.lookup).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('dados do seu último pedido neste aparelho')
+    expect((wrapper.find(`#${byLabel('Rua').attributes('for')}`).element as HTMLInputElement).value).toBe('Rua A')
+    expect((wrapper.find('#bairro').element as HTMLSelectElement).value).toBe('Ponta Verde')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Esquecer meus dados')!.trigger('click')
+    expect(localStorage.getItem('sertec:customer:pizzaria')).toBeNull()
+    expect((wrapper.find(`#${byLabel('Rua').attributes('for')}`).element as HTMLInputElement).value).toBe('')
   })
 })

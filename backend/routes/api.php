@@ -16,6 +16,7 @@ use App\Modules\Identity\Permissions as P;
 use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
 use App\Modules\Ordering\Http\Controllers\CouponController;
+use App\Modules\Ordering\Http\Controllers\CustomerLookupController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
 use App\Modules\Ordering\Http\Controllers\PrivacyController;
@@ -76,6 +77,12 @@ Route::middleware(['tenant', 'throttle:webhooks'])
 
 // Checkout: limite próprio, mais restrito.
 Route::middleware(['tenant', 'throttle:checkout'])->post('checkout', CheckoutController::class)->name('checkout');
+
+// Cliente pelo celular (checkout e "Acompanhar pedido"): limite próprio, apertado.
+Route::middleware(['tenant', 'throttle:phone-lookup'])->group(function () {
+    Route::post('customers/lookup', [CustomerLookupController::class, 'customer'])->name('customers.lookup');
+    Route::post('orders/lookup', [CustomerLookupController::class, 'orders'])->name('orders.lookup');
+});
 
 // Painel do restaurante — host de tenant, sessão vinculada ao tenant.
 Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->group(function () {

@@ -77,7 +77,7 @@ onMounted(async () => {
       </label>
       <label class="grid gap-1.5 text-sm font-medium">Fuso horário
         <select v-model="form.timezone" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
-          <option value="America/Maceio">Alagoas/Nordeste (Maceió)</option>
+          <option value="America/Maceio">Sergipe e Alagoas (Aracaju, Maceió)</option>
           <option value="America/Recife">Recife</option>
           <option value="America/Fortaleza">Fortaleza</option>
           <option value="America/Bahia">Bahia</option>

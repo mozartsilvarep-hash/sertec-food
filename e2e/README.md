@@ -10,6 +10,7 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s3-pagamento.mjs` | conectar Mercado Pago, Pix com QR, webhook assinado via Nginx, assinatura falsa = 401, reembolso, cartão (Checkout Pro) e retorno |
 | `s4-operacao.mjs` | alerta ao vivo em segundos, comanda 58/80 mm, histórico, CSV, auditoria |
 | `s6-promocoes.mjs` | promoção "de/por", cupom de primeiro pedido, faixa, feed v1 com CORS, link profundo, desconto no checkout |
+| `s7-clientes.mjs` | senha em português, zona vazia/remover, bairros de Aracaju, WhatsApp com o pedido, mesmo aparelho preenche, outro aparelho com endereço parcial, acompanhar pelo celular, painel com endereço completo |
 
 ## Como rodar
 

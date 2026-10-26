@@ -7,6 +7,8 @@ defineProps<{
   autocomplete?: string
   required?: boolean
   error?: string | null
+  placeholder?: string
+  inputmode?: 'text' | 'tel' | 'numeric' | 'email' | 'decimal'
 }>()
 
 const model = defineModel<string>({ required: true })
@@ -21,6 +23,8 @@ const id = useId()
       v-model="model"
       :type="type ?? 'text'"
       :autocomplete="autocomplete"
+      :placeholder="placeholder"
+      :inputmode="inputmode"
       :required="required"
       :aria-invalid="error ? true : undefined"
       :aria-describedby="error ? `${id}-error` : undefined"

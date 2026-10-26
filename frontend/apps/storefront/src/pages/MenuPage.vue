@@ -71,11 +71,10 @@ onMounted(async () => {
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
 
     <RouterLink
-      v-if="recentOrder"
-      :to="`/pedido/${recentOrder}`"
+      :to="recentOrder ? `/pedido/${recentOrder}` : '/acompanhar'"
       class="block border-b border-line bg-brand-50 px-4 py-3 text-center text-sm font-semibold text-brand-700"
     >
-      Acompanhar meu último pedido
+      {{ recentOrder ? 'Acompanhar meu último pedido' : 'Já pediu? Acompanhe seu pedido' }}
     </RouterLink>
 
     <nav
@@ -123,6 +122,8 @@ onMounted(async () => {
       </section>
 
       <footer class="mt-12 border-t border-line pt-6 pb-24 text-center text-sm text-muted">
+        <RouterLink to="/acompanhar" class="font-semibold text-brand-700 hover:underline">Acompanhar pedido</RouterLink>
+        <span aria-hidden="true"> · </span>
         <RouterLink to="/privacidade" class="hover:text-ink hover:underline">Privacidade</RouterLink>
         <span aria-hidden="true"> · </span>
         <span>Cardápio digital SerTec Food</span>

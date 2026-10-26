@@ -123,7 +123,8 @@ it('23. erros seguem o formato padrão e não mencionam outro tenant', function 
         ->assertNotFound()
         ->assertJsonStructure(['code', 'message', 'details', 'request_id']);
 
-    $body = $response->getContent();
+    // O request_id é aleatório e pode conter "B1" por acaso: fica fora da checagem.
+    $body = (string) json_encode(array_diff_key((array) $response->json(), ['request_id' => true]), JSON_UNESCAPED_UNICODE);
     expect($body)->not->toContain('tenant-b')
         ->and($body)->not->toContain($this->b->name)
         ->and($body)->not->toContain('B1')
