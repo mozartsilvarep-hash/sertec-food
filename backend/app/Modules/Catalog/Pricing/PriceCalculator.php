@@ -9,6 +9,7 @@ use App\Modules\Catalog\Models\Option;
 use App\Modules\Catalog\Models\OptionGroup;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Catalog\Models\Promotion;
 use App\Modules\Tenancy\Models\Branch;
 use App\Support\Money;
 
@@ -20,7 +21,8 @@ use App\Support\Money;
  * Preço unitário = preço da variante
  *                + preço dos sabores (grupo "fraction": maior ou média)
  *                + adicionais (grupo "addon": price_delta × qtd, menos as N
- *                  unidades grátis — sempre as mais baratas).
+ *                  unidades grátis — sempre as mais baratas)
+ *                − promoção vigente do produto (percentual, arredondado ao centavo).
  */
 final class PriceCalculator
 {
@@ -75,6 +77,11 @@ final class PriceCalculator
 
         $addonCents = array_sum(array_column($lines, 'total_cents'));
         $baseCents = Money::toCents($variant->price);
+        $fullCents = $baseCents + $fractionCents + $addonCents;
+
+        // Promoção vigente: desconto percentual sobre a unidade inteira.
+        $promotion = Promotion::query()->running()->where('product_id', $product->id)->orderByDesc('percent_bp')->first();
+        $unitCents = $promotion === null ? $fullCents : Promotion::apply($fullCents, $promotion->percent_bp);
 
         return new PriceQuote(
             productId: $product->public_id,
@@ -84,7 +91,10 @@ final class PriceCalculator
             basePriceCents: $baseCents,
             fractionPriceCents: $fractionCents,
             lines: $lines,
-            unitPriceCents: $baseCents + $fractionCents + $addonCents,
+            unitPriceCents: $unitCents,
+            originalUnitPriceCents: $fullCents,
+            promotionId: $promotion?->public_id,
+            promotionLabel: $promotion?->label(),
         );
     }
 

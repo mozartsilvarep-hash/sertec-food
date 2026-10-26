@@ -103,6 +103,7 @@ final class OrderTransitions
 
         $refundOnline = false;
         if ($isCancel) {
+            CouponService::voidFor($locked);
             $locked->cancelled_at = $now;
             $locked->cancellation_reason = $reason?->value;
             $locked->cancellation_note = $actor !== null ? $note : null;

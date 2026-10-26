@@ -22,8 +22,13 @@ defineEmits<{ open: [] }>()
           </template>
           <template v-else-if="product.price_from">
             <span v-if="product.has_options" class="text-muted">a partir de </span>
-            <span class="font-semibold text-ink tabular-nums">{{ formatMoney(product.price_from) }}</span>
+            <template v-if="product.promo_price_from">
+              <span class="mr-1 text-muted tabular-nums line-through">{{ formatMoney(product.price_from) }}</span>
+              <span class="font-semibold text-success tabular-nums">{{ formatMoney(product.promo_price_from) }}</span>
+            </template>
+            <span v-else class="font-semibold text-ink tabular-nums">{{ formatMoney(product.price_from) }}</span>
           </template>
+          <span v-if="product.available && product.promotion" class="ml-2 inline-block rounded-full bg-success px-2 py-0.5 align-middle text-xs font-bold text-white">{{ product.promotion.label }}</span>
         </span>
       </span>
       <img

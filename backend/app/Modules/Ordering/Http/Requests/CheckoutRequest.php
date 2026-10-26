@@ -44,6 +44,7 @@ class CheckoutRequest extends FormRequest
             'fulfillment.address.reference' => ['nullable', 'string', 'max:150'],
             'payment.method' => ['required', Rule::enum(PaymentMethod::class)],
             'payment.change_for' => ['nullable', 'string', ProductRequest::MONEY],
+            'coupon' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:300'],
         ];
     }

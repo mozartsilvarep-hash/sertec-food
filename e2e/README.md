@@ -9,6 +9,7 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s2-pedidos.mjs` | carrinho, checkout com entrega e troco, duplo clique = 1 pedido, fluxo de status até concluído |
 | `s3-pagamento.mjs` | conectar Mercado Pago, Pix com QR, webhook assinado via Nginx, assinatura falsa = 401, reembolso, cartão (Checkout Pro) e retorno |
 | `s4-operacao.mjs` | alerta ao vivo em segundos, comanda 58/80 mm, histórico, CSV, auditoria |
+| `s6-promocoes.mjs` | promoção "de/por", cupom de primeiro pedido, faixa, feed v1 com CORS, link profundo, desconto no checkout |
 
 ## Como rodar
 

@@ -220,3 +220,20 @@ Restaurante = controlador; SerTec = operadora. Política de privacidade modelo e
 ### Nota de testes
 O `TestCase` reaproveita o `Store` de sessão entre requisições do mesmo teste; testes que alternam sessões de usuários diferentes devem fazer as asserções de uma sessão antes de logar com outra (comportamento só do harness, não da aplicação).
 
+## Decisões da Sprint 6 — Promoções e cupons
+
+### D56 — Promoção percentual sobre a unidade inteira
+Uma promoção por produto (sobreposição recusada) com desconto em centésimos de por cento (`percent_bp`) aplicado ao preço unitário completo (variante + sabores + adicionais) no `PriceCalculator`, com arredondamento inteiro ao centavo (`intdiv(c·(10000−bp)+5000, 10000)`). O navegador (`previewPrice`) usa a mesma fórmula só para exibir. O painel aceita "preço por" e converte em percentual sobre o "a partir de". Assim promoções funcionam também para pizzas meio a meio, em que o preço vem dos sabores. Os itens do pedido guardam o preço já com desconto.
+
+### D57 — Cupons
+Tipos: percentual (com teto opcional), valor fixo (limitado ao subtotal) e entrega grátis (zera só a taxa). Regras: pedido mínimo, período, limite total, limite por cliente (celular) e só no primeiro pedido. O checkout lê o cupom com `FOR UPDATE` dentro da transação, então pedidos simultâneos não passam do limite. O resgate fica em `coupon_redemptions` (UNIQUE por pedido) e o desconto entra em `order_totals` (`discount`) e `orders.discount_total`. Recusa ou cancelamento (inclusive o automático do Pix vencido) anula o resgate e devolve o uso. O recurso é liberado por plano (`coupons`); um tenant cujo plano perdeu o recurso tem os cupons recusados no checkout.
+
+### D58 — Feed de promoções para o site do restaurante
+`GET /api/v1/vitrine/promocoes.json` implementa o **contrato v1** já usado pelo site institucional da Yris Cakes (documento do projeto "Feed de promoções e avisos"), para que o site mostre promoções e a faixa de aviso direto da loja.
+- É público e não tem dados de clientes nem cookies.
+- O CORS é por estabelecimento: só as origens cadastradas recebem `Access-Control-Allow-Origin`, com correspondência exata e `Vary: Origin`.
+- URLs e imagens usam o domínio principal verificado em HTTPS. Com isso, o domínio próprio do restaurante (ex.: `loja.yriscakes.com.br`) atende à regra do site de só aceitar links do próprio domínio.
+
+### D59 — Faixa de aviso
+Texto, link HTTPS opcional e período, guardados no tenant. Aparece no topo do cardápio e no feed (`faixa`). Fora do período, some dos dois.
+

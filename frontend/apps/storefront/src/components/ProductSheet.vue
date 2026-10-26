@@ -217,7 +217,11 @@ function flavorPrice(option: PublicProduct['option_groups'][number]['options'][n
         <div class="flex items-center gap-3">
           <SStepper v-model="quantity" label="quantidade" :min="1" :max="50" />
           <SButton block :disabled="!preview?.valid" :loading="adding" class="flex-1" @click="add">
-            <template v-if="preview?.valid">Adicionar · {{ formatMoney((preview.unitCents * quantity / 100).toFixed(2)) }}</template>
+            <template v-if="preview?.valid">
+              Adicionar ·
+              <span v-if="preview.originalCents > preview.unitCents" class="mx-1 font-normal line-through opacity-75">{{ formatMoney((preview.originalCents * quantity / 100).toFixed(2)) }}</span>
+              {{ formatMoney((preview.unitCents * quantity / 100).toFixed(2)) }}
+            </template>
             <template v-else>Escolha: {{ pendingGroup ?? 'tamanho' }}</template>
           </SButton>
         </div>

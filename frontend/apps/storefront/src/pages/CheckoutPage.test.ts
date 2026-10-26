@@ -119,4 +119,24 @@ describe('Checkout', () => {
     expect(wrapper.find('input[value="pix"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Pagar agora pelo site')
   })
+
+  it('cupom: prévia mostra o desconto, envia o código e atualiza o total', async () => {
+    vi.spyOn(cartApi, 'coupon').mockResolvedValue({ code: 'PIZZA5', label: 'Cupom PIZZA5', description: 'R$ 5 de desconto', discount_type: 'fixed', discount: '5.00', free_delivery: false })
+    const spy = vi.spyOn(orderApi, 'checkout').mockResolvedValue({ order_id: 'o', order_number: 1, status: 'pending_acceptance', payment_status: 'pending', payment_method: 'card_on_delivery', fulfillment_type: 'delivery', total: '42.00', eta_minutes: 50, payment_required: false, payment_expires_at: null, tracking_token: 'f'.repeat(40) })
+    const { wrapper } = await mountPage()
+    await fill(wrapper)
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Tem cupom de desconto?')!.trigger('click')
+    const label = wrapper.findAll('label').find((l) => l.text().startsWith('Cupom'))!
+    await wrapper.find(`#${label.attributes('for')}`).setValue('pizza5')
+    await wrapper.findAll('button').find((b) => b.text() === 'Aplicar')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Cupom PIZZA5')
+    expect(wrapper.text()).toContain('− R$ 5,00')
+    expect(wrapper.text()).toContain('Fazer pedido · R$ 42,00') // 40 + 7 − 5
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(spy.mock.calls[0]![0].coupon).toBe('PIZZA5')
+  })
 })

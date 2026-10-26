@@ -9,6 +9,7 @@ use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Enums\PaymentStatus;
 use App\Modules\Ordering\Models\Cart;
 use App\Modules\Ordering\Models\CartItem;
+use App\Modules\Ordering\Models\CouponRedemption;
 use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\IdempotencyKey;
 use App\Modules\Ordering\Models\Order;
@@ -49,6 +50,7 @@ final class CheckoutService
         private readonly CartService $carts,
         private readonly DeliveryQuote $delivery,
         private readonly TenantContext $context,
+        private readonly CouponService $coupons,
     ) {}
 
     /**
@@ -126,11 +128,27 @@ final class CheckoutService
         $address = $fulfillment === FulfillmentType::Delivery ? ($fulfillmentData['address'] ?? null) : null;
         $subtotal = $view['subtotal_cents'];
         $deliveryQuote = $this->delivery->quote($branch, $fulfillment, $fulfillmentData['zone_id'] ?? null, $address, $subtotal);
-        $total = $subtotal + $deliveryQuote['fee_cents'];
+        /** @var array{name: string, phone: string, email?: string|null} $customerData */
+        $customerData = $data['customer'];
+        $phone = (string) Phone::normalize($customerData['phone']);
+
+        // Cupom: travado (FOR UPDATE) para o limite de usos valer com pedidos simultâneos.
+        $coupon = null;
+        $discount = 0;
+        $couponLabel = null;
+        if (! empty($data['coupon'])) {
+            $coupon = $this->coupons->find((string) $data['coupon'], lock: true);
+            ['discount_cents' => $discount, 'label' => $couponLabel] = $this->coupons->evaluate($coupon, $subtotal, $deliveryQuote['fee_cents'], $phone);
+        }
+
+        $total = $subtotal + $deliveryQuote['fee_cents'] - $discount;
 
         /** @var array{method: string, change_for?: string|null} $paymentData */
         $paymentData = $data['payment'];
         $method = PaymentMethod::from($paymentData['method']);
+        if ($method->isOnline() && $total <= 0) {
+            throw OrderingException::make('payment_method_unavailable', 'Pedido sem valor a pagar: escolha pagar na entrega.');
+        }
         if ($method->isOnline() && IntegrationConnection::activeFor(Provider::MercadoPago) === null) {
             throw OrderingException::make('payment_method_unavailable', 'Pagamento online indisponível. Escolha pagar na entrega.');
         }
@@ -139,9 +157,6 @@ final class CheckoutService
             throw OrderingException::make('change_for_too_low', 'O valor para troco precisa ser maior que o total do pedido.');
         }
 
-        /** @var array{name: string, phone: string, email?: string|null} $customerData */
-        $customerData = $data['customer'];
-        $phone = (string) Phone::normalize($customerData['phone']);
         $customer = Customer::query()->firstOrNew(['phone' => $phone]);
         $customer->fill(['name' => $customerData['name'], 'email' => $customerData['email'] ?? $customer->email, 'last_order_at' => $now]);
         $customer->save();
@@ -166,7 +181,7 @@ final class CheckoutService
             'delivery_zone_name' => $deliveryQuote['zone']?->name,
             'notes' => $data['notes'] ?? null,
             'subtotal' => Money::format($subtotal),
-            'discount_total' => '0.00',
+            'discount_total' => Money::format($discount),
             'delivery_fee' => Money::format($deliveryQuote['fee_cents']),
             'total' => Money::format($total),
             'eta_minutes' => $deliveryQuote['eta_minutes'],
@@ -180,10 +195,19 @@ final class CheckoutService
         $lines = [
             ['subtotal', 'Subtotal', $subtotal],
             ...($fulfillment === FulfillmentType::Delivery ? [['delivery_fee', 'Entrega'.($deliveryQuote['zone'] ? ' ('.$deliveryQuote['zone']->name.')' : ''), $deliveryQuote['fee_cents']]] : []),
+            ...($coupon !== null && $discount > 0 ? [['discount', (string) $couponLabel, $discount]] : []),
             ['total', 'Total', $total],
         ];
         foreach ($lines as $position => [$code, $label, $amount]) {
             OrderTotal::query()->create(['order_id' => $order->id, 'code' => $code, 'label' => $label, 'amount' => Money::format($amount), 'sort_order' => $position]);
+        }
+
+        if ($coupon !== null) {
+            CouponRedemption::query()->create([
+                'coupon_id' => $coupon->id, 'order_id' => $order->id, 'customer_phone' => $phone,
+                'amount' => Money::format($discount), 'status' => CouponRedemption::APPLIED,
+            ]);
+            $coupon->increment('times_used');
         }
 
         OrderStatusHistory::query()->create(['order_id' => $order->id, 'old_status' => null, 'new_status' => $order->status]);
@@ -200,6 +224,7 @@ final class CheckoutService
             'payment_method' => $order->payment_method->value,
             'fulfillment_type' => $order->fulfillment_type->value,
             'total' => $order->total,
+            'discount_total' => $order->discount_total,
             'eta_minutes' => $order->eta_minutes,
             'payment_required' => $payment !== null,
             'payment_expires_at' => $payment?->expires_at->toIso8601String(),

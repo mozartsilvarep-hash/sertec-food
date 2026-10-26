@@ -43,7 +43,10 @@ onMounted(() => loadCart())
               <p v-if="line.notes" class="mt-0.5 text-sm text-muted">Obs.: {{ line.notes }}</p>
               <p v-if="line.problem" class="mt-1 text-sm font-medium text-danger">{{ line.problem.message }}</p>
             </div>
-            <p class="shrink-0 font-semibold tabular-nums">{{ line.line_total ? formatMoney(line.line_total) : '—' }}</p>
+            <p class="shrink-0 text-right font-semibold tabular-nums">
+              {{ line.line_total ? formatMoney(line.line_total) : '—' }}
+              <span v-if="line.promotion_label" class="block text-xs font-bold text-success">{{ line.promotion_label }}</span>
+            </p>
           </div>
           <div class="mt-3 flex items-center justify-between">
             <SStepper :model-value="line.quantity" :label="line.product_name" :max="50" @update:model-value="setQty(line.id, $event)" />

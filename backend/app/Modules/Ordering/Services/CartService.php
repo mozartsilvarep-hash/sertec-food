@@ -134,6 +134,8 @@ final class CartService
                 'selections' => $item->selections_json,
                 'options' => [],
                 'unit_price' => null,
+                'original_unit_price' => null,
+                'promotion_label' => null,
                 'line_total' => null,
                 'valid' => false,
                 'problem' => null,
@@ -156,6 +158,8 @@ final class CartService
                     'quantity' => $l['quantity'],
                 ], $quote->lines);
                 $row['unit_price'] = Money::format($quote->unitPriceCents);
+                $row['original_unit_price'] = $quote->promotionId === null ? null : Money::format((int) $quote->originalUnitPriceCents);
+                $row['promotion_label'] = $quote->promotionLabel;
                 $row['line_total'] = Money::format($line);
                 $row['valid'] = true;
             } catch (PricingException $e) {

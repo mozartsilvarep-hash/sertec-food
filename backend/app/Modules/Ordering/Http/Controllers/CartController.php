@@ -5,7 +5,10 @@ namespace App\Modules\Ordering\Http\Controllers;
 use App\Modules\Catalog\Http\Controllers\PublicCatalogController;
 use App\Modules\Ordering\Models\Cart;
 use App\Modules\Ordering\Models\CartItem;
+use App\Modules\Ordering\Models\Coupon;
 use App\Modules\Ordering\Services\CartService;
+use App\Modules\Ordering\Services\CouponService;
+use App\Modules\Ordering\Support\Phone;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +24,31 @@ class CartController
         [$cart, $token] = $carts->create($branch);
 
         return new JsonResponse(['data' => ['token' => $token, ...$this->present($carts, $cart)]], 201);
+    }
+
+    /**
+     * POST /carts/{token}/coupon {code, phone?} — prévia do desconto. As
+     * regras por cliente (limite, primeiro pedido) só são checadas com o
+     * celular; o checkout valida tudo de novo.
+     */
+    public function coupon(Request $request, string $token, CartService $carts, CouponService $coupons): JsonResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:30'], 'phone' => ['nullable', 'string', 'max:25']]);
+        $cart = $carts->find($token);
+        $view = $carts->view($cart);
+        $coupon = $coupons->find($data['code']);
+        $phone = isset($data['phone']) ? Phone::normalize($data['phone']) : null;
+        $result = $coupons->evaluate($coupon, $view['subtotal_cents'], 0, $phone);
+
+        return new JsonResponse(['data' => [
+            'code' => $coupon->code,
+            'label' => $result['label'],
+            'description' => $coupon->description,
+            'discount_type' => $coupon->discount_type,
+            // Frete grátis: o valor depende do bairro (calculado no checkout).
+            'discount' => Money::format($result['discount_cents']),
+            'free_delivery' => $coupon->discount_type === Coupon::FREE_DELIVERY,
+        ]]);
     }
 
     public function show(string $token, CartService $carts): JsonResponse

@@ -22,6 +22,9 @@ final class PriceQuote
         public readonly int $fractionPriceCents,
         public readonly array $lines,
         public readonly int $unitPriceCents,
+        public readonly ?int $originalUnitPriceCents = null,
+        public readonly ?string $promotionId = null,
+        public readonly ?string $promotionLabel = null,
     ) {}
 
     /**
@@ -45,6 +48,8 @@ final class PriceQuote
                 'total' => Money::format($l['total_cents']),
             ], $this->lines),
             'unit_price' => Money::format($this->unitPriceCents),
+            'original_unit_price' => $this->promotionId === null ? null : Money::format((int) $this->originalUnitPriceCents),
+            'promotion' => $this->promotionId === null ? null : ['id' => $this->promotionId, 'label' => $this->promotionLabel],
         ];
     }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ApiError, publicCatalogApi, type ProductSummary, type PublicMenu } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import CartBar from '../components/CartBar.vue'
@@ -43,12 +44,30 @@ function open(product: ProductSummary) {
   if (product.available) openProduct.value = product.id
 }
 
+// Link profundo (feed de promoções / compartilhamento): /?produto=ID abre o produto.
+const route = useRoute()
+const router = useRouter()
+function openFromLink() {
+  const id = typeof route.query.produto === 'string' ? route.query.produto : null
+  if (!id) return
+  const found = menus.value.flatMap((m) => m.categories).flatMap((c) => c.products).find((p) => p.id === id)
+  if (found) open(found)
+  void router.replace({ query: {} })
+}
+
 watch(branchId, (id, old) => { if (old && id !== old) void load() })
-onMounted(load)
+onMounted(async () => {
+  await load()
+  openFromLink()
+})
 </script>
 
 <template>
   <template v-if="store">
+    <p v-if="store.announcement" class="bg-ink px-4 py-2.5 text-center text-sm text-white" role="note">
+      {{ store.announcement.text }}
+      <a v-if="store.announcement.link" :href="store.announcement.link" class="ml-1 font-semibold whitespace-nowrap underline underline-offset-2">{{ store.announcement.link_label ?? 'Saiba mais' }}</a>
+    </p>
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
 
     <RouterLink

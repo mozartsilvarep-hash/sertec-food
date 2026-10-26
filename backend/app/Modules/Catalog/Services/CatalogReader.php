@@ -14,6 +14,7 @@ use App\Modules\Catalog\Models\OptionGroup;
 use App\Modules\Catalog\Models\OptionVariantPrice;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Catalog\Models\Promotion;
 use App\Modules\Tenancy\Models\Branch;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,6 +36,7 @@ final class CatalogReader
     public function menus(Branch $branch): array
     {
         $soldOut = $this->soldOut($branch);
+        $promotions = self::runningPromotions();
 
         $menus = Menu::query()
             ->where('active', true)
@@ -58,7 +60,7 @@ final class CatalogReader
                     'description' => $category->description,
                     'products' => $category->placements
                         ->filter(fn (MenuProduct $p) => $p->product !== null && $this->activeVariants($p->product) !== [])
-                        ->map(fn (MenuProduct $p) => $this->summary($p->product, $soldOut))
+                        ->map(fn (MenuProduct $p) => $this->summary($p->product, $soldOut, $promotions))
                         ->values()->all(),
                 ])
                 ->filter(fn (array $c) => $c['products'] !== [])
@@ -75,7 +77,7 @@ final class CatalogReader
         $variants = $this->activeVariants($product);
 
         return [
-            ...$this->summary($product, $this->soldOut($branch)),
+            ...$this->summary($product, $this->soldOut($branch), self::runningPromotions([$product->id])),
             'variants' => array_map(fn (ProductVariant $v) => [
                 'id' => $v->public_id,
                 'name' => $v->name,
@@ -113,12 +115,34 @@ final class CatalogReader
     }
 
     /**
+     * Promoções vigentes por product_id (a de maior desconto, se houver mais de uma).
+     *
+     * @param  list<int>|null  $productIds
+     * @return array<int, Promotion>
+     */
+    public static function runningPromotions(?array $productIds = null): array
+    {
+        $map = [];
+        Promotion::query()->running()
+            ->when($productIds !== null, fn ($q) => $q->whereIn('product_id', $productIds ?? []))
+            ->orderBy('percent_bp')->get()
+            ->each(function (Promotion $p) use (&$map) {
+                $map[$p->product_id] = $p;
+            });
+
+        return $map;
+    }
+
+    /**
      * @param  array<int, true>  $soldOut
+     * @param  array<int, Promotion>  $promotions
      * @return array<string, mixed>
      */
-    private function summary(Product $product, array $soldOut): array
+    private function summary(Product $product, array $soldOut, array $promotions = []): array
     {
         $variants = $this->activeVariants($product);
+        $priceFrom = $this->priceFrom($product, $variants);
+        $promotion = $promotions[$product->id] ?? null;
 
         return [
             'id' => $product->public_id,
@@ -127,7 +151,16 @@ final class CatalogReader
             'image_url' => ProductImageStore::url($product->image_key),
             'available' => ! isset($soldOut[$product->id]),
             'has_options' => count($variants) > 1 || $product->optionGroups->contains(fn (OptionGroup $g) => $g->active),
-            'price_from' => $this->priceFrom($product, $variants),
+            'price_from' => $priceFrom,
+            // Preço exibido já com a promoção; o servidor recalcula no carrinho.
+            'promo_price_from' => $promotion === null || $priceFrom === null ? null : Money::format(Promotion::apply(Money::toCents($priceFrom), $promotion->percent_bp)),
+            'promotion' => $promotion === null ? null : [
+                'id' => $promotion->public_id,
+                'percent_bp' => $promotion->percent_bp,
+                'label' => $promotion->label(),
+                'featured' => $promotion->featured,
+                'ends_at' => $promotion->ends_at?->toIso8601String(),
+            ],
         ];
     }
 

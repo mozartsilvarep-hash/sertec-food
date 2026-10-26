@@ -35,6 +35,7 @@ export interface StorefrontInfo {
   branches: BranchStatus[]
   /** Formas aceitas; Pix e cartão pelo site só aparecem com o Mercado Pago conectado. */
   payment_methods?: { method: 'cash' | 'card_on_delivery' | 'pix' | 'online_card'; label: string; online: boolean }[]
+  announcement?: Announcement | null
 }
 
 export interface ProductSummary {
@@ -45,6 +46,25 @@ export interface ProductSummary {
   available: boolean
   has_options: boolean
   price_from: string | null
+  /** "A partir de" já com a promoção (exibição; o servidor recalcula). */
+  promo_price_from?: string | null
+  promotion?: ProductPromotion | null
+}
+
+export interface ProductPromotion {
+  id: string
+  percent_bp: number
+  label: string
+  featured: boolean
+  ends_at: string | null
+}
+
+export interface Announcement {
+  text: string
+  link: string | null
+  link_label: string | null
+  starts_at: string | null
+  ends_at: string | null
 }
 
 export interface PublicMenu {
