@@ -21,7 +21,7 @@ class ProductController
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Product::query()->with(['variants', 'optionGroups', 'placements.category'])->orderBy('name')->orderBy('id');
+        $query = Product::query()->with(['variants', 'optionGroups.options.product', 'placements.category'])->orderBy('name')->orderBy('id');
 
         if ($request->filled('search')) {
             $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], (string) $request->query('search')).'%';
@@ -40,7 +40,7 @@ class ProductController
 
     public function show(Product $product): ProductResource
     {
-        return new ProductResource($product->load(['variants', 'optionGroups', 'placements.category']));
+        return new ProductResource($product->load(['variants', 'optionGroups.options.product', 'placements.category']));
     }
 
     public function store(ProductRequest $request, ProductWriter $writer): JsonResponse
@@ -77,7 +77,7 @@ class ProductController
         $file = $request->file('image');
         $images->store($product, $file);
 
-        return new ProductResource($product->load(['variants', 'optionGroups', 'placements.category']));
+        return new ProductResource($product->load(['variants', 'optionGroups.options.product', 'placements.category']));
     }
 
     public function deleteImage(Product $product, ProductImageStore $images): JsonResponse

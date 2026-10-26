@@ -3,6 +3,7 @@
 namespace App\Modules\Ordering\Services;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\Promotion;
 use App\Modules\Catalog\Pricing\PriceCalculator;
 use App\Modules\Catalog\Pricing\PriceQuote;
 use App\Modules\Catalog\Pricing\PricingException;
@@ -110,7 +111,7 @@ final class CartService
      * Leitura com preços atuais. Itens que deixaram de ser válidos aparecem
      * com valid=false e o motivo — nunca somem sem aviso.
      *
-     * @return array{items: list<array<string, mixed>>, subtotal_cents: int, valid: bool, quotes: array<int, PriceQuote>}
+     * @return array{items: list<array<string, mixed>>, subtotal_cents: int, discounts: list<array{promotion_id: string, label: string, amount_cents: int}>, discount_cents: int, valid: bool, quotes: array<int, PriceQuote>}
      */
     public function view(Cart $cart): array
     {
@@ -170,7 +171,57 @@ final class CartService
             $items[] = $row;
         }
 
-        return ['items' => $items, 'subtotal_cents' => $subtotal, 'valid' => $valid && $items !== [], 'quotes' => $quotes];
+        $discounts = $this->bundleDiscounts($cart, $quotes);
+
+        return [
+            'items' => $items,
+            'subtotal_cents' => $subtotal,
+            // "Leve N, pague M": linhas de desconto calculadas sobre a quantidade total do produto.
+            'discounts' => $discounts,
+            'discount_cents' => array_sum(array_column($discounts, 'amount_cents')),
+            'valid' => $valid && $items !== [],
+            'quotes' => $quotes,
+        ];
+    }
+
+    /**
+     * Unidades grátis saem das mais baratas do mesmo produto (ex.: pizzas de
+     * tamanhos diferentes: a menor sai de graça).
+     *
+     * @param  array<int, PriceQuote>  $quotes  por cart_item.id
+     * @return list<array{promotion_id: string, label: string, amount_cents: int}>
+     */
+    public function bundleDiscounts(Cart $cart, array $quotes): array
+    {
+        if ($quotes === []) {
+            return [];
+        }
+        $byProduct = [];
+        foreach ($cart->items as $item) {
+            if (isset($quotes[$item->id])) {
+                $units = $byProduct[$item->product_id] ?? [];
+                $byProduct[$item->product_id] = [...$units, ...array_fill(0, $item->quantity, $quotes[$item->id]->unitPriceCents)];
+            }
+        }
+        $promotions = Promotion::query()->running()->where('type', Promotion::TYPE_BUNDLE)
+            ->whereIn('product_id', array_keys($byProduct))->with('product:id,tenant_id,name')->get();
+
+        $lines = [];
+        foreach ($promotions as $promotion) {
+            $units = $byProduct[$promotion->product_id] ?? [];
+            $free = $promotion->freeUnits(count($units));
+            if ($free < 1) {
+                continue;
+            }
+            sort($units);
+            $lines[] = [
+                'promotion_id' => $promotion->public_id,
+                'label' => $promotion->label().' · '.$promotion->product->name,
+                'amount_cents' => array_sum(array_slice($units, 0, $free)),
+            ];
+        }
+
+        return $lines;
     }
 
     private function item(Cart $cart, string $itemId): CartItem

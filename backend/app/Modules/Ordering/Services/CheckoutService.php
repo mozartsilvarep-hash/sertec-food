@@ -136,7 +136,10 @@ final class CheckoutService
                 ?? throw OrderingException::make('saved_address_missing', 'Não encontramos um endereço salvo para este celular. Preencha o endereço.');
         }
         $subtotal = $view['subtotal_cents'];
-        $deliveryQuote = $this->delivery->quote($branch, $fulfillment, $fulfillmentData['zone_id'] ?? null, $address, $subtotal);
+        $promotionDiscount = $view['discount_cents'];
+        // Pedido mínimo e cupom valem sobre o valor já com "leve N, pague M".
+        $netSubtotal = $subtotal - $promotionDiscount;
+        $deliveryQuote = $this->delivery->quote($branch, $fulfillment, $fulfillmentData['zone_id'] ?? null, $address, $netSubtotal);
 
         // Cupom: travado (FOR UPDATE) para o limite de usos valer com pedidos simultâneos.
         $coupon = null;
@@ -144,10 +147,10 @@ final class CheckoutService
         $couponLabel = null;
         if (! empty($data['coupon'])) {
             $coupon = $this->coupons->find((string) $data['coupon'], lock: true);
-            ['discount_cents' => $discount, 'label' => $couponLabel] = $this->coupons->evaluate($coupon, $subtotal, $deliveryQuote['fee_cents'], $phone);
+            ['discount_cents' => $discount, 'label' => $couponLabel] = $this->coupons->evaluate($coupon, $netSubtotal, $deliveryQuote['fee_cents'], $phone);
         }
 
-        $total = $subtotal + $deliveryQuote['fee_cents'] - $discount;
+        $total = $netSubtotal + $deliveryQuote['fee_cents'] - $discount;
 
         /** @var array{method: string, change_for?: string|null} $paymentData */
         $paymentData = $data['payment'];
@@ -187,7 +190,7 @@ final class CheckoutService
             'delivery_zone_name' => $deliveryQuote['zone']?->name,
             'notes' => $data['notes'] ?? null,
             'subtotal' => Money::format($subtotal),
-            'discount_total' => Money::format($discount),
+            'discount_total' => Money::format($discount + $promotionDiscount),
             'delivery_fee' => Money::format($deliveryQuote['fee_cents']),
             'total' => Money::format($total),
             'eta_minutes' => $deliveryQuote['eta_minutes'],
@@ -200,6 +203,7 @@ final class CheckoutService
 
         $lines = [
             ['subtotal', 'Subtotal', $subtotal],
+            ...array_map(fn (array $d) => ['promotion', $d['label'], $d['amount_cents']], $view['discounts']),
             ...($fulfillment === FulfillmentType::Delivery ? [['delivery_fee', 'Entrega'.($deliveryQuote['zone'] ? ' ('.$deliveryQuote['zone']->name.')' : ''), $deliveryQuote['fee_cents']]] : []),
             ...($coupon !== null && $discount > 0 ? [['discount', (string) $couponLabel, $discount]] : []),
             ['total', 'Total', $total],

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatDateTime, formatMoney, merchantOrdersApi, type MerchantOrder } from '@sertec/api-client'
+import { formatDateTime, formatMoney, formatTotal, merchantOrdersApi, type MerchantOrder } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import { me } from '../session'
 import { readPref, writePref } from '../storage'
@@ -77,7 +77,7 @@ onMounted(async () => {
       </section>
 
       <section class="border-b border-dashed border-black py-2">
-        <p v-for="t in order.totals ?? []" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'text-[1.15em] font-bold'"><span>{{ t.label }}</span><span>{{ formatMoney(t.amount) }}</span></p>
+        <p v-for="t in order.totals ?? []" :key="t.code" class="flex justify-between" :class="t.code === 'total' && 'text-[1.15em] font-bold'"><span>{{ t.label }}</span><span>{{ formatTotal(t) }}</span></p>
       </section>
 
       <section class="py-2">

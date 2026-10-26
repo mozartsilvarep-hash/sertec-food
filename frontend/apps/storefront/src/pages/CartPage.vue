@@ -55,9 +55,15 @@ onMounted(() => loadCart())
         </li>
       </ul>
 
+      <div v-if="cart.discounts?.length" class="mt-4 grid gap-1 border-t border-line pt-4 text-sm">
+        <p class="flex justify-between"><span class="text-muted">Itens</span><span class="tabular-nums">{{ formatMoney(cart.subtotal) }}</span></p>
+        <p v-for="d in cart.discounts" :key="d.label" class="flex justify-between text-success">
+          <span>{{ d.label }}</span><span class="tabular-nums">− {{ formatMoney(d.amount) }}</span>
+        </p>
+      </div>
       <div class="mt-4 flex items-baseline justify-between border-t border-line pt-4">
         <span class="text-muted">Subtotal</span>
-        <span class="text-lg font-bold tabular-nums">{{ formatMoney(cart.subtotal) }}</span>
+        <span class="text-lg font-bold tabular-nums">{{ formatMoney(cart.net_subtotal ?? cart.subtotal) }}</span>
       </div>
       <p class="mt-1 text-sm text-muted">Taxa de entrega calculada no próximo passo.</p>
     </template>

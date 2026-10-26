@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $public_id
  * @property int $tenant_id
+ * @property int|null $owner_product_id combo dono do grupo (fora da lista geral)
  * @property string $name
  * @property OptionGroupType $type
  * @property int $min_select

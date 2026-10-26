@@ -39,7 +39,12 @@ final class PriceCalculator
             throw new PricingException('product_sold_out', 'Este produto está esgotado nesta unidade.');
         }
 
-        $product->loadMissing(['variants', 'optionGroups.options.variantPrices']);
+        $schedule = $product->schedule();
+        if (! $schedule->isAvailableAt()) {
+            throw new PricingException('product_not_available_now', rtrim("\"{$product->name}\" está disponível {$this->lower($schedule->label())}", '.').'.');
+        }
+
+        $product->loadMissing(['variants', 'optionGroups.options.variantPrices', 'optionGroups.options.product']);
 
         /** @var ProductVariant|null $variant */
         $variant = $product->variants->first(fn (ProductVariant $v) => $v->public_id === $variantId && $v->active);
@@ -49,6 +54,7 @@ final class PriceCalculator
 
         $groups = $product->optionGroups->filter(fn (OptionGroup $g) => $g->active)->values();
         $chosen = $this->resolveSelections($groups->all(), $selections);
+        $this->assertLinkedProductsAvailable($chosen, $branch);
 
         $fractionCents = 0;
         $lines = [];
@@ -80,7 +86,9 @@ final class PriceCalculator
         $fullCents = $baseCents + $fractionCents + $addonCents;
 
         // Promoção vigente: desconto percentual sobre a unidade inteira.
-        $promotion = Promotion::query()->running()->where('product_id', $product->id)->orderByDesc('percent_bp')->first();
+        // ("leve N, pague M" é calculado no carrinho, sobre a quantidade total.)
+        $promotion = Promotion::query()->running()->where('product_id', $product->id)
+            ->where('type', Promotion::TYPE_PERCENT)->orderByDesc('percent_bp')->first();
         $unitCents = $promotion === null ? $fullCents : Promotion::apply($fullCents, $promotion->percent_bp);
 
         return new PriceQuote(
@@ -96,6 +104,35 @@ final class PriceCalculator
             promotionId: $promotion?->public_id,
             promotionLabel: $promotion?->label(),
         );
+    }
+
+    /**
+     * Itens de combo: cada opção aponta para um produto do cardápio, que
+     * precisa estar ativo, com estoque na unidade e disponível agora.
+     *
+     * @param  array<int, array<string, array{option: Option, quantity: int}>>  $chosen
+     */
+    private function assertLinkedProductsAvailable(array $chosen, ?Branch $branch): void
+    {
+        foreach ($chosen as $picks) {
+            foreach ($picks as $pick) {
+                $linked = $pick['option']->product;
+                if ($pick['option']->product_id === null) {
+                    continue;
+                }
+                $ok = $linked !== null && $linked->active && ! $linked->trashed()
+                    && ($branch === null || ! $this->isSoldOut($linked, $branch))
+                    && $linked->schedule()->isAvailableAt();
+                if (! $ok) {
+                    throw new PricingException('option_invalid', "\"{$pick['option']->name}\" não está disponível agora. Escolha outro.", ['option' => $pick['option']->public_id]);
+                }
+            }
+        }
+    }
+
+    private function lower(?string $text): string
+    {
+        return $text === null ? 'em outros horários' : mb_strtolower(mb_substr($text, 0, 1)).mb_substr($text, 1);
     }
 
     private function isSoldOut(Product $product, Branch $branch): bool

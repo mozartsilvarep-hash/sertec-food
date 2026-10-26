@@ -78,6 +78,8 @@ export function previewPrice(product: PublicProduct, selection: Selection): Pric
 }
 
 /** Sabor disponível no tamanho escolhido? */
-export function flavorAvailable(option: { prices: Record<string, string> | null }, variantId: string): boolean {
+/** Sabor existe no tamanho e (item de combo) o produto está disponível agora. */
+export function flavorAvailable(option: { prices: Record<string, string> | null; available?: boolean }, variantId: string): boolean {
+  if (option.available === false) return false
   return option.prices === null || option.prices[variantId] !== undefined
 }

@@ -108,7 +108,8 @@ function forgetMe() {
   fromDevice.value = false
   Object.assign(form, { name: '', street: '', number: '', complement: '', reference: '', neighborhood: '' })
 }
-const subtotalCents = computed(() => toCents(cart.value?.subtotal ?? '0'))
+// Já com "leve N, pague M" (o servidor recalcula tudo no checkout).
+const subtotalCents = computed(() => toCents(cart.value?.net_subtotal ?? cart.value?.subtotal ?? '0'))
 const feeCents = computed(() => {
   if (form.type !== 'delivery' || !zone.value) return 0
   if (zone.value.free_above && subtotalCents.value >= toCents(zone.value.free_above)) return 0
@@ -351,6 +352,7 @@ onMounted(async () => {
 
     <section aria-label="Resumo" class="grid gap-1 border-t border-line pt-4 text-sm">
       <p class="flex justify-between"><span class="text-muted">Subtotal</span><span class="tabular-nums">{{ formatMoney(cart.subtotal) }}</span></p>
+      <p v-for="d in cart.discounts ?? []" :key="d.label" class="flex justify-between text-success"><span>{{ d.label }}</span><span class="tabular-nums">− {{ formatMoney(d.amount) }}</span></p>
       <p v-if="form.type === 'delivery'" class="flex justify-between"><span class="text-muted">Entrega</span><span class="tabular-nums">{{ zone ? (feeCents === 0 ? 'Grátis' : formatMoney(centsToString(feeCents))) : 'escolha o bairro' }}</span></p>
       <p v-if="coupon && discountCents > 0" class="flex justify-between text-success"><span>{{ coupon.label }}</span><span class="tabular-nums">− {{ formatMoney(centsToString(discountCents)) }}</span></p>
       <p class="mt-1 flex justify-between text-base font-bold"><span>Total</span><span class="tabular-nums">{{ formatMoney(centsToString(totalCents)) }}</span></p>

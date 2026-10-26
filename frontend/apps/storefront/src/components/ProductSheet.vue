@@ -177,17 +177,20 @@ function flavorPrice(option: PublicProduct['option_groups'][number]['options'][n
                     <span v-if="option.description" class="block text-xs text-muted">{{ option.description }}</span>
                   </span>
                   <span class="text-sm text-muted tabular-nums">
-                    <template v-if="group.type === 'fraction'">{{ flavorPrice(option) ?? 'Indisponível neste tamanho' }}</template>
+                    <template v-if="option.available === false">Indisponível agora</template>
+                    <template v-else-if="group.type === 'fraction'">{{ flavorPrice(option) ?? 'Indisponível neste tamanho' }}</template>
                     <template v-else-if="Number(option.price_delta) > 0">+ {{ formatMoney(option.price_delta) }}</template>
                   </span>
                 </label>
               </template>
-              <div v-else class="flex items-center gap-3 py-3">
+              <div v-else class="flex items-center gap-3 py-3" :class="option.available === false && 'opacity-45'">
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-medium">{{ option.name }}</span>
-                  <span v-if="Number(option.price_delta) > 0" class="block text-xs text-muted tabular-nums">+ {{ formatMoney(option.price_delta) }}</span>
+                  <span v-if="option.available === false" class="block text-xs text-muted">Indisponível agora</span>
+                  <span v-else-if="Number(option.price_delta) > 0" class="block text-xs text-muted tabular-nums">+ {{ formatMoney(option.price_delta) }}</span>
                 </span>
                 <SStepper
+                  v-if="option.available !== false"
                   :label="option.name"
                   :max="option.max_quantity"
                   :model-value="picks[option.id] ?? 0"

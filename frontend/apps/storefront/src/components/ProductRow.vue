@@ -18,7 +18,7 @@ defineEmits<{ open: [] }>()
         <span v-if="product.description" class="mt-1 line-clamp-2 block text-sm text-muted">{{ product.description }}</span>
         <span class="mt-2 block text-sm">
           <template v-if="!product.available">
-            <span class="font-semibold text-muted">Esgotado hoje</span>
+            <span class="font-semibold text-muted">{{ product.availability ?? 'Esgotado hoje' }}</span>
           </template>
           <template v-else-if="product.price_from">
             <span v-if="product.has_options" class="text-muted">a partir de </span>
@@ -26,10 +26,15 @@ defineEmits<{ open: [] }>()
               <span class="mr-1 text-muted tabular-nums line-through">{{ formatMoney(product.price_from) }}</span>
               <span class="font-semibold text-success tabular-nums">{{ formatMoney(product.promo_price_from) }}</span>
             </template>
-            <span v-else class="font-semibold text-ink tabular-nums">{{ formatMoney(product.price_from) }}</span>
+            <template v-else>
+              <span v-if="product.compare_at && Number(product.compare_at) > Number(product.price_from)" class="mr-1 text-muted tabular-nums line-through">{{ formatMoney(product.compare_at) }}</span>
+              <span class="font-semibold text-ink tabular-nums">{{ formatMoney(product.price_from) }}</span>
+            </template>
           </template>
           <span v-if="product.available && product.promotion" class="ml-2 inline-block rounded-full bg-success px-2 py-0.5 align-middle text-xs font-bold text-white">{{ product.promotion.label }}</span>
+          <span v-if="product.kind === 'combo'" class="ml-2 inline-block rounded-full bg-brand-600 px-2 py-0.5 align-middle text-xs font-bold text-brand-contrast">Combo</span>
         </span>
+        <span v-if="product.available && product.availability" class="mt-1 block text-xs text-muted">{{ product.availability }}</span>
       </span>
       <img
         v-if="product.image_url"

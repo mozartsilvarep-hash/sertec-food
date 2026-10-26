@@ -60,8 +60,9 @@ class StorefrontFeedController
                 'descricao' => $product->description ? mb_substr($product->description, 0, 220) : null,
                 'imagem' => $image ? $base.$image : null,
                 'imagemAlt' => $image ? mb_substr($product->name, 0, 120) : null,
-                'precoDe' => round($from / 100, 2),
-                'precoPor' => round(Promotion::apply($from, $promotion->percent_bp) / 100, 2),
+                // "Leve N, pague M" não tem preço "por": vai só o preço e o selo.
+                'precoDe' => $promotion->isBundle() ? null : round($from / 100, 2),
+                'precoPor' => round(($promotion->isBundle() ? $from : Promotion::apply($from, $promotion->percent_bp)) / 100, 2),
                 'selo' => mb_substr($promotion->label(), 0, 18),
                 'url' => $base.'/?produto='.$product->public_id,
                 'inicio' => $iso($promotion->starts_at),

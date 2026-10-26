@@ -38,7 +38,7 @@ class CartController
         $view = $carts->view($cart);
         $coupon = $coupons->find($data['code']);
         $phone = isset($data['phone']) ? Phone::normalize($data['phone']) : null;
-        $result = $coupons->evaluate($coupon, $view['subtotal_cents'], 0, $phone);
+        $result = $coupons->evaluate($coupon, $view['subtotal_cents'] - $view['discount_cents'], 0, $phone);
 
         return new JsonResponse(['data' => [
             'code' => $coupon->code,
@@ -107,6 +107,10 @@ class CartController
             'expires_at' => $cart->expires_at->toIso8601String(),
             'items' => $view['items'],
             'subtotal' => Money::format($view['subtotal_cents']),
+            // Promoções "leve N, pague M" (já calculadas; o checkout recalcula).
+            'discounts' => array_map(fn (array $d) => ['label' => $d['label'], 'amount' => Money::format($d['amount_cents'])], $view['discounts']),
+            'discount_total' => Money::format($view['discount_cents']),
+            'net_subtotal' => Money::format($view['subtotal_cents'] - $view['discount_cents']),
             'valid' => $view['valid'],
             'count' => array_sum(array_column($view['items'], 'quantity')),
         ];

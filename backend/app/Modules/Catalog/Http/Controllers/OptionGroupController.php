@@ -8,18 +8,21 @@ use App\Modules\Catalog\Models\OptionGroup;
 use App\Modules\Catalog\Services\OptionGroupWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class OptionGroupController
 {
     public function index(): AnonymousResourceCollection
     {
         return OptionGroupResource::collection(
-            OptionGroup::query()->with('options.variantPrices.variant')->orderBy('name')->get()
+            OptionGroup::query()->whereNull('owner_product_id')->with('options.variantPrices.variant')->orderBy('name')->get()
         );
     }
 
     public function show(OptionGroup $optionGroup): OptionGroupResource
     {
+        self::assertStandalone($optionGroup);
+
         return new OptionGroupResource($optionGroup->load('options.variantPrices.variant'));
     }
 
@@ -30,13 +33,24 @@ class OptionGroupController
 
     public function update(OptionGroupRequest $request, OptionGroup $optionGroup, OptionGroupWriter $writer): OptionGroupResource
     {
+        self::assertStandalone($optionGroup);
+
         return new OptionGroupResource($writer->save($optionGroup, $request->validated()));
     }
 
     public function destroy(OptionGroup $optionGroup): JsonResponse
     {
+        self::assertStandalone($optionGroup);
         $optionGroup->delete();
 
         return new JsonResponse(null, 204);
+    }
+
+    /** Grupos de combo só mudam pela tela do combo (o produto é o dono). */
+    private static function assertStandalone(OptionGroup $group): void
+    {
+        if ($group->owner_product_id !== null) {
+            throw new NotFoundHttpException;
+        }
     }
 }
