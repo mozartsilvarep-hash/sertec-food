@@ -46,6 +46,7 @@ class StorefrontController
             'description' => $tenant->description,
             'brand_color' => $tenant->brand_color,
             'branches' => $branches,
+            'announcement' => $tenant->activeAnnouncement(),
             'payment_methods' => array_map(fn (PaymentMethod $m) => ['method' => $m->value, 'label' => $m->label(), 'online' => $m->isOnline()], array_values(array_filter(
                 PaymentMethod::cases(),
                 fn (PaymentMethod $m) => $m->isOnDelivery() || $online,

@@ -33,6 +33,9 @@ final class Permissions
 
     public const REPORTS_VIEW = 'reports.view';
 
+    /** Promoções, cupons e vitrine (feed/faixa). */
+    public const MARKETING_MANAGE = 'marketing.manage';
+
     /** Ver a trilha de auditoria do estabelecimento (só o proprietário). */
     public const AUDIT_VIEW = 'audit.view';
 
@@ -59,6 +62,7 @@ final class Permissions
             self::ORDERS_VIEW => 'Ver pedidos',
             self::ORDERS_MANAGE => 'Operar pedidos',
             self::REPORTS_VIEW => 'Ver relatórios',
+            self::MARKETING_MANAGE => 'Gerenciar promoções e cupons',
             self::AUDIT_VIEW => 'Ver auditoria',
             self::PAYMENTS_MANAGE => 'Gerenciar conta de pagamentos',
             self::PAYMENTS_REFUND => 'Reembolsar pagamentos',

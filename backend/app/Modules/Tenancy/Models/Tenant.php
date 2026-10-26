@@ -4,6 +4,7 @@ namespace App\Modules\Tenancy\Models;
 
 use App\Modules\Platform\Models\Subscription;
 use App\Modules\Tenancy\Enums\TenantStatus;
+use Carbon\CarbonImmutable;
 use Database\Factories\TenantFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $timezone
  * @property string|null $description
  * @property string|null $brand_color
+ * @property array{text?: string, link?: string|null, link_label?: string|null, starts_at?: string|null, ends_at?: string|null}|null $announcement_json
+ * @property list<string>|null $feed_origins_json
  */
 class Tenant extends Model
 {
@@ -44,10 +47,40 @@ class Tenant extends Model
         return 'public_id';
     }
 
+    /**
+     * Faixa de aviso vigente agora (null fora do período ou sem texto).
+     *
+     * @return array{text: string, link: string|null, link_label: string|null, starts_at: string|null, ends_at: string|null}|null
+     */
+    public function activeAnnouncement(?\DateTimeInterface $now = null): ?array
+    {
+        $a = $this->announcement_json;
+        if (! is_array($a) || trim((string) ($a['text'] ?? '')) === '') {
+            return null;
+        }
+        $now = CarbonImmutable::instance($now ?? now());
+        if (! empty($a['starts_at']) && $now->lt(CarbonImmutable::parse($a['starts_at']))) {
+            return null;
+        }
+        if (! empty($a['ends_at']) && $now->gt(CarbonImmutable::parse($a['ends_at']))) {
+            return null;
+        }
+
+        return [
+            'text' => (string) $a['text'],
+            'link' => $a['link'] ?? null,
+            'link_label' => $a['link_label'] ?? null,
+            'starts_at' => $a['starts_at'] ?? null,
+            'ends_at' => $a['ends_at'] ?? null,
+        ];
+    }
+
     protected function casts(): array
     {
         return [
             'status' => TenantStatus::class,
+            'announcement_json' => 'array',
+            'feed_origins_json' => 'array',
         ];
     }
 

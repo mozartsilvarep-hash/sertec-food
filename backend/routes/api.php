@@ -5,13 +5,17 @@ use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\MenuController;
 use App\Modules\Catalog\Http\Controllers\OptionGroupController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
+use App\Modules\Catalog\Http\Controllers\PromotionController;
 use App\Modules\Catalog\Http\Controllers\PublicCatalogController;
+use App\Modules\Catalog\Http\Controllers\StorefrontFeedController;
+use App\Modules\Catalog\Http\Controllers\StorefrontFeedSettingsController;
 use App\Modules\Identity\Http\Controllers\AccountController;
 use App\Modules\Identity\Http\Controllers\MerchantAuthController;
 use App\Modules\Identity\Http\Controllers\StaffController;
 use App\Modules\Identity\Permissions as P;
 use App\Modules\Ordering\Http\Controllers\CartController;
 use App\Modules\Ordering\Http\Controllers\CheckoutController;
+use App\Modules\Ordering\Http\Controllers\CouponController;
 use App\Modules\Ordering\Http\Controllers\DeliverySettingsController;
 use App\Modules\Ordering\Http\Controllers\MerchantOrderController;
 use App\Modules\Ordering\Http\Controllers\PrivacyController;
@@ -57,6 +61,9 @@ Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->gro
     Route::patch('carts/{token}/items/{item}', [CartController::class, 'updateItem'])->name('carts.items.update');
     Route::delete('carts/{token}/items/{item}', [CartController::class, 'removeItem'])->name('carts.items.destroy');
     Route::get('orders/track/{token}', TrackingController::class)->name('orders.track');
+    Route::post('carts/{token}/coupon', [CartController::class, 'coupon'])->name('carts.coupon');
+    // Feed público de promoções (contrato v1, lido pelo site do restaurante).
+    Route::get('vitrine/promocoes.json', StorefrontFeedController::class)->name('vitrine.promocoes');
 });
 
 // Gerar de novo / consultar a cobrança online do pedido (chama o provedor).
@@ -159,6 +166,22 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         });
         Route::patch('orders/{order}/status', [MerchantOrderController::class, 'updateStatus'])
             ->middleware('permission:'.P::ORDERS_MANAGE)->name('orders.status');
+
+        // Promoções, cupons e vitrine
+        Route::middleware('permission:'.P::MARKETING_MANAGE)->group(function () {
+            Route::get('promotions', [PromotionController::class, 'index'])->name('promotions.index');
+            Route::post('promotions', [PromotionController::class, 'store'])->name('promotions.store');
+            Route::patch('promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
+            Route::delete('promotions/{promotion}', [PromotionController::class, 'destroy'])->name('promotions.destroy');
+            Route::get('storefront-feed', [StorefrontFeedSettingsController::class, 'show'])->name('storefront-feed.show');
+            Route::put('storefront-feed', [StorefrontFeedSettingsController::class, 'update'])->name('storefront-feed.update');
+            Route::middleware('feature:'.Feature::COUPONS)->group(function () {
+                Route::get('coupons', [CouponController::class, 'index'])->name('coupons.index');
+                Route::post('coupons', [CouponController::class, 'store'])->name('coupons.store');
+                Route::patch('coupons/{coupon}', [CouponController::class, 'update'])->name('coupons.update');
+                Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy');
+            });
+        });
 
         // LGPD: atendimento a titulares
         Route::middleware('permission:'.P::SETTINGS_UPDATE)->group(function () {
