@@ -21,8 +21,23 @@ Subdomínios, HTTPS, backups, observabilidade, LGPD, testes E2E, piloto com 2–
 ## Sprint 6 — Promoções e cupons ✅ concluída (26/10/2026)
 Promoções por produto (percentual, com período, destaque e selo), cupons (percentual com teto, valor fixo, entrega grátis; pedido mínimo, período, limites total e por cliente, primeiro pedido), faixa de aviso no cardápio e feed público de promoções no "contrato v1" lido pelo site institucional do restaurante (ex.: Yris Cakes), com CORS por site autorizado.
 
+## Implantação ✅ (26/10/2026)
+No ar numa VPS da OVH com aaPanel: o Nginx do aaPanel cuida do HTTPS e o SerTec Food roda em Docker atrás dele (`docs/DEPLOY-AAPANEL.md`). Primeira loja: Yris Cakes, em `loja.yriscakes.com.br`.
+
+## Sprint 7 — Clientes e WhatsApp ✅ concluída (26/10/2026)
+Tudo em português, nova regra de senha, zonas de entrega com "Remover" visível e bairros de Aracaju. Cliente reconhecido pelo celular (endereço parcial em outro aparelho; preenchimento completo no mesmo aparelho), acompanhar pedido pelo celular e pedido enviado ao WhatsApp da loja com número, itens e total.
+
+## Sprint 8 — Cardápio (próxima)
+Disponibilidade por dia da semana, combos e "compre X, leve Y".
+
+## Sprint 9 — Marca e visual
+Logo, capa, cores e CNPJ da loja; cardápio redesenhado.
+
+## Sprint 10 — Cobrança da SerTec
+Planos com valor e período, vencimentos, e-mails de aviso (provedor a decidir) e pagamento da mensalidade por Pix na conta Mercado Pago da SerTec.
+
 ## Pós-MVP
-Cobrança self-service, WhatsApp Cloud API, impressão térmica (agente local), relatórios, PDV e IA.
+WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.
 
 ## Definition of Done
 Migration e rollback testados; testes unitários, integração e isolamento; revisão de segurança; documentação da API; logs/erros; revisão mobile; homologação.

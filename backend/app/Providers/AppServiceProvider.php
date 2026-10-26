@@ -51,6 +51,18 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('checkout:'.$request->getHost().'|'.$request->ip()),
         ]);
 
+        // Celular no checkout / acompanhar pedido: uso normal são poucas consultas;
+        // o limite por hora e por celular barra quem tenta varrer números.
+        RateLimiter::for('phone-lookup', function (Request $request) {
+            $phone = preg_replace('/\D+/', '', (string) $request->input('phone'));
+
+            return [
+                Limit::perMinute(10)->by('phone-ip:'.$request->getHost().'|'.$request->ip()),
+                Limit::perHour(60)->by('phone-ip-h:'.$request->getHost().'|'.$request->ip()),
+                Limit::perHour(20)->by('phone-num:'.$request->getHost().'|'.$phone),
+            ];
+        });
+
         // Webhooks: o provedor manda rajadas e reenvios; acima disso é abuso.
         RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(120)->by('webhooks:'.$request->getHost()));
 

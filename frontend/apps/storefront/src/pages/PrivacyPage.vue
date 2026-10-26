@@ -31,7 +31,8 @@ const months = 24
         <li><strong>E-mail (opcional; obrigatório no Pix):</strong> enviar o comprovante de pagamento.</li>
         <li><strong>Itens, valores e observações:</strong> preparar e entregar o pedido e cumprir obrigações fiscais.</li>
       </ul>
-      <p>Não vendemos seus dados e não usamos cookies de rastreamento ou publicidade. O site guarda no seu aparelho apenas o carrinho, a unidade escolhida e o último pedido, para você não perder o que estava fazendo.</p>
+      <p>Não vendemos seus dados e não usamos cookies de rastreamento ou publicidade. O site guarda no seu aparelho apenas o carrinho, a unidade escolhida, o último pedido e os dados do último pedido (nome, celular e endereço), para preencher o próximo mais rápido. Você pode apagar esses dados em "Esquecer meus dados", na hora de finalizar o pedido.</p>
+      <p>Ao digitar seu celular em outro aparelho, mostramos só seu primeiro nome, a rua e o bairro do último endereço, com o número escondido. Em "Acompanhar pedido" pelo celular aparecem só o número, a situação e o valor dos pedidos das últimas 24 horas.</p>
     </section>
 
     <section class="mt-6 grid gap-2">

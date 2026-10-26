@@ -71,6 +71,8 @@ export interface CheckoutPayload {
   fulfillment: {
     type: FulfillmentType
     zone_id?: string | null
+    /** Usa o endereço do último pedido deste celular (o servidor completa). */
+    use_saved_address?: boolean
     address?: { street: string; number: string; complement?: string | null; neighborhood: string; reference?: string | null } | null
   }
   payment: { method: PaymentMethod; change_for?: string | null }
@@ -139,10 +141,33 @@ export interface TrackedOrder {
   steps: { status: string; label: string }[]
 }
 
+/** Resposta de "conheço este celular?": nunca traz o endereço completo. */
+export interface CustomerLookup {
+  known: boolean
+  first_name: string | null
+  saved_address: { street: string; number: string; neighborhood: string } | null
+}
+
+/** "Acompanhar pelo celular": só a situação dos pedidos das últimas 24 h. */
+export interface PhoneOrder {
+  number: number
+  placed_at: string
+  status: string
+  status_label: string
+  fulfillment_type: FulfillmentType
+  total: string
+  branch: string
+}
+
+export const customerApi = {
+  lookup: (phone: string) => request<Data<CustomerLookup>>('/customers/lookup', { method: 'POST', body: { phone } }).then((r) => r.data),
+}
+
 export const orderApi = {
   checkout: (payload: CheckoutPayload, idempotencyKey: string) =>
     request<Data<CheckoutResult>>('/checkout', { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
   track: (token: string) => request<Data<TrackedOrder>>(`/orders/track/${enc(token)}`).then((r) => r.data),
+  byPhone: (phone: string) => request<Data<PhoneOrder[]>>('/orders/lookup', { method: 'POST', body: { phone } }).then((r) => r.data),
   /** Gera a cobrança de novo (se falhou) ou consulta o provedor ("Já paguei"). */
   refreshPayment: (token: string) => request<Data<TrackedOrder>>(`/orders/track/${enc(token)}/payment`, { method: 'POST' }).then((r) => r.data),
 }

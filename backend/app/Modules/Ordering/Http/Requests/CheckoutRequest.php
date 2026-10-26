@@ -24,23 +24,27 @@ class CheckoutRequest extends FormRequest
     public function rules(): array
     {
         $delivery = fn () => $this->input('fulfillment.type') === FulfillmentType::Delivery->value;
+        // "Usar o endereço do último pedido": o servidor busca pelo celular.
+        $typed = fn () => $delivery() && ! $this->boolean('fulfillment.use_saved_address');
 
         return [
             'cart_token' => ['required', 'string', 'size:48'],
             'customer.name' => ['required', 'string', 'min:2', 'max:120'],
             'customer.phone' => ['required', 'string', 'max:25', function (string $attr, mixed $value, \Closure $fail) {
                 if (! is_string($value) || Phone::normalize($value) === null) {
-                    $fail('Informe um celular com DDD, ex.: (82) 99999-0000.');
+                    $fail('Informe um celular com DDD, ex.: (79) 99999-0000.');
                 }
             }],
             // O Mercado Pago exige e-mail do pagador no Pix.
             'customer.email' => [Rule::requiredIf(fn () => $this->input('payment.method') === PaymentMethod::Pix->value), 'nullable', 'email', 'max:191'],
             'fulfillment.type' => ['required', Rule::enum(FulfillmentType::class)],
             'fulfillment.zone_id' => [Rule::requiredIf($delivery), 'nullable', 'string', 'size:26'],
-            'fulfillment.address.street' => [Rule::requiredIf($delivery), 'nullable', 'string', 'max:150'],
-            'fulfillment.address.number' => [Rule::requiredIf($delivery), 'nullable', 'string', 'max:20'],
+            'fulfillment.use_saved_address' => ['sometimes', 'boolean'],
+            'fulfillment.address' => ['nullable', 'array'],
+            'fulfillment.address.street' => [Rule::requiredIf($typed), 'nullable', 'string', 'max:150'],
+            'fulfillment.address.number' => [Rule::requiredIf($typed), 'nullable', 'string', 'max:20'],
             'fulfillment.address.complement' => ['nullable', 'string', 'max:80'],
-            'fulfillment.address.neighborhood' => [Rule::requiredIf($delivery), 'nullable', 'string', 'max:80'],
+            'fulfillment.address.neighborhood' => [Rule::requiredIf($typed), 'nullable', 'string', 'max:80'],
             'fulfillment.address.reference' => ['nullable', 'string', 'max:150'],
             'payment.method' => ['required', Rule::enum(PaymentMethod::class)],
             'payment.change_for' => ['nullable', 'string', ProductRequest::MONEY],
@@ -59,6 +63,8 @@ class CheckoutRequest extends FormRequest
             'fulfillment.address.street' => 'rua',
             'fulfillment.address.number' => 'número',
             'fulfillment.address.neighborhood' => 'bairro',
+            'fulfillment.address.complement' => 'complemento',
+            'fulfillment.address.reference' => 'ponto de referência',
             'fulfillment.zone_id' => 'bairro',
         ];
     }

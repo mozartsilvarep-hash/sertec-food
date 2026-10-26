@@ -1,0 +1,126 @@
+import { launch, reporter, SHOTS, TENANT, PASSWORDS } from './lib.mjs'
+
+const out = SHOTS
+const HOST = TENANT
+const { check, done } = reporter()
+const browser = await launch()
+const stamp = String(Date.now())
+const PHONE = `(79) 9${stamp.slice(-8, -4)}-${stamp.slice(-4)}`
+
+// 1. Painel: senha em português, telefone/WhatsApp da unidade, zona vazia não trava
+const panel = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+const m = await panel.newPage()
+await m.goto(`${HOST}/painel/login`)
+await m.getByLabel('E-mail').fill('dono@pizzaria.localhost')
+await m.getByLabel('Senha').fill(PASSWORDS.owner)
+await m.getByRole('button', { name: 'Entrar' }).click()
+await m.waitForURL(`${HOST}/painel/`)
+
+await m.goto(`${HOST}/painel/minha-conta`)
+await m.getByLabel('Senha atual').fill(PASSWORDS.owner)
+await m.getByLabel('Nova senha', { exact: true }).fill('fraca12')
+await m.getByLabel('Repita a nova senha').fill('fraca12')
+await m.getByRole('button', { name: 'Trocar senha' }).click()
+await m.getByText('A nova senha precisa ter ao menos um caractere especial (ex.: ! @ # $ %).').waitFor()
+check('regra de senha com mensagem em português', true)
+check('ajuda da senha descreve a regra nova', (await m.locator('main').textContent()).includes('Mínimo de 6 caracteres'))
+
+await m.goto(`${HOST}/painel/`)
+await m.getByRole('button', { name: 'Editar' }).first().click()
+await m.getByLabel('Telefone / WhatsApp').fill('(79) 99888-7766')
+await m.getByRole('button', { name: 'Salvar unidade' }).click()
+await m.getByText('Unidade atualizada').waitFor()
+
+await m.goto(`${HOST}/painel/entrega`)
+await m.getByRole('heading', { name: 'Zonas de entrega' }).waitFor()
+const zonesBefore = await m.getByRole('button', { name: /^Remover zona/ }).count()
+await m.getByRole('button', { name: 'Adicionar zona' }).click()
+await m.getByRole('button', { name: 'Adicionar zona' }).click()
+check('cada zona tem botão "Remover" visível', (await m.getByRole('button', { name: /^Remover zona/ }).count()) === zonesBefore + 2)
+await m.getByRole('button', { name: /^Remover zona/ }).last().click()
+await m.getByText('Bairros de Aracaju (toque para adicionar)').last().click()
+check('sugestões de bairros de Aracaju', await m.getByRole('button', { name: 'Jardins', exact: true }).last().isVisible())
+await m.screenshot({ path: `${out}/s7-1-zonas.png`, fullPage: true })
+// A zona adicionada sem querer fica vazia: salvar não pode travar.
+await m.getByRole('button', { name: 'Salvar', exact: true }).click()
+await m.getByText('Entrega e retirada salvas').waitFor()
+check('zona vazia é descartada ao salvar', (await m.getByRole('button', { name: /^Remover zona/ }).count()) === zonesBefore)
+
+// 2. Primeiro pedido do cliente (aparelho 1)
+async function addPizza(p) {
+  await p.goto(HOST + '/')
+  await p.getByRole('button', { name: /Pizza tradicional/ }).click()
+  await p.getByText('Grande', { exact: true }).click()
+  await p.getByLabel(/Calabresa/).check()
+  await p.getByRole('button', { name: /^Adicionar · R\$/ }).click()
+  await p.getByText('Pizza tradicional adicionado').waitFor()
+  await p.getByRole('link', { name: /Ver carrinho/ }).click()
+  await p.getByRole('button', { name: 'Continuar' }).click()
+  await p.getByRole('heading', { name: 'Finalizar pedido' }).waitFor()
+}
+
+const phone1 = await browser.newContext({ viewport: { width: 390, height: 844 } })
+const a = await phone1.newPage()
+await addPizza(a)
+await a.getByLabel('Celular com DDD').fill(PHONE)
+await a.getByLabel('Nome').fill('Ana Beatriz Lima')
+await a.locator('#bairro').selectOption('Ponta Verde')
+await a.getByLabel('Rua').fill('Rua das Flores')
+await a.getByLabel('Número').fill('321')
+await a.getByLabel(/Ponto de referência/).fill('Portão azul')
+await a.getByLabel('Dinheiro').check()
+await a.getByRole('button', { name: /Fazer pedido/ }).click()
+await a.waitForURL(/\/pedido\/[a-f0-9]{40}$/)
+await a.getByText(/Pedido nº \d+/).first().waitFor()
+const send = a.getByRole('link', { name: /Enviar pedido nº \d+ pelo WhatsApp/ })
+const href = decodeURIComponent((await send.getAttribute('href')) ?? '')
+check('botão envia o pedido pelo WhatsApp da loja', href.startsWith('https://wa.me/5579998887766?text=') && href.includes('pedido nº') && href.includes('Pizza tradicional'), href.slice(0, 90))
+check('mensagem do WhatsApp não leva rua nem número', !href.includes('Rua das Flores') && !href.includes('321'))
+await a.screenshot({ path: `${out}/s7-2-pedido-whatsapp.png`, fullPage: true })
+
+// Mesmo aparelho: próximo pedido vem preenchido
+await addPizza(a)
+await a.getByLabel('Celular com DDD').fill(PHONE)
+await a.getByText('dados do seu último pedido neste aparelho').waitFor()
+check('mesmo aparelho preenche rua e número', (await a.getByLabel('Rua').inputValue()) === 'Rua das Flores' && (await a.getByLabel('Número').inputValue()) === '321')
+
+// 3. Outro aparelho: reconhece pelo celular, endereço parcial
+const phone2 = await browser.newContext({ viewport: { width: 390, height: 844 } })
+const b = await phone2.newPage()
+await addPizza(b)
+await b.getByLabel('Celular com DDD').fill(PHONE)
+await b.getByText('Olá, Ana! Que bom ver você de novo.').waitFor()
+const card = await b.getByLabel('Endereço do último pedido').textContent()
+check('outro aparelho: rua e bairro, número escondido', card.includes('Rua das Flores, nº ••• · Ponta Verde') && !card.includes('321'), card.replace(/\s+/g, ' ').trim())
+check('nome sugerido é só o primeiro nome', (await b.getByLabel('Nome').inputValue()) === 'Ana')
+await b.screenshot({ path: `${out}/s7-3-cliente-reconhecido.png`, fullPage: true })
+await b.getByLabel('Dinheiro').check()
+await b.getByRole('button', { name: /Fazer pedido/ }).click()
+await b.waitForURL(/\/pedido\/[a-f0-9]{40}$/)
+await b.getByText(/Pedido nº \d+/).first().waitFor()
+const savedNumber = (await b.getByText(/Pedido nº \d+/).first().textContent()).match(/nº (\d+)/)[1]
+check('pedido com endereço salvo foi criado', Boolean(savedNumber), `nº ${savedNumber}`)
+
+// 4. Acompanhar pelo celular (terceiro aparelho)
+const phone3 = await browser.newContext({ viewport: { width: 390, height: 844 } })
+const c = await phone3.newPage()
+await c.goto(HOST + '/')
+await c.getByRole('link', { name: 'Já pediu? Acompanhe seu pedido' }).click()
+await c.getByLabel('Celular usado no pedido').fill(PHONE)
+await c.getByRole('button', { name: 'Ver meus pedidos' }).click()
+await c.getByRole('region', { name: 'Pedidos encontrados' }).waitFor()
+const list = await c.getByRole('region', { name: 'Pedidos encontrados' }).textContent()
+check('lista os 2 pedidos com número e situação', (list.match(/Pedido nº/g) ?? []).length === 2 && list.includes('Aguardando confirmação'), list.replace(/\s+/g, ' ').slice(0, 120))
+check('lista não mostra nome nem endereço', !list.includes('Ana') && !list.includes('Flores'))
+await c.screenshot({ path: `${out}/s7-4-acompanhar-celular.png`, fullPage: true })
+
+// 5. O restaurante vê o endereço completo no pedido feito pelo outro aparelho
+await m.goto(`${HOST}/painel/pedidos`)
+await m.getByText(`#${savedNumber}`, { exact: true }).first().click()
+await m.getByRole('heading', { name: `Pedido #${savedNumber}` }).waitFor()
+await m.getByText(/Rua das Flores, 321/).first().waitFor()
+check('painel recebe o endereço completo do endereço salvo', true)
+check('painel mostra o ponto de referência', (await m.locator('body').textContent()).includes('Portão azul'))
+
+await browser.close()
+done()

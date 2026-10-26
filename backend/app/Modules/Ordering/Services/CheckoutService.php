@@ -51,6 +51,7 @@ final class CheckoutService
         private readonly DeliveryQuote $delivery,
         private readonly TenantContext $context,
         private readonly CouponService $coupons,
+        private readonly CustomerDirectory $customers,
     ) {}
 
     /**
@@ -122,15 +123,20 @@ final class CheckoutService
             ]);
         }
 
-        /** @var array{type: string, zone_id?: string|null, address?: array<string, string|null>|null} $fulfillmentData */
+        /** @var array{type: string, zone_id?: string|null, use_saved_address?: bool, address?: array<string, string|null>|null} $fulfillmentData */
         $fulfillmentData = $data['fulfillment'];
         $fulfillment = FulfillmentType::from($fulfillmentData['type']);
-        $address = $fulfillment === FulfillmentType::Delivery ? ($fulfillmentData['address'] ?? null) : null;
-        $subtotal = $view['subtotal_cents'];
-        $deliveryQuote = $this->delivery->quote($branch, $fulfillment, $fulfillmentData['zone_id'] ?? null, $address, $subtotal);
         /** @var array{name: string, phone: string, email?: string|null} $customerData */
         $customerData = $data['customer'];
         $phone = (string) Phone::normalize($customerData['phone']);
+        $address = $fulfillment === FulfillmentType::Delivery ? ($fulfillmentData['address'] ?? null) : null;
+        if ($fulfillment === FulfillmentType::Delivery && ! empty($fulfillmentData['use_saved_address'])) {
+            // O navegador só viu rua e bairro (número escondido); o endereço completo vem daqui.
+            $address = $this->customers->savedAddress($phone)
+                ?? throw OrderingException::make('saved_address_missing', 'Não encontramos um endereço salvo para este celular. Preencha o endereço.');
+        }
+        $subtotal = $view['subtotal_cents'];
+        $deliveryQuote = $this->delivery->quote($branch, $fulfillment, $fulfillmentData['zone_id'] ?? null, $address, $subtotal);
 
         // Cupom: travado (FOR UPDATE) para o limite de usos valer com pedidos simultâneos.
         $coupon = null;

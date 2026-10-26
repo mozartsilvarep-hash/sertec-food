@@ -5,6 +5,7 @@ import { SAlert, SButton, SPageState, SSwitch, STextArea, STextField } from '@se
 import BranchPicker from '../components/BranchPicker.vue'
 import { notify } from '../notify'
 import { can } from '../session'
+import { addNeighborhood, ARACAJU_NEIGHBORHOODS, isBlankZone } from '../data/neighborhoods'
 
 interface ZoneRow extends Omit<DeliveryZoneInput, 'neighborhoods' | 'minimum_order' | 'free_above'> {
   neighborhoods: string
@@ -47,6 +48,8 @@ async function save() {
   saving.value = true
   errors.value = {}
   message.value = null
+  // Zona adicionada sem querer e deixada vazia: some ao salvar.
+  zones.value = zones.value.filter((z) => !isBlankZone(z))
   try {
     await merchantOrdersApi.saveDelivery(branchId.value, {
       ...settings.value,
@@ -98,13 +101,37 @@ onMounted(load)
     <section v-if="settings.delivery_enabled">
       <h2 class="mb-3 font-semibold">Zonas de entrega</h2>
       <p v-if="zones.length === 0" class="mb-3 text-sm text-muted">Crie ao menos uma zona com os bairros atendidos.</p>
+      <p v-else class="mb-3 text-sm text-muted">Zona deixada em branco é descartada ao salvar.</p>
       <ul class="grid gap-4">
         <li v-for="(z, i) in zones" :key="z.id ?? `n${i}`" class="grid gap-3 rounded-(--radius-card) border border-line bg-surface p-4">
           <div class="flex flex-wrap items-end gap-3">
-            <div class="min-w-48 flex-1"><STextField v-model="z.name" label="Nome da zona" :error="errors[`zones.${i}.name`]?.[0]" /></div>
+            <div class="min-w-48 flex-1"><STextField v-model="z.name" label="Nome da zona" placeholder="Ex.: Zona Sul" :error="errors[`zones.${i}.name`]?.[0]" /></div>
             <SSwitch v-model="z.active" label="Ativa" />
+            <button
+              v-if="manage"
+              type="button"
+              class="min-h-11 rounded-(--radius-control) border border-danger/40 px-3 text-sm font-semibold text-danger hover:bg-danger/5"
+              :aria-label="`Remover zona ${z.name || i + 1}`"
+              @click="zones.splice(i, 1)"
+            >
+              Remover
+            </button>
           </div>
-          <STextArea v-model="z.neighborhoods" label="Bairros (separados por vírgula)" :rows="2" :error="errors[`zones.${i}.neighborhoods`]?.[0]" hint="Ex.: Pajuçara, Ponta Verde, Jatiúca" />
+          <STextArea v-model="z.neighborhoods" label="Bairros (separados por vírgula)" :rows="2" :error="errors[`zones.${i}.neighborhoods`]?.[0]" hint="Ex.: Jardins, Grageru, 13 de Julho" />
+          <details v-if="manage" class="text-sm">
+            <summary class="cursor-pointer font-medium text-brand-700">Bairros de Aracaju (toque para adicionar)</summary>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <button
+                v-for="n in ARACAJU_NEIGHBORHOODS"
+                :key="n"
+                type="button"
+                class="rounded-full border border-line px-2.5 py-1 hover:border-brand-600 hover:bg-brand-50"
+                @click="z.neighborhoods = addNeighborhood(z.neighborhoods, n)"
+              >
+                {{ n }}
+              </button>
+            </div>
+          </details>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <STextField v-model="z.fee" label="Taxa (R$)" :error="errors[`zones.${i}.fee`]?.[0]" />
             <STextField v-model="z.minimum_order" label="Pedido mínimo (R$)" />
@@ -114,7 +141,6 @@ onMounted(load)
           <p class="text-sm text-muted">
             Taxa {{ formatMoney(money(z.fee) || '0') }}<template v-if="z.minimum_order">, mínimo {{ formatMoney(money(z.minimum_order)) }}</template><template v-if="z.free_above">, grátis acima de {{ formatMoney(money(z.free_above)) }}</template>.
           </p>
-          <div><SButton v-if="manage" variant="ghost" @click="zones.splice(i, 1)">Remover zona</SButton></div>
         </li>
       </ul>
       <SButton v-if="manage" variant="secondary" class="mt-3" @click="zones.push({ name: '', neighborhoods: '', fee: '', minimum_order: '', free_above: '', eta_minutes: 45, active: true })">

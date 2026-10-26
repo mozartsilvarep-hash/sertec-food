@@ -5,6 +5,7 @@ import { SPageState } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
 import PaymentPanel from '../components/PaymentPanel.vue'
 import { store } from '../shop'
+import { contactMessage, orderMessage, phoneDigits, whatsappLink } from '../whatsapp'
 
 const props = defineProps<{ token: string }>()
 const order = ref<TrackedOrder | null>(null)
@@ -19,12 +20,10 @@ const reached = computed(() => {
 })
 const cancelled = computed(() => order.value && ['rejected', 'cancelled'].includes(order.value.status))
 const tz = computed(() => store.value?.timezone ?? 'America/Sao_Paulo')
-const phoneDigits = computed(() => (order.value?.branch.phone ?? '').replace(/\D/g, ''))
-const whatsapp = computed(() => {
-  if (phoneDigits.value.length !== 11 || !order.value) return null
-  const text = encodeURIComponent(`Olá! Sobre o pedido #${order.value.number}`)
-  return `https://wa.me/55${phoneDigits.value}?text=${text}`
-})
+const storePhone = computed(() => phoneDigits(order.value?.branch.phone))
+// Logo após o pedido: mensagem completa para a loja. Depois: só o número do pedido.
+const justPlaced = computed(() => !!order.value && ['awaiting_payment', 'pending_acceptance'].includes(order.value.status))
+const whatsapp = computed(() => order.value ? whatsappLink(storePhone.value, justPlaced.value ? orderMessage(order.value) : contactMessage(order.value)) : null)
 const awaitingPayment = computed(() => order.value?.status === 'awaiting_payment' && order.value.payment !== null)
 
 async function load(silent = false) {
@@ -82,11 +81,20 @@ onBeforeUnmount(() => clearTimeout(timer))
     <SPageState v-else-if="state === 'error' || !order" state="error" @retry="load()" />
 
     <template v-else>
-      <p class="text-sm text-muted">Pedido #{{ order.number }} · {{ formatTime(order.placed_at, tz) }}</p>
+      <p class="text-sm text-muted"><strong class="text-base text-ink">Pedido nº {{ order.number }}</strong> · {{ formatTime(order.placed_at, tz) }}</p>
       <h2 class="mt-1 font-display text-3xl leading-tight font-extrabold" aria-live="polite">{{ order.status_label }}</h2>
       <p v-if="!order.final && order.eta_minutes && !awaitingPayment" class="mt-2 text-muted">
         Previsão: cerca de {{ order.eta_minutes }} min {{ order.fulfillment_type === 'delivery' ? 'para chegar' : 'para retirar' }}.
       </p>
+      <a
+        v-if="whatsapp && justPlaced && !awaitingPayment"
+        :href="whatsapp"
+        target="_blank"
+        rel="noopener"
+        class="mt-5 flex min-h-12 items-center justify-center gap-2 rounded-(--radius-control) bg-[#1f7a4d] px-4 font-semibold text-white hover:bg-[#17603c]"
+      >
+        Enviar pedido nº {{ order.number }} pelo WhatsApp
+      </a>
       <PaymentPanel v-if="awaitingPayment && order.payment" :payment="order.payment" :method="order.payment_method" :busy="checking" @refresh="refreshPayment" />
       <p v-if="payNotice" class="mt-3 text-sm text-muted" role="status">{{ payNotice }}</p>
       <p v-if="order.status === 'cancelled' && order.cancellation_reason === 'payment_not_completed'" class="mt-2 text-muted">
@@ -132,9 +140,9 @@ onBeforeUnmount(() => clearTimeout(timer))
         </p>
       </section>
 
-      <div v-if="phoneDigits.length >= 10" class="mt-6 grid gap-2 sm:grid-cols-2">
-        <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Falar no WhatsApp</a>
-        <a :href="`tel:${phoneDigits}`" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Ligar para {{ order.branch.name }}</a>
+      <div v-if="storePhone" class="mt-6 grid gap-2 sm:grid-cols-2">
+        <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Falar no WhatsApp sobre o pedido nº {{ order.number }}</a>
+        <a :href="`tel:${storePhone}`" class="flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line bg-surface px-4 font-semibold hover:bg-canvas">Ligar para {{ order.branch.name }}</a>
       </div>
 
       <RouterLink to="/" class="mt-8 block text-center font-semibold text-brand-700 hover:underline">Voltar ao cardápio</RouterLink>

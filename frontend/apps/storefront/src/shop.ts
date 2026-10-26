@@ -90,3 +90,31 @@ export function rememberOrder(trackingToken: string) {
 export function lastOrder(): string | null {
   return readPref(key('last-order'))
 }
+
+/**
+ * Dados do cliente guardados SÓ neste aparelho (localStorage), para
+ * preencher o próximo pedido. O cliente pode apagar em "Esquecer meus dados".
+ */
+export interface SavedCustomer {
+  name: string
+  phone: string
+  address: { street: string; number: string; complement: string; neighborhood: string; reference: string } | null
+}
+
+export function savedCustomer(): SavedCustomer | null {
+  try {
+    const raw = readPref(key('customer'))
+    const parsed = raw ? (JSON.parse(raw) as SavedCustomer) : null
+    return parsed && typeof parsed.phone === 'string' && typeof parsed.name === 'string' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export function rememberCustomer(customer: SavedCustomer): void {
+  writePref(key('customer'), JSON.stringify(customer))
+}
+
+export function forgetCustomer(): void {
+  removePref(key('customer'))
+}

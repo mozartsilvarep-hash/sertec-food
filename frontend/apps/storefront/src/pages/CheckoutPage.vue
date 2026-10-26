@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ApiError, cartApi, centsToString, formatMoney, orderApi, toCents,
-  type CheckoutPayload, type CouponPreview, type FulfillmentType, type PaymentMethod, type PublicZone,
+  ApiError, cartApi, centsToString, customerApi, formatMoney, orderApi, toCents,
+  type CheckoutPayload, type CouponPreview, type CustomerLookup, type FulfillmentType, type PaymentMethod, type PublicZone,
 } from '@sertec/api-client'
 import { SAlert, SButton, STextArea, STextField } from '@sertec/ui'
 import BackHeader from '../components/BackHeader.vue'
-import { branch, cart, loadCart, rememberOrder, store } from '../shop'
+import { branch, cart, forgetCustomer, loadCart, rememberCustomer, rememberOrder, savedCustomer, store } from '../shop'
 
 const router = useRouter()
 const fulfillment = computed(() => branch.value?.fulfillment)
@@ -48,6 +48,66 @@ const ONLINE_TEXT: Record<string, { title: string; hint: string }> = {
 }
 
 const zone = computed(() => neighborhoods.value.find((n) => n.name === form.neighborhood)?.zone ?? null)
+
+// Cliente pelo celular: primeiro este aparelho; depois o servidor, que só
+// devolve primeiro nome, rua e bairro (número escondido).
+const known = ref<CustomerLookup | null>(null)
+const useSaved = ref(false)
+const fromDevice = ref(false)
+let lookedUp = ''
+const digits = (p: string) => p.replace(/\D/g, '')
+const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+const served = (name: string) => neighborhoods.value.find((n) => fold(n.name) === fold(name))?.name ?? null
+const savedServed = computed(() => (known.value?.saved_address ? served(known.value.saved_address.neighborhood) : null))
+
+function fillFromDevice(): boolean {
+  const c = savedCustomer()
+  if (!c || digits(c.phone) !== digits(form.phone)) return false
+  if (!form.name) form.name = c.name
+  if (c.address) {
+    form.street = c.address.street
+    form.number = c.address.number
+    form.complement = c.address.complement
+    form.reference = c.address.reference
+    form.neighborhood = served(c.address.neighborhood) ?? ''
+  }
+  fromDevice.value = true
+  return true
+}
+
+async function lookupPhone() {
+  const d = digits(form.phone)
+  if (d.length < 10 || d === lookedUp) return
+  lookedUp = d
+  known.value = null
+  useSaved.value = false
+  fromDevice.value = false
+  if (fillFromDevice()) return
+  try {
+    const found = await customerApi.lookup(form.phone)
+    if (digits(form.phone) !== d) return
+    known.value = found
+    if (found.first_name && !form.name) form.name = found.first_name
+    if (savedServed.value) {
+      useSaved.value = true
+      form.neighborhood = savedServed.value
+    }
+  } catch {
+    /* sem consulta (limite, rede): o cliente preenche normalmente */
+  }
+}
+watch(() => form.phone, (p) => { if (digits(p).length === 11) void lookupPhone() })
+
+function typeAnotherAddress() {
+  useSaved.value = false
+  form.neighborhood = ''
+}
+
+function forgetMe() {
+  forgetCustomer()
+  fromDevice.value = false
+  Object.assign(form, { name: '', street: '', number: '', complement: '', reference: '', neighborhood: '' })
+}
 const subtotalCents = computed(() => toCents(cart.value?.subtotal ?? '0'))
 const feeCents = computed(() => {
   if (form.type !== 'delivery' || !zone.value) return 0
@@ -98,7 +158,8 @@ function payload(): CheckoutPayload {
     fulfillment: {
       type: form.type,
       zone_id: delivery ? (zone.value?.id ?? null) : null,
-      address: delivery ? {
+      use_saved_address: delivery && useSaved.value,
+      address: delivery && !useSaved.value ? {
         street: form.street.trim(), number: form.number.trim(), neighborhood: form.neighborhood,
         complement: form.complement.trim() || null, reference: form.reference.trim() || null,
       } : null,
@@ -126,6 +187,15 @@ async function submit() {
   try {
     const result = await orderApi.checkout(data, idempotencyKey(JSON.stringify(data)))
     rememberOrder(result.tracking_token)
+    const prev = savedCustomer()
+    const prevAddress = prev && digits(prev.phone) === digits(form.phone) ? prev.address : null
+    rememberCustomer({
+      name: form.name.trim(),
+      phone: form.phone,
+      address: form.type === 'delivery' && !useSaved.value
+        ? { street: form.street.trim(), number: form.number.trim(), complement: form.complement.trim(), neighborhood: form.neighborhood, reference: form.reference.trim() }
+        : prevAddress,
+    })
     await router.replace(`/pedido/${result.tracking_token}`)
   } catch (error) {
     if (error instanceof ApiError) {
@@ -136,6 +206,7 @@ async function submit() {
         coupon.value = null
       }
       if (error.code === 'cart_invalid' || error.code === 'cart_not_found') await loadCart()
+      if (error.code === 'saved_address_missing') typeAnotherAddress()
     } else {
       message.value = 'Não foi possível enviar. Tente novamente.'
     }
@@ -158,6 +229,20 @@ onMounted(async () => {
   <form v-if="cart && branch" class="mx-auto grid max-w-2xl gap-8 px-4 pt-4 pb-36" novalidate @submit.prevent="submit">
     <SAlert v-if="message">{{ message }}</SAlert>
 
+    <fieldset class="grid gap-4">
+      <legend class="mb-3 font-display text-xl font-bold">Seus dados</legend>
+      <div class="grid gap-1.5">
+        <STextField v-model="form.phone" label="Celular com DDD" type="tel" inputmode="tel" placeholder="(79) 99999-0000" autocomplete="tel" :error="err('customer.phone')" @focusout="lookupPhone" />
+        <p class="text-sm text-muted">Já pediu antes? Pelo celular a gente puxa seus dados.</p>
+      </div>
+      <p v-if="known?.known && known.first_name" class="rounded-(--radius-control) bg-brand-50 px-3 py-2 text-sm" role="status">Olá, {{ known.first_name }}! Que bom ver você de novo.</p>
+      <p v-else-if="fromDevice" class="rounded-(--radius-control) bg-brand-50 px-3 py-2 text-sm" role="status">
+        Preenchemos com os dados do seu último pedido neste aparelho.
+        <button type="button" class="font-semibold text-brand-700 underline" @click="forgetMe">Esquecer meus dados</button>
+      </p>
+      <STextField v-model="form.name" label="Nome" autocomplete="name" :error="err('customer.name')" />
+    </fieldset>
+
     <fieldset>
       <legend class="mb-3 font-display text-xl font-bold">Como você quer receber?</legend>
       <div class="grid grid-cols-2 gap-2">
@@ -179,31 +264,33 @@ onMounted(async () => {
 
     <fieldset v-if="form.type === 'delivery'" class="grid gap-4">
       <legend class="mb-3 font-display text-xl font-bold">Endereço</legend>
-      <div class="grid gap-1.5">
-        <label for="bairro" class="text-sm font-medium">Bairro</label>
-        <select id="bairro" v-model="form.neighborhood" class="min-h-11 rounded-(--radius-control) border bg-surface px-3" :class="err('fulfillment.zone_id') ? 'border-danger' : 'border-line'">
-          <option value="" disabled>Escolha o bairro</option>
-          <option v-for="n in neighborhoods" :key="n.name" :value="n.name">{{ n.name }} — entrega {{ formatMoney(n.zone.fee) }}</option>
-        </select>
-        <p class="text-sm text-muted">Não encontrou? Ainda não entregamos no seu bairro; escolha retirar no local.</p>
-        <p v-if="zone" class="text-sm text-muted">
-          Chega em ~{{ zone.eta_minutes }} min<template v-if="zone.free_above">. Entrega grátis acima de {{ formatMoney(zone.free_above) }}</template>.
-        </p>
+      <div v-if="useSaved && known?.saved_address" class="grid gap-2 rounded-(--radius-card) border border-brand-600 bg-brand-50 p-4" aria-label="Endereço do último pedido">
+        <p class="font-semibold">Entregar no mesmo endereço do último pedido?</p>
+        <p>{{ known.saved_address.street }}, nº {{ known.saved_address.number }} · {{ savedServed }}</p>
+        <p v-if="zone" class="text-sm text-muted">Entrega {{ formatMoney(zone.fee) }} · chega em ~{{ zone.eta_minutes }} min</p>
+        <button type="button" class="justify-self-start text-sm font-semibold text-brand-700 underline" @click="typeAnotherAddress">Usar outro endereço</button>
       </div>
-      <div class="grid grid-cols-[1fr_7rem] gap-3">
-        <STextField v-model="form.street" label="Rua" autocomplete="address-line1" :error="err('fulfillment.address.street')" />
-        <STextField v-model="form.number" label="Número" :error="err('fulfillment.address.number')" />
-      </div>
-      <STextField v-model="form.complement" label="Complemento (opcional)" autocomplete="address-line2" />
-      <STextField v-model="form.reference" label="Ponto de referência (opcional)" />
+      <template v-else>
+        <div class="grid gap-1.5">
+          <label for="bairro" class="text-sm font-medium">Bairro</label>
+          <select id="bairro" v-model="form.neighborhood" class="min-h-11 rounded-(--radius-control) border bg-surface px-3" :class="err('fulfillment.zone_id') ? 'border-danger' : 'border-line'">
+            <option value="" disabled>Escolha o bairro</option>
+            <option v-for="n in neighborhoods" :key="n.name" :value="n.name">{{ n.name }} — entrega {{ formatMoney(n.zone.fee) }}</option>
+          </select>
+          <p class="text-sm text-muted">Não encontrou? Ainda não entregamos no seu bairro; escolha retirar no local.</p>
+          <p v-if="zone" class="text-sm text-muted">
+            Chega em ~{{ zone.eta_minutes }} min<template v-if="zone.free_above">. Entrega grátis acima de {{ formatMoney(zone.free_above) }}</template>.
+          </p>
+        </div>
+        <div class="grid grid-cols-[1fr_7rem] gap-3">
+          <STextField v-model="form.street" label="Rua" autocomplete="address-line1" :error="err('fulfillment.address.street')" />
+          <STextField v-model="form.number" label="Número" :error="err('fulfillment.address.number')" />
+        </div>
+        <STextField v-model="form.complement" label="Complemento (opcional)" autocomplete="address-line2" />
+        <STextField v-model="form.reference" label="Ponto de referência (opcional)" placeholder="Ex.: perto da padaria, portão azul" />
+      </template>
     </fieldset>
 
-    <fieldset class="grid gap-4">
-      <legend class="mb-3 font-display text-xl font-bold">Seus dados</legend>
-      <STextField v-model="form.name" label="Nome" autocomplete="name" :error="err('customer.name')" />
-      <STextField v-model="form.phone" label="Celular com DDD" type="tel" autocomplete="tel" :error="err('customer.phone')" />
-      <p class="-mt-2 text-sm text-muted">Usamos só para falar sobre este pedido.</p>
-    </fieldset>
 
     <fieldset class="grid gap-2">
       <legend class="mb-3 font-display text-xl font-bold">Pagamento</legend>
