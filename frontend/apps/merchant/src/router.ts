@@ -6,6 +6,8 @@ export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', name: 'login', component: () => import('./pages/LoginPage.vue'), meta: { guest: true } },
+    { path: '/esqueci-senha', name: 'forgot', component: () => import('./pages/ForgotPasswordPage.vue'), meta: { guest: true } },
+    { path: '/redefinir-senha', name: 'reset', component: () => import('./pages/ResetPasswordPage.vue'), meta: { guest: true } },
     // Comanda: fora do layout (sem menu na impressão).
     { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
     {

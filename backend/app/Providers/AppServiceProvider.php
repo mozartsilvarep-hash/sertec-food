@@ -51,6 +51,16 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('checkout:'.$request->getHost().'|'.$request->ip()),
         ]);
 
+        // "Esqueci a senha": poucos pedidos por IP e por e-mail.
+        RateLimiter::for('password-reset', function (Request $request) {
+            $email = mb_strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(5)->by('pwd-ip:'.$request->ip()),
+                Limit::perHour(10)->by('pwd-email:'.$request->getHost().'|'.$email),
+            ];
+        });
+
         // Celular no checkout / acompanhar pedido: uso normal são poucas consultas;
         // o limite por hora e por celular barra quem tenta varrer números.
         RateLimiter::for('phone-lookup', function (Request $request) {

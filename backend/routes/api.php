@@ -11,6 +11,7 @@ use App\Modules\Catalog\Http\Controllers\StorefrontFeedController;
 use App\Modules\Catalog\Http\Controllers\StorefrontFeedSettingsController;
 use App\Modules\Identity\Http\Controllers\AccountController;
 use App\Modules\Identity\Http\Controllers\MerchantAuthController;
+use App\Modules\Identity\Http\Controllers\PasswordResetController;
 use App\Modules\Identity\Http\Controllers\StaffController;
 use App\Modules\Identity\Permissions as P;
 use App\Modules\Ordering\Http\Controllers\CartController;
@@ -29,6 +30,7 @@ use App\Modules\Platform\Features\Feature;
 use App\Modules\Platform\Http\Controllers\AdminAuditController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
 use App\Modules\Platform\Http\Controllers\AdminDomainController;
+use App\Modules\Platform\Http\Controllers\AdminMailController;
 use App\Modules\Platform\Http\Controllers\AdminTenantController;
 use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Platform\Http\Controllers\MerchantAuditController;
@@ -88,6 +90,10 @@ Route::middleware(['tenant', 'throttle:phone-lookup'])->group(function () {
 Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->group(function () {
     Route::post('auth/login', [MerchantAuthController::class, 'login'])
         ->middleware('throttle:login')->name('auth.login');
+    Route::post('auth/forgot-password', [PasswordResetController::class, 'merchantForgot'])
+        ->middleware('throttle:password-reset')->name('auth.forgot');
+    Route::post('auth/reset-password', [PasswordResetController::class, 'merchantReset'])
+        ->middleware('throttle:password-reset')->name('auth.reset');
 
     Route::middleware(['auth:sanctum', 'merchant', SubstituteBindings::class, AuditMutations::class])->group(function () {
         Route::post('auth/logout', [MerchantAuthController::class, 'logout'])->name('auth.logout');
@@ -220,6 +226,10 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
 Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->group(function () {
     Route::post('auth/login', [AdminAuthController::class, 'login'])
         ->middleware('throttle:login')->name('auth.login');
+    Route::post('auth/forgot-password', [PasswordResetController::class, 'adminForgot'])
+        ->middleware('throttle:password-reset')->name('auth.forgot');
+    Route::post('auth/reset-password', [PasswordResetController::class, 'adminReset'])
+        ->middleware('throttle:password-reset')->name('auth.reset');
 
     Route::middleware(['auth:sanctum', 'platform', SubstituteBindings::class])->group(function () {
         Route::post('auth/logout', [AdminAuthController::class, 'logout'])->name('auth.logout');
@@ -237,6 +247,9 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
         Route::delete('tenants/{tenant}/domains/{domain}', [AdminDomainController::class, 'destroy'])->name('tenants.domains.destroy');
         Route::get('plans', [AdminTenantController::class, 'plans'])->name('plans.index');
         Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
+        Route::get('system/mail', [AdminMailController::class, 'show'])->name('system.mail');
+        Route::post('system/mail/test', [AdminMailController::class, 'test'])
+            ->middleware('throttle:payment-actions')->name('system.mail.test');
     });
 });
 

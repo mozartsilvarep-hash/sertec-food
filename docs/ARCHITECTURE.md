@@ -308,3 +308,17 @@ Assim, o preço, a validação, o carrinho e os registros do pedido usam o motor
 
 ### D68 — WhatsApp do cliente no painel
 O detalhe do pedido tem o botão "Chamar no WhatsApp", um link `wa.me` para o celular do cliente com a mensagem "Olá, Ana! Aqui é da Loja, sobre o seu pedido nº 12." Não há integração paga, como em D64.
+
+## Decisões da Sprint 9 — E-mail e "Esqueci a senha"
+
+### D69 — Recuperação de senha nos dois painéis
+Usa o broker de senha do Laravel: o token fica como hash em `password_reset_tokens`, vale 60 minutos e permite um e-mail por minuto.
+- **Resposta sempre igual:** o pedido devolve a mesma mensagem para qualquer e-mail, existente ou não.
+- **Quem recebe:** só quem pode entrar naquele painel. No restaurante, membro ativo do restaurante do host; no painel SerTec, a equipe da plataforma. Por isso o link de um painel não funciona no outro.
+- **Onde aponta o link:** para o host em que o pedido foi feito. Não há risco de host forjado, porque hosts desconhecidos não chegam ao app.
+- **Envio:** o job `SendPasswordResetLink` vai para a fila só com o id do usuário e cria o token dentro do próprio job. Assim, o link nunca fica em fila, `failed_jobs` ou log, e o tempo de resposta não revela se o e-mail existe.
+- **Ao redefinir:** a nova senha segue a `PasswordPolicy`, e todas as sessões da pessoa são encerradas.
+- **Limites:** 5 pedidos por minuto por IP e 10 por hora por e-mail.
+
+### D70 — SMTP próprio e teste pelo painel
+O envio usa o mailer `smtp` com os dados do `.env.production`; o código não guarda nenhuma credencial. O painel SerTec → Sistema mostra a configuração, sem a senha. O botão de teste envia só para o próprio superadmin, sem destinatário livre, para não virar ferramenta de spam. Os e-mails têm modelo HTML e uma versão em texto puro, em português.

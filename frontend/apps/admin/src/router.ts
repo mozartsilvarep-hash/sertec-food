@@ -6,6 +6,8 @@ export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', name: 'login', component: () => import('./pages/LoginPage.vue'), meta: { guest: true } },
+    { path: '/esqueci-senha', name: 'forgot', component: () => import('./pages/ForgotPasswordPage.vue'), meta: { guest: true } },
+    { path: '/redefinir-senha', name: 'reset', component: () => import('./pages/ResetPasswordPage.vue'), meta: { guest: true } },
     {
       path: '/',
       component: AdminLayout,
@@ -14,6 +16,7 @@ export const router = createRouter({
         { path: 'novo', name: 'tenant-new', component: () => import('./pages/TenantNewPage.vue') },
         { path: 'estabelecimentos/:id', name: 'tenant', component: () => import('./pages/TenantPage.vue'), props: true },
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
+        { path: 'sistema', name: 'system', component: () => import('./pages/SystemPage.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

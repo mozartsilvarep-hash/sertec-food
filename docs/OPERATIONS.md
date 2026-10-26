@@ -129,6 +129,28 @@ O site institucional pode mostrar as promoções e a faixa de aviso direto da lo
 
 O feed segue o contrato v1, tem cache de 60 s e não contém dados de clientes.
 
+## 6.2 E-mail ("Esqueci a senha")
+
+O sistema envia e-mails pelo servidor SMTP da SerTec. No piloto é a caixa `noreply@sertecsolution.com.br`, no Mail Server do aaPanel.
+
+1. No `.env.production`, preencha o bloco `MAIL_*` (modelo em `.env.production.example`). A senha da caixa fica só nesse arquivo.
+2. Aplique:
+   ```bash
+   sf up -d --force-recreate app worker scheduler
+   ```
+3. No **Painel SerTec → Sistema**:
+   - a situação deve aparecer como "Configurado (SMTP)";
+   - clique em **Enviar e-mail de teste para mim**;
+   - se o servidor recusar, a mensagem de erro aparece na tela.
+
+Dicas:
+- Se a mensagem for parar no spam, confira no DNS de `sertecsolution.com.br` os registros SPF, DKIM e DMARC. O aaPanel mostra os valores na tela do domínio, no Mail Server.
+- Se a conexão falhar dentro do Docker, confira o passo do firewall em `docs/DEPLOY-AAPANEL.md` (tráfego roteado liberado no ufw).
+- O link de "Esqueci a senha":
+  - vale 60 minutos e uma única vez;
+  - só é enviado a quem pode entrar naquele painel;
+  - nunca fica gravado em log, fila ou banco (lá fica só o hash do token).
+
 ## 7. Backups
 
 O container `backup` roda `ops/backup.sh` todo dia às 03:30 de Maceió:

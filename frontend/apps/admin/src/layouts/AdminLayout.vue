@@ -25,6 +25,7 @@ async function logout() {
           <nav aria-label="Seções" class="flex gap-1">
             <RouterLink to="/" class="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-canvas hover:text-ink" exact-active-class="bg-brand-50 text-brand-700" active-class="">Estabelecimentos</RouterLink>
             <RouterLink to="/auditoria" class="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-canvas hover:text-ink" active-class="bg-brand-50 text-brand-700">Auditoria</RouterLink>
+            <RouterLink to="/sistema" class="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-canvas hover:text-ink" active-class="bg-brand-50 text-brand-700">Sistema</RouterLink>
           </nav>
         </div>
         <div class="flex items-center gap-3">
