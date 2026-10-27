@@ -22,6 +22,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $timezone
  * @property string|null $description
  * @property string|null $brand_color
+ * @property string|null $logo_key
+ * @property string|null $cover_key
+ * @property string|null $legal_name
+ * @property string|null $cnpj
+ * @property string|null $instagram
+ * @property string|null $whatsapp
  * @property array{text?: string, link?: string|null, link_label?: string|null, starts_at?: string|null, ends_at?: string|null}|null $announcement_json
  * @property list<string>|null $feed_origins_json
  */
@@ -30,7 +36,7 @@ class Tenant extends Model
     /** @use HasFactory<TenantFactory> */
     use HasFactory, HasUlids;
 
-    protected $fillable = ['name', 'slug', 'status', 'timezone', 'description', 'brand_color'];
+    protected $fillable = ['name', 'slug', 'status', 'timezone', 'description', 'brand_color', 'legal_name', 'cnpj', 'instagram', 'whatsapp'];
 
     protected $hidden = ['id'];
 

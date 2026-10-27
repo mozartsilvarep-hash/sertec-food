@@ -27,6 +27,15 @@ it('entrega o HTML do cardápio com título, descrição e Open Graph do restaur
         ->not->toContain('<desde');
 });
 
+it('usa a capa como prévia do link e a logo como ícone', function () {
+    $t = makeTenant('doceria');
+    $t->forceFill(['logo_key' => 'brand/x/logo-a.webp', 'cover_key' => 'brand/x/cover-b.webp'])->save();
+
+    $html = $this->get('http://'.hostOf($t).'/__storefront')->assertOk()->getContent();
+    expect($html)->toContain('<meta property="og:image" content="http://'.hostOf($t).'/storage/brand/x/cover-b.webp" />')
+        ->toContain('<link rel="icon" href="http://'.hostOf($t).'/storage/brand/x/logo-a.webp" type="image/webp" />');
+});
+
 it('host desconhecido ou estabelecimento suspenso recebe o app sem indexação', function () {
     $this->get('http://nao-existe.'.config('tenancy.base_domain').'/__storefront')->assertNotFound()
         ->assertSee('noindex', false);

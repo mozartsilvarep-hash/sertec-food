@@ -98,9 +98,9 @@ async function login(page, email, pw) {
 
   // Marca
   await page.getByRole('link', { name: 'Marca' }).click()
-  await page.locator('#brand').fill('#ffd400')
+  await page.getByLabel('Outra cor').fill('#ffd400')
   check('cor clara demais é bloqueada no formulário', await page.getByRole('button', { name: 'Salvar marca' }).isDisabled())
-  await page.locator('#brand').fill('#14532d')
+  await page.getByLabel('Outra cor').fill('#14532d')
   await page.getByRole('button', { name: 'Salvar marca' }).click()
   await page.getByText('Marca atualizada').waitFor()
   await page.screenshot({ path: `${out}/s1-6-marca.png` })
@@ -129,8 +129,9 @@ async function login(page, email, pw) {
   const branchSelect = p.locator('header select')
   if (await branchSelect.count()) await branchSelect.selectOption({ label: 'Unidade Ponta Verde' })
   await p.getByText('Esgotado hoje').first().waitFor()
-  const bg = await p.locator('header').evaluate((el) => getComputedStyle(el).backgroundColor)
-  check('cliente vê "Esgotado hoje" e a nova cor da marca', bg === 'rgb(20, 83, 45)', bg)
+  // Sem capa, o topo usa a cor da marca (faixa abaixo da faixa de aviso).
+  const bg = await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--brand-600').trim())
+  check('cliente vê "Esgotado hoje" e a nova cor da marca', bg === '#14532d', bg)
   check('Calzone aparece no cardápio público', await p.getByRole('button', { name: /Calzone/ }).first().isVisible())
   await p.screenshot({ path: `${out}/s1-7-cardapio-apos.png`, fullPage: true })
   await shop.close()

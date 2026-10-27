@@ -9,6 +9,8 @@ use App\Modules\Payments\Enums\Provider;
 use App\Modules\Payments\Models\IntegrationConnection;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Schedule\OpeningSchedule;
+use App\Modules\Tenancy\Support\BrandImageStore;
+use App\Modules\Tenancy\Support\Cnpj;
 use App\Modules\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -46,6 +48,13 @@ class StorefrontController
             'timezone' => $tenant->timezone,
             'description' => $tenant->description,
             'brand_color' => $tenant->brand_color,
+            'logo_url' => BrandImageStore::url($tenant->logo_key),
+            'cover_url' => BrandImageStore::url($tenant->cover_key),
+            // Identificação do fornecedor no rodapé (Decreto 7.962/2013).
+            'legal_name' => $tenant->legal_name,
+            'cnpj' => $tenant->cnpj === null ? null : Cnpj::format($tenant->cnpj),
+            'instagram' => $tenant->instagram,
+            'whatsapp' => $tenant->whatsapp,
             'branches' => $branches,
             'announcement' => $tenant->activeAnnouncement(),
             // Cartão fidelidade ativo: regra para mostrar no cardápio e no checkout.

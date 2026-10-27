@@ -93,7 +93,7 @@ check('contagem regressiva visível', /Expira em (29|30):\d\d/.test(await p.loca
 await p.screenshot({ path: `${out}/s3-4-pix-qr.png`, fullPage: true })
 
 // 3. Restaurante ainda não vê o pedido
-await m.getByRole('link', { name: 'Pedidos' }).click()
+await m.getByRole('link', { name: 'Pedidos', exact: true }).click()
 await m.waitForTimeout(800)
 const before = await m.locator('main').textContent()
 const last = await (await fetch(`${MP}/__last`)).json()

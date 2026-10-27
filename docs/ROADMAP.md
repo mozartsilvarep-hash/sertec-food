@@ -39,10 +39,10 @@ Livro-caixa por unidade, abrir/fechar com conferência, venda de balcão com tro
 ## Sprint 11 — Cartão fidelidade ✅ concluída (26/10/2026)
 Selos por celular (pedido concluído acima do mínimo), prêmio fixo ou percentual com teto, resgate no checkout, devolução ao cancelar, ajuste manual no painel e histórico. Recurso `loyalty` (brinde em todos os planos).
 
-## Sprint 12 — Marca e visual (próxima)
-Logo, capa, cores e CNPJ da loja; cardápio redesenhado.
+## Sprint 12 — Marca e visual ✅ concluída (26/10/2026)
+Logo, capa, cor (com tons prontos), razão social, CNPJ, Instagram e WhatsApp da loja; cardápio redesenhado (topo com capa e logo, destaques, categorias que acompanham a rolagem, rodapé com dados legais).
 
-## Sprint 13 — Cobrança da SerTec
+## Sprint 13 — Cobrança da SerTec (próxima)
 Planos com valor e período, vencimentos, e-mails de aviso (provedor a decidir) e pagamento da mensalidade por Pix na conta Mercado Pago da SerTec.
 
 ## Pós-MVP

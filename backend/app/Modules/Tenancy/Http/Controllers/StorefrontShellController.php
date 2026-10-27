@@ -6,6 +6,7 @@ use App\Modules\Catalog\Images\ProductImageStore;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenantFromHost;
 use App\Modules\Tenancy\Models\Tenant;
+use App\Modules\Tenancy\Support\BrandImageStore;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -42,7 +43,7 @@ class StorefrontShellController
     }
 
     /**
-     * @param  array{title: string, description: string, image: string|null, url: string|null, color: string|null, robots: string}  $meta
+     * @param  array{title: string, description: string, image: string|null, icon?: string|null, url: string|null, color: string|null, robots: string}  $meta
      */
     public static function inject(string $html, array $meta): string
     {
@@ -62,6 +63,10 @@ class StorefrontShellController
         if ($meta['image']) {
             $tags[] = '<meta property="og:image" content="'.$e($meta['image']).'" />';
         }
+        if (! empty($meta['icon'])) {
+            $tags[] = '<link rel="icon" href="'.$e($meta['icon']).'" type="image/webp" />';
+            $tags[] = '<link rel="apple-touch-icon" href="'.$e($meta['icon']).'" />';
+        }
         if ($meta['color']) {
             $tags[] = '<meta name="theme-color" content="'.$e($meta['color']).'" />';
         }
@@ -73,17 +78,21 @@ class StorefrontShellController
     }
 
     /**
-     * @return array{title: string, description: string, image: string|null, url: string, color: string|null, robots: string}
+     * @return array{title: string, description: string, image: string|null, icon: string|null, url: string, color: string|null, robots: string}
      */
     private function meta(Tenant $tenant, Request $request): array
     {
         $base = $request->getSchemeAndHttpHost();
-        $image = Product::query()->whereNotNull('image_key')->where('active', true)->orderBy('id')->value('image_key');
+        // Prévia do link: capa da loja; sem capa, a primeira foto de produto; sem nada, a logo.
+        $image = $tenant->cover_key !== null ? BrandImageStore::url($tenant->cover_key)
+            : (($key = Product::query()->whereNotNull('image_key')->where('active', true)->orderBy('id')->value('image_key')) !== null
+                ? ProductImageStore::url((string) $key) : BrandImageStore::url($tenant->logo_key));
 
         return [
             'title' => $tenant->name.' · Cardápio e pedidos',
             'description' => mb_substr($tenant->description ?: "Peça online no {$tenant->name}: cardápio completo, entrega e retirada.", 0, 200),
-            'image' => is_string($image) ? $base.ProductImageStore::url($image) : null,
+            'image' => $image !== null ? $base.$image : null,
+            'icon' => $tenant->logo_key !== null ? $base.BrandImageStore::url($tenant->logo_key) : null,
             'url' => $base.'/',
             'color' => $tenant->brand_color,
             'robots' => 'index,follow',
