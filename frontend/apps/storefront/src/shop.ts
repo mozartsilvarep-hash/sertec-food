@@ -28,7 +28,22 @@ export async function loadStore(): Promise<void> {
   if (store.value.brand_color) applyBrand(deriveBrand(store.value.brand_color))
   const saved = readPref(key('branch'))
   branchId.value = store.value.branches.some((b) => b.id === saved) ? saved : (store.value.branches[0]?.id ?? null)
+  // O cardápio já começa a carregar junto com o carrinho (uma ida a menos à rede).
+  const branch = branchId.value
+  const promise = publicCatalogApi.menus(branch ?? undefined)
+  promise.catch(() => undefined)
+  menusPrefetch = { branch, promise }
   await loadCart()
+}
+
+type MenusResponse = Awaited<ReturnType<typeof publicCatalogApi.menus>>
+let menusPrefetch: { branch: string | null; promise: Promise<MenusResponse> } | null = null
+
+/** Usa (uma vez) o cardápio pedido durante a abertura do site; senão, busca. */
+export function fetchMenus(branch: string | null): Promise<MenusResponse> {
+  const pre = menusPrefetch
+  menusPrefetch = null
+  return pre && pre.branch === branch ? pre.promise : publicCatalogApi.menus(branch ?? undefined)
 }
 
 export function selectBranch(id: string) {

@@ -253,10 +253,26 @@ Os backups diários ficam em `/opt/sertec-food/backups`, criptografados com a `B
 ```bash
 sf exec backup bash /ops/backup.sh      # backup antes
 git pull
-sf build && sf up -d
+sf build --pull && sf up -d             # --pull traz as correções de segurança das imagens base (PHP, Caddy)
 sf exec app php artisan migrate --force
 sf exec app php artisan ops:status
 ```
+
+## 12.1 Proteção extra contra ataques (recomendado)
+
+1. **Limite por visitante no Nginx do aaPanel.**
+   - Em **App Store → Nginx → Settings → Config**, dentro do bloco `http { ... }`, adicione:
+     ```nginx
+     limit_req_zone $binary_remote_addr zone=sertec_req:10m rate=20r/s;
+     limit_conn_zone $binary_remote_addr zone=sertec_conn:10m;
+     limit_req_status 429;
+     limit_conn_status 429;
+     ```
+   - Salve e, nos dois sites, tire o `#` das linhas `limit_req` e `limit_conn` do trecho do passo 7.
+   - Um cliente normal fica muito abaixo de 20 requisições por segundo.
+2. **Ataque grande (DDoS de volume).** O que segura de verdade é colocar o domínio atrás de um serviço como o Cloudflare (plano gratuito), com proxy ligado. O Cloudflare troca o DNS de lugar, então faça só com calma e com backup do DNS.
+   - Ligar o Cloudflare muda de onde vem o IP do visitante: me peça para ajustar `TRUSTED_PROXIES` antes.
+3. **Firewall.** No ufw, deixe abertas só as portas 22, 80, 443, a do aaPanel e as de e-mail (se usar o Mail Server do aaPanel). Banco (3306) e Redis (6379) não ficam expostos: rodam só na rede interna do Docker.
 
 ## 13. Problemas comuns
 

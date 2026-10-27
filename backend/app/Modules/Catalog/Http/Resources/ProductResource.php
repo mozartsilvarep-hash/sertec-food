@@ -21,6 +21,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'image_url' => ProductImageStore::url($this->image_key),
+            'thumb_url' => ProductImageStore::thumbUrl($this->image_key),
             'active' => $this->active,
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn (ProductVariant $v) => [
                 'id' => $v->public_id,

@@ -14,11 +14,11 @@ function tag(p: ProductSummary): string | null {
 <template>
   <section aria-labelledby="destaques" class="pt-6">
     <h2 id="destaques" class="font-display text-2xl font-bold tracking-tight">Destaques</h2>
-    <ul class="-mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:scroll-px-6 [scrollbar-width:none] sm:-mx-6 sm:px-6">
+    <ul class="relative -mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:scroll-px-6 [scrollbar-width:none] sm:-mx-6 sm:px-6">
       <li v-for="p in products" :key="p.id" class="w-[min(15rem,68vw)] shrink-0 snap-start">
         <button type="button" class="group block w-full text-left" @click="$emit('open', p)">
           <span class="relative block overflow-hidden rounded-2xl bg-canvas">
-            <img :src="p.image_url!" alt="" loading="lazy" decoding="async" class="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+            <img :src="(p.thumb_url ?? p.image_url)!" alt="" loading="lazy" decoding="async" class="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
             <span v-if="tag(p)" class="absolute top-2.5 left-2.5 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-bold text-brand-contrast">{{ tag(p) }}</span>
           </span>
           <span class="mt-2 block truncate font-semibold">{{ p.name }}</span>

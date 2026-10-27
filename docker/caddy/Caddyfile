@@ -21,12 +21,17 @@
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		X-Permitted-Cross-Domain-Policies "none"
 		# Imagens do Pix vêm em data:, fotos do próprio host; nada de terceiros
 		# além do link (navegação) para o Mercado Pago.
 		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
+		-X-Powered-By
 	}
+	# Respostas comprimidas (HTML, JS, CSS, JSON): cardápio carrega bem mais rápido no 4G.
+	encode zstd gzip
 }
 
 (api) {

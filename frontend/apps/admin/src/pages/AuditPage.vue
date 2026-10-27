@@ -47,7 +47,7 @@ onMounted(() => load())
   <SPageState v-if="state === 'loading'" state="loading" />
   <SPageState v-else-if="state !== 'ready'" :state="state === 'offline' ? 'offline' : 'error'" @retry="load()" />
   <SPageState v-else-if="entries.length === 0" state="empty" title="Nada registrado" />
-  <div v-else class="overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
+  <div v-else class="relative overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
     <table class="w-full min-w-[52rem] text-sm">
       <thead class="border-b border-line text-left text-muted">
         <tr><th scope="col" class="px-4 py-3 font-medium">Quando</th><th scope="col" class="px-4 py-3 font-medium">Quem</th><th scope="col" class="px-4 py-3 font-medium">Estabelecimento</th><th scope="col" class="px-4 py-3 font-medium">Ação</th><th scope="col" class="px-4 py-3 font-medium">Detalhes</th><th scope="col" class="px-4 py-3 font-medium">IP</th></tr>

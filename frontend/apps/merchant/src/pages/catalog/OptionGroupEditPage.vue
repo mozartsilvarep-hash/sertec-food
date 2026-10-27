@@ -190,7 +190,7 @@ onMounted(load)
         <p v-if="columns.length === 0" class="w-full text-sm text-muted">Escolha o produto pizza para informar o preço de cada sabor em cada tamanho. Deixe em branco o tamanho em que o sabor não existe.</p>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="relative overflow-x-auto">
         <table class="w-full min-w-[36rem] text-sm">
           <thead>
             <tr class="text-left text-muted">

@@ -38,7 +38,7 @@ defineEmits<{ open: [] }>()
       </span>
       <img
         v-if="product.image_url"
-        :src="product.image_url"
+        :src="product.thumb_url ?? product.image_url"
         :alt="''"
         loading="lazy"
         decoding="async"

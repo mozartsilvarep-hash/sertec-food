@@ -114,9 +114,9 @@ onMounted(load)
       <p v-if="confirmDisconnect" class="mt-2 text-sm text-danger">Pix e cartão pelo site saem do cardápio até você conectar de novo.</p>
     </section>
 
-    <form v-if="editing" class="grid gap-5 rounded-(--radius-card) border border-line bg-surface p-5" novalidate @submit.prevent="save">
+    <form v-if="editing" class="grid grid-cols-[minmax(0,1fr)] gap-5 rounded-(--radius-card) border border-line bg-surface p-5" novalidate @submit.prevent="save">
       <SAlert v-if="message">{{ message }}</SAlert>
-      <ol class="grid gap-1 text-sm text-muted">
+      <ol class="grid gap-1 text-sm text-muted [overflow-wrap:anywhere]">
         <li>1. Entre em <strong class="text-ink">mercadopago.com.br/developers</strong> › Suas integrações › sua aplicação.</li>
         <li>2. Em <strong class="text-ink">Credenciais de produção</strong> (ou de teste), copie o <strong class="text-ink">Access Token</strong>.</li>
       </ol>
@@ -134,7 +134,7 @@ onMounted(load)
         autocomplete="off"
         :error="errors.webhook_secret?.[0] ?? null"
       />
-      <div class="grid gap-1.5 text-sm">
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-1.5 text-sm">
         <p class="text-muted">Em Webhooks, cadastre este endereço com o evento <strong class="text-ink">Pagamentos</strong> e copie a assinatura secreta gerada:</p>
         <div class="flex items-center gap-2">
           <code class="min-w-0 flex-1 truncate rounded-lg bg-canvas px-3 py-2">{{ settings.webhook_url }}</code>

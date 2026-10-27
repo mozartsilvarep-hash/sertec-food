@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ApiError, formatMoney, publicCatalogApi, type ProductSummary, type PublicMenu } from '@sertec/api-client'
+import { ApiError, formatMoney, type ProductSummary, type PublicMenu } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import CartBar from '../components/CartBar.vue'
 import ProductRow from '../components/ProductRow.vue'
@@ -10,7 +10,7 @@ import HighlightStrip from '../components/HighlightStrip.vue'
 import StoreFooter from '../components/StoreFooter.vue'
 import StoreHero from '../components/StoreHero.vue'
 import { highlights } from '../identity'
-import { branch, branchId, lastOrder, selectBranch, store } from '../shop'
+import { branch, branchId, fetchMenus, lastOrder, selectBranch, store } from '../shop'
 
 const menus = ref<PublicMenu[]>([])
 const state = ref<'loading' | 'ready' | 'error' | 'offline'>('loading')
@@ -63,7 +63,7 @@ function normalize(text: string): string {
 async function load() {
   state.value = 'loading'
   try {
-    menus.value = (await publicCatalogApi.menus(branchId.value ?? undefined)).menus
+    menus.value = (await fetchMenus(branchId.value)).menus
     state.value = 'ready'
   } catch (error) {
     state.value = error instanceof ApiError && error.code === 'network_error' ? 'offline' : 'error'
@@ -118,7 +118,7 @@ onMounted(async () => {
       class="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur"
       aria-label="Categorias"
     >
-      <ul class="mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-5">
+      <ul class="relative mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-5">
         <li v-for="c in categories" :id="`chip-${c.id}`" :key="c.id">
           <a
             :href="`#cat-${c.id}`"

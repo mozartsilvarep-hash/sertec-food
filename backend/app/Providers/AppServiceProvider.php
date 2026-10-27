@@ -47,9 +47,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public', fn (Request $request) => Limit::perMinute(240)->by('public:'.$request->ip()));
 
         // Checkout: evita abuso/criação em massa de pedidos falsos.
+        // Por celular também: bloqueia pedidos falsos em massa vindos de vários IPs.
         RateLimiter::for('checkout', fn (Request $request) => [
             Limit::perMinute(10)->by('checkout:'.$request->getHost().'|'.$request->ip()),
+            Limit::perHour(20)->by('checkout-phone:'.$request->getHost().'|'.preg_replace('/\D+/', '', (string) $request->input('customer.phone'))),
+            Limit::perMinute(60)->by('checkout-host:'.$request->getHost()),
         ]);
+
+        // Painéis (restaurante e SerTec): folga para uso normal, corta automação abusiva.
+        RateLimiter::for('panel', fn (Request $request) => Limit::perMinute(600)->by('panel:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         // "Esqueci a senha": poucos pedidos por IP e por e-mail.
         RateLimiter::for('password-reset', function (Request $request) {

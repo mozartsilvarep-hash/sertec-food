@@ -162,7 +162,7 @@ onMounted(search)
   <SPageState v-else-if="state === 'error'" state="error" @retry="search" />
   <SPageState v-else-if="orders.length === 0" state="empty" title="Nenhum pedido encontrado" message="Mude o período ou a busca." />
 
-  <div v-else class="overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
+  <div v-else class="relative overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
     <table class="w-full min-w-[44rem] text-sm">
       <thead class="border-b border-line text-left text-muted">
         <tr>

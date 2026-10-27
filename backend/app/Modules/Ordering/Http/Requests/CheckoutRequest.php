@@ -29,6 +29,8 @@ class CheckoutRequest extends FormRequest
 
         return [
             'cart_token' => ['required', 'string', 'size:48'],
+            // Anti-spam: campo invisível para pessoas; robôs que preenchem tudo são recusados.
+            'website' => ['prohibited'],
             'customer.name' => ['required', 'string', 'min:2', 'max:120'],
             'customer.phone' => ['required', 'string', 'max:25', function (string $attr, mixed $value, \Closure $fail) {
                 if (! is_string($value) || Phone::normalize($value) === null) {

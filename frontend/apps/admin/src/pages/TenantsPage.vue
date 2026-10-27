@@ -58,7 +58,7 @@ onMounted(load)
   <SPageState v-else-if="state === 'error'" state="error" @retry="load" />
   <SPageState v-else-if="tenants.length === 0" state="empty" title="Nenhum estabelecimento" message="Cadastre o primeiro em “Novo estabelecimento”." />
 
-  <div v-else class="overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
+  <div v-else class="relative overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
     <table class="w-full min-w-[46rem] text-sm">
       <thead class="border-b border-line text-left text-muted">
         <tr>

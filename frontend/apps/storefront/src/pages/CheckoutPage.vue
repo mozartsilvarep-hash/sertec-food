@@ -55,6 +55,10 @@ const zone = computed(() => neighborhoods.value.find((n) => n.name === form.neig
 const known = ref<CustomerLookup | null>(null)
 const useSaved = ref(false)
 const fromDevice = ref(false)
+// LGPD: a pessoa escolhe se o aparelho guarda nome, celular e endereço.
+const rememberMe = ref(true)
+// Anti-spam: campo escondido de pessoas; robôs costumam preenchê-lo.
+const website = ref('')
 let lookedUp = ''
 const digits = (p: string) => p.replace(/\D/g, '')
 const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
@@ -164,6 +168,7 @@ const err = (k: string) => errors.value[k]?.[0] ?? null
 function payload(): CheckoutPayload {
   const delivery = form.type === 'delivery'
   return {
+    ...(website.value ? { website: website.value } : {}),
     cart_token: cart.value?.token ?? '',
     customer: { name: form.name.trim(), phone: form.phone, email: form.email.trim() || null },
     fulfillment: {
@@ -201,7 +206,8 @@ async function submit() {
     rememberOrder(result.tracking_token)
     const prev = savedCustomer()
     const prevAddress = prev && digits(prev.phone) === digits(form.phone) ? prev.address : null
-    rememberCustomer({
+    if (!rememberMe.value) forgetCustomer()
+    else rememberCustomer({
       name: form.name.trim(),
       phone: form.phone,
       address: form.type === 'delivery' && !useSaved.value
@@ -301,7 +307,7 @@ onMounted(async () => {
             Chega em ~{{ zone.eta_minutes }} min<template v-if="zone.free_above">. Entrega grátis acima de {{ formatMoney(zone.free_above) }}</template>.
           </p>
         </div>
-        <div class="grid grid-cols-[1fr_7rem] gap-3">
+        <div class="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
           <STextField v-model="form.street" label="Rua" autocomplete="address-line1" :error="err('fulfillment.address.street')" />
           <STextField v-model="form.number" label="Número" :error="err('fulfillment.address.number')" />
         </div>
@@ -377,6 +383,14 @@ onMounted(async () => {
       <p class="mt-1 flex justify-between text-base font-bold"><span>Total</span><span class="tabular-nums">{{ formatMoney(centsToString(totalCents)) }}</span></p>
       <p v-if="belowMinimum && zone" class="text-danger">Pedido mínimo para {{ form.neighborhood }}: {{ formatMoney(zone.minimum_order) }}.</p>
     </section>
+
+    <label class="flex items-start gap-3 text-sm">
+      <input v-model="rememberMe" type="checkbox" class="mt-0.5 size-5 shrink-0 accent-brand-600">
+      <span>Lembrar meus dados neste aparelho para o próximo pedido <span class="text-muted">(ficam só no seu celular; veja a <RouterLink to="/privacidade" class="underline">privacidade</RouterLink>)</span></span>
+    </label>
+    <div class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+      <label>Site <input v-model="website" type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    </div>
 
     <div class="fixed inset-x-0 bottom-0 border-t border-line bg-surface px-4 py-3">
       <div class="mx-auto max-w-2xl">

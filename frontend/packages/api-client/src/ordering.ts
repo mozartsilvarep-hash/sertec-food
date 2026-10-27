@@ -72,6 +72,8 @@ export type FulfillmentType = 'pickup' | 'delivery'
 export type PaymentMethod = 'cash' | 'card_on_delivery' | 'pix' | 'online_card'
 
 export interface CheckoutPayload {
+  /** Anti-spam (campo invisível): só robôs preenchem. */
+  website?: string
   cart_token: string
   customer: { name: string; phone: string; email?: string | null }
   fulfillment: {

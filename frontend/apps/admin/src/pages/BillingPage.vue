@@ -182,7 +182,7 @@ const FILTERS = [
     </label>
     <SPageState v-if="invState === 'loading'" state="loading" />
     <p v-else-if="!invoices.length" class="text-sm text-muted">Nenhuma fatura neste filtro.</p>
-    <div v-else class="overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
+    <div v-else class="relative overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
       <table class="w-full text-sm">
         <thead class="bg-canvas text-left text-muted">
           <tr><th class="px-4 py-2 font-medium">Estabelecimento</th><th class="px-4 py-2 font-medium">Período</th><th class="px-4 py-2 font-medium">Vencimento</th><th class="px-4 py-2 font-medium">Valor</th><th class="px-4 py-2 font-medium">Situação</th><th /></tr>
@@ -267,7 +267,7 @@ const FILTERS = [
   <!-- Mercado Pago da SerTec -->
   <section v-else-if="provider" aria-label="Mercado Pago da SerTec" class="grid max-w-2xl gap-4 rounded-(--radius-card) border border-line bg-surface p-5">
     <h2 class="text-lg font-semibold">Conta que recebe as mensalidades</h2>
-    <dl class="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 [overflow-wrap:anywhere] sm:grid-cols-[9rem_minmax(0,1fr)] gap-y-2 text-sm">
       <dt class="text-muted">Situação</dt>
       <dd :class="provider.connected ? 'font-semibold text-success' : 'font-semibold text-danger'">{{ provider.connected ? (provider.mode === 'test' ? 'Conectada (teste)' : 'Conectada') : 'Não conectada' }}</dd>
       <template v-if="provider.connected">
