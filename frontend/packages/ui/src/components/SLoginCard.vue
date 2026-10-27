@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import SAlert from './SAlert.vue'
+import SSignature from './SSignature.vue'
 import SButton from './SButton.vue'
 import STextField from './STextField.vue'
 
@@ -35,7 +36,7 @@ async function onSubmit() {
 </script>
 
 <template>
-  <main class="flex min-h-dvh items-center justify-center p-4">
+  <main class="flex min-h-dvh flex-col items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-(--radius-card) border border-line bg-surface p-6 shadow-sm sm:p-8">
       <header class="mb-6">
         <p class="font-display text-sm font-semibold text-brand-700">
@@ -77,5 +78,6 @@ async function onSubmit() {
         <slot name="footer" />
       </div>
     </div>
+    <SSignature class="mt-6 text-center" />
   </main>
 </template>

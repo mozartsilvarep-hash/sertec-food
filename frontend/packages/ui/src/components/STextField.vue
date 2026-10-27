@@ -28,7 +28,7 @@ const id = useId()
       :required="required"
       :aria-invalid="error ? true : undefined"
       :aria-describedby="error ? `${id}-error` : undefined"
-      class="min-h-11 rounded-(--radius-control) border bg-surface px-3 text-base text-ink placeholder:text-muted"
+      class="min-h-11 w-full min-w-0 rounded-(--radius-control) border bg-surface px-3 text-base text-ink placeholder:text-muted"
       :class="error ? 'border-danger' : 'border-line'"
     >
     <p v-if="error" :id="`${id}-error`" class="text-sm text-danger">

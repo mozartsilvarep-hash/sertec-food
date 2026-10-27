@@ -203,10 +203,10 @@ onMounted(load)
 
 <template>
   <h1 class="mb-4 font-display text-2xl font-bold">Promoções</h1>
-  <div class="mb-6 inline-flex rounded-full border border-line bg-surface p-1" role="tablist">
+  <div class="relative mb-6 flex w-fit max-w-full overflow-x-auto rounded-full border border-line bg-surface p-1 [scrollbar-width:none]" role="tablist">
     <button
       v-for="t in tabs" :key="t.key" type="button" role="tab" :aria-selected="tab === t.key"
-      class="rounded-full px-4 py-1.5 text-sm font-medium" :class="tab === t.key ? 'bg-ink text-white' : 'text-muted'"
+      class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap" :class="tab === t.key ? 'bg-ink text-white' : 'text-muted'"
       @click="tab = t.key; message = null; errors = {}"
     >
       {{ t.label }}
@@ -321,7 +321,7 @@ onMounted(load)
         </form>
 
         <SPageState v-if="coupons.length === 0" state="empty" title="Nenhum cupom" message="Crie um cupom para divulgar." />
-        <div v-else class="overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
+        <div v-else class="relative overflow-x-auto rounded-(--radius-card) border border-line bg-surface">
           <table class="w-full min-w-[40rem] text-sm">
             <thead class="border-b border-line text-left text-muted">
               <tr><th scope="col" class="px-4 py-3 font-medium">Código</th><th scope="col" class="px-4 py-3 font-medium">Desconto</th><th scope="col" class="px-4 py-3 font-medium">Regras</th><th scope="col" class="px-4 py-3 text-right font-medium">Usos</th><th scope="col" class="px-4 py-3"><span class="sr-only">Ações</span></th></tr>

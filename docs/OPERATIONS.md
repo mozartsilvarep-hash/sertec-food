@@ -62,7 +62,7 @@ alias sf='docker compose -f docker-compose.prod.yml --env-file .env.production'
 
 ```bash
 git pull
-sf build && sf up -d
+sf build --pull && sf up -d   # --pull: imagens base com as correções de segurança mais recentes
 sf exec app php artisan migrate --force
 sf exec app php artisan ops:status
 ```

@@ -94,10 +94,10 @@ onMounted(async () => {
     <SAlert v-if="error" class="mb-4">{{ error }}</SAlert>
     <p v-if="ok" class="mb-4 text-sm font-medium text-success" role="status">{{ ok }}</p>
 
-    <div class="grid gap-6 lg:grid-cols-2">
+    <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
       <section class="rounded-(--radius-card) border border-line bg-surface p-5" aria-labelledby="h-geral">
         <h2 id="h-geral" class="mb-3 font-semibold">Geral</h2>
-        <dl class="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-2 text-sm">
+        <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 [overflow-wrap:anywhere] sm:grid-cols-[9rem_minmax(0,1fr)] gap-y-2 text-sm">
           <dt class="text-muted">Cardápio</dt><dd><a :href="`https://${tenant.host}`" target="_blank" rel="noopener" class="text-brand-700 underline">{{ tenant.host }}</a></dd>
           <dt class="text-muted">Proprietário</dt><dd>{{ tenant.owner?.name }}<br><span class="text-muted">{{ tenant.owner?.email }}</span></dd>
           <dt class="text-muted">Último acesso</dt><dd>{{ fmt(tenant.owner?.last_login_at ?? null) }}</dd>
@@ -135,7 +135,7 @@ onMounted(async () => {
         <h2 id="h-dominios" class="mb-3 font-semibold">Domínios</h2>
         <ul class="divide-y divide-line text-sm">
           <li v-for="d in tenant.domains" :key="d.id" class="flex flex-wrap items-center justify-between gap-3 py-2.5">
-            <span>
+            <span class="min-w-0 [overflow-wrap:anywhere]">
               <strong>{{ d.hostname }}</strong>
               <span v-if="d.is_primary" class="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">principal</span>
               <span class="ml-2 text-xs" :class="d.verified ? 'text-success' : 'text-warning'">{{ d.verified ? 'verificado' : 'aguardando verificação' }}</span>

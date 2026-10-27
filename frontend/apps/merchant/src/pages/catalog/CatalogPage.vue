@@ -162,7 +162,7 @@ onMounted(load)
       <ul v-else class="divide-y divide-line rounded-(--radius-card) border border-line bg-surface">
         <li v-for="product in items" :key="product.id">
           <RouterLink :to="`/cardapio/produtos/${product.id}`" class="flex items-center gap-4 px-4 py-3 hover:bg-canvas">
-            <img v-if="product.image_url" :src="product.image_url" alt="" class="size-12 rounded-lg object-cover">
+            <img v-if="product.image_url" :src="product.thumb_url ?? product.image_url" alt="" class="size-12 rounded-lg object-cover">
             <span v-else class="size-12 rounded-lg bg-canvas" aria-hidden="true" />
             <span class="min-w-0 flex-1">
               <span class="block font-medium text-ink" :class="!product.active && 'text-muted'">{{ product.name }}</span>

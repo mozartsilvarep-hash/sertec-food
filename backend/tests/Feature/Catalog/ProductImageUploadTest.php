@@ -52,6 +52,12 @@ it('aceita PNG, reencoda para WebP sob o prefixo do tenant e reduz para 1200 px'
     Storage::disk('public')->assertExists($key);
     $info = getimagesizefromstring(Storage::disk('public')->get($key));
     expect($info['mime'])->toBe('image/webp')->and($info[0])->toBe(1200)->and($info[1])->toBe(800);
+
+    // Miniatura para a lista do cardápio.
+    $thumb = $response->json('data.thumb_url');
+    expect($thumb)->toBe(str_replace('.webp', '-sm.webp', $url));
+    $small = getimagesizefromstring(Storage::disk('public')->get(substr($thumb, strlen('/storage/'))));
+    expect([$small[0], $small[1]])->toBe([480, 320]);
 });
 
 it('remove metadados EXIF (ex.: GPS) ao reencodar', function () {

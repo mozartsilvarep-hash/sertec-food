@@ -31,6 +31,10 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scr
 
 # ---------- 3. App: PHP-FPM ----------
 FROM php:8.4-fpm-bookworm AS app
+# php2shell (CVE-2026-109618/109619, out/2026): o build FALHA se a imagem base
+# for anterior à correção. Atualize com "sf build --pull" (puxa a 8.4 mais nova).
+RUN php -r 'exit(version_compare(PHP_VERSION, "8.4.27", ">=") ? 0 : 1);' \
+    || (echo "PHP $(php -r 'echo PHP_VERSION;') vulnerável a php2shell: rode o build com --pull" >&2 && exit 1)
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 RUN install-php-extensions pdo_mysql redis intl bcmath pcntl zip opcache gd \
     && apt-get update && apt-get install -y --no-install-recommends mariadb-client \

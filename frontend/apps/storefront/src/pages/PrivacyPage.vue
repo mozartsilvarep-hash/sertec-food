@@ -20,7 +20,7 @@ const months = 24
 
     <section class="mt-6 grid gap-2">
       <h3 class="font-semibold">Quem é responsável</h3>
-      <p>{{ name }} é o responsável (controlador) pelos dados do seu pedido. A plataforma do cardápio é operada pela SerTec Solution, que trata os dados apenas para fazer o pedido funcionar, seguindo as instruções do estabelecimento.</p>
+      <p>{{ name }}<template v-if="store?.legal_name"> ({{ store.legal_name }}<template v-if="store?.cnpj">, CNPJ {{ store.cnpj }}</template>)</template> é o responsável (controlador) pelos dados do seu pedido. A plataforma do cardápio é operada pela SerTec Solution, que trata os dados apenas para fazer o pedido funcionar, seguindo as instruções do estabelecimento.</p>
     </section>
 
     <section class="mt-6 grid gap-2">
@@ -30,11 +30,21 @@ const months = 24
         <li><strong>Endereço:</strong> só para entrega.</li>
         <li><strong>E-mail (opcional; obrigatório no Pix):</strong> enviar o comprovante de pagamento.</li>
         <li><strong>Itens, valores e observações:</strong> preparar e entregar o pedido e cumprir obrigações fiscais.</li>
+        <li v-if="store?.loyalty"><strong>Cartão fidelidade:</strong> a contagem de selos fica ligada ao seu celular, só neste estabelecimento.</li>
       </ul>
       <p>Não vendemos seus dados e não usamos cookies de rastreamento ou publicidade. O site guarda no seu aparelho apenas o carrinho, a unidade escolhida, o último pedido e os dados do último pedido (nome, celular e endereço), para preencher o próximo mais rápido. Você pode apagar esses dados em "Esquecer meus dados", na hora de finalizar o pedido.</p>
       <p>Ao digitar seu celular em outro aparelho, mostramos só seu primeiro nome, a rua e o bairro do último endereço, com o número escondido. Em "Acompanhar pedido" pelo celular aparecem só o número, a situação e o valor dos pedidos das últimas 24 horas.</p>
     </section>
 
+    <section class="mt-6 grid gap-2">
+      <h3 class="font-semibold">Cookies e dados no seu aparelho</h3>
+      <p>Este cardápio <strong>não usa cookies</strong>: nem de rastreamento, nem de publicidade, nem de terceiros. Por isso não pedimos que você aceite cookies.</p>
+      <p>Para o pedido funcionar, o site guarda no armazenamento local do seu navegador: o carrinho, a unidade escolhida, o último pedido e, se você permitir, nome, celular e endereço para o próximo pedido. Esses dados não saem do aparelho sozinhos e você pode apagá-los em "Esquecer meus dados" ou limpando os dados do site no navegador.</p>
+    </section>
+    <section class="mt-6 grid gap-2">
+      <h3 class="font-semibold">Segurança</h3>
+      <p>Toda a comunicação é criptografada (HTTPS). O acesso aos pedidos no painel do estabelecimento exige senha e cada pessoa da equipe só vê o que a função dela permite. Cada estabelecimento enxerga apenas os próprios pedidos.</p>
+    </section>
     <section class="mt-6 grid gap-2">
       <h3 class="font-semibold">Pagamentos</h3>
       <p>Pix e cartão pelo site são processados pelo Mercado Pago. Os dados do cartão são digitados no ambiente do Mercado Pago e nunca passam pelo cardápio nem pelo estabelecimento.</p>

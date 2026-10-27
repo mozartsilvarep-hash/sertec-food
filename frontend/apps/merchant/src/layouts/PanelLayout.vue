@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDay, formatMoney, merchantApi } from '@sertec/api-client'
-import { SButton } from '@sertec/ui'
+import { SButton, SSignature } from '@sertec/ui'
 import LiveBar from '../components/LiveBar.vue'
 import { startLive, stopLive } from '../live'
 import { notice } from '../notify'
@@ -64,7 +64,7 @@ onBeforeUnmount(stopLive)
         </SButton>
       </div>
       <nav aria-label="Seções do painel">
-        <ul class="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:px-3">
+        <ul class="relative flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:px-3">
           <li v-for="link in links" :key="link.to">
             <RouterLink
               :to="link.to"
@@ -77,6 +77,7 @@ onBeforeUnmount(stopLive)
           </li>
         </ul>
       </nav>
+      <SSignature class="hidden px-5 pt-4 pb-6 md:block" />
     </aside>
 
     <div class="min-w-0">

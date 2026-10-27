@@ -84,6 +84,8 @@ export interface ProductSummary {
   name: string
   description: string | null
   image_url: string | null
+  /** Miniatura (até 480 px) para listas; a foto grande fica para a ficha do produto. */
+  thumb_url?: string | null
   /** "combo": itens escolhidos entre produtos do cardápio, preço fixo. */
   kind?: 'item' | 'combo'
   available: boolean
@@ -174,6 +176,7 @@ export interface Product {
   name: string
   description: string | null
   image_url: string | null
+  thumb_url?: string | null
   active: boolean
   variants: (VariantInput & { id: string; active: boolean })[]
   option_group_ids: string[]

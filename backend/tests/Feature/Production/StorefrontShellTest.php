@@ -33,6 +33,7 @@ it('usa a capa como prévia do link e a logo como ícone', function () {
 
     $html = $this->get('http://'.hostOf($t).'/__storefront')->assertOk()->getContent();
     expect($html)->toContain('<meta property="og:image" content="http://'.hostOf($t).'/storage/brand/x/cover-b.webp" />')
+        ->toContain('<link rel="preload" as="image" href="/storage/brand/x/cover-b.webp" fetchpriority="high" />')
         ->toContain('<link rel="icon" href="http://'.hostOf($t).'/storage/brand/x/logo-a.webp" type="image/webp" />');
 });
 

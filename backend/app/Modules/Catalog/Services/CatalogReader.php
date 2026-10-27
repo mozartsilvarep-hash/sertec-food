@@ -157,6 +157,7 @@ final class CatalogReader
             'name' => $product->name,
             'description' => $product->description,
             'image_url' => ProductImageStore::url($product->image_key),
+            'thumb_url' => ProductImageStore::thumbUrl($product->image_key),
             'kind' => $product->kind,
             'available' => ! isset($soldOut[$product->id]) && $schedule->isAvailableAt(),
             // "Só sáb. e dom.", "Das 11h às 15h" (null = sempre).

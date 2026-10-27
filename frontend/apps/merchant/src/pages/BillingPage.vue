@@ -156,7 +156,7 @@ onBeforeUnmount(stop)
 
     <section v-if="history.length" aria-labelledby="historico">
       <h2 id="historico" class="mb-3 font-semibold">Histórico</h2>
-      <div class="overflow-x-auto rounded-xl border border-line">
+      <div class="relative overflow-x-auto rounded-xl border border-line">
         <table class="w-full text-sm">
           <thead class="bg-canvas text-left text-muted">
             <tr><th class="px-4 py-2 font-medium">Período</th><th class="px-4 py-2 font-medium">Valor</th><th class="px-4 py-2 font-medium">Situação</th></tr>

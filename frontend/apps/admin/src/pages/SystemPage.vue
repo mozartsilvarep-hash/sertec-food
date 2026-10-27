@@ -44,7 +44,7 @@ onMounted(load)
   <SPageState v-else-if="state === 'error' || !mail" state="error" @retry="load" />
   <section v-else class="grid max-w-2xl gap-4 rounded-(--radius-card) border border-line bg-surface p-5" aria-label="E-mail">
     <h2 class="text-lg font-semibold">E-mail</h2>
-    <dl class="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 [overflow-wrap:anywhere] sm:grid-cols-[9rem_minmax(0,1fr)] gap-y-2 text-sm">
       <dt class="text-muted">Situação</dt>
       <dd :class="mail.configured ? 'font-semibold text-success' : 'font-semibold text-danger'">{{ mail.configured ? 'Configurado (SMTP)' : 'Não configurado' }}</dd>
       <dt class="text-muted">Servidor</dt><dd>{{ mail.host ? `${mail.host}:${mail.port}` : '—' }}</dd>

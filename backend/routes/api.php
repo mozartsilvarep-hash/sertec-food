@@ -101,7 +101,7 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
     Route::post('auth/reset-password', [PasswordResetController::class, 'merchantReset'])
         ->middleware('throttle:password-reset')->name('auth.reset');
 
-    Route::middleware(['auth:sanctum', 'merchant', SubstituteBindings::class, AuditMutations::class])->group(function () {
+    Route::middleware(['auth:sanctum', 'merchant', 'throttle:panel', SubstituteBindings::class, AuditMutations::class])->group(function () {
         Route::post('auth/logout', [MerchantAuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [MerchantAuthController::class, 'me'])->name('me');
 
@@ -272,7 +272,7 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
     Route::post('auth/reset-password', [PasswordResetController::class, 'adminReset'])
         ->middleware('throttle:password-reset')->name('auth.reset');
 
-    Route::middleware(['auth:sanctum', 'platform', SubstituteBindings::class])->group(function () {
+    Route::middleware(['auth:sanctum', 'platform', 'throttle:panel', SubstituteBindings::class])->group(function () {
         Route::post('auth/logout', [AdminAuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [AdminAuthController::class, 'me'])->name('me');
 

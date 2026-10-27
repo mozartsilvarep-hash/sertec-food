@@ -43,7 +43,7 @@ class StorefrontShellController
     }
 
     /**
-     * @param  array{title: string, description: string, image: string|null, icon?: string|null, url: string|null, color: string|null, robots: string}  $meta
+     * @param  array{title: string, description: string, image: string|null, icon?: string|null, preload?: string|null, url: string|null, color: string|null, robots: string}  $meta
      */
     public static function inject(string $html, array $meta): string
     {
@@ -63,6 +63,10 @@ class StorefrontShellController
         if ($meta['image']) {
             $tags[] = '<meta property="og:image" content="'.$e($meta['image']).'" />';
         }
+        // A capa é a maior imagem do topo: o navegador já começa a baixá-la.
+        if (! empty($meta['preload'])) {
+            $tags[] = '<link rel="preload" as="image" href="'.$e($meta['preload']).'" fetchpriority="high" />';
+        }
         if (! empty($meta['icon'])) {
             $tags[] = '<link rel="icon" href="'.$e($meta['icon']).'" type="image/webp" />';
             $tags[] = '<link rel="apple-touch-icon" href="'.$e($meta['icon']).'" />';
@@ -78,7 +82,7 @@ class StorefrontShellController
     }
 
     /**
-     * @return array{title: string, description: string, image: string|null, icon: string|null, url: string, color: string|null, robots: string}
+     * @return array{title: string, description: string, image: string|null, preload: string|null, icon: string|null, url: string, color: string|null, robots: string}
      */
     private function meta(Tenant $tenant, Request $request): array
     {
@@ -92,6 +96,7 @@ class StorefrontShellController
             'title' => $tenant->name.' · Cardápio e pedidos',
             'description' => mb_substr($tenant->description ?: "Peça online no {$tenant->name}: cardápio completo, entrega e retirada.", 0, 200),
             'image' => $image !== null ? $base.$image : null,
+            'preload' => BrandImageStore::url($tenant->cover_key),
             'icon' => $tenant->logo_key !== null ? $base.BrandImageStore::url($tenant->logo_key) : null,
             'url' => $base.'/',
             'color' => $tenant->brand_color,
