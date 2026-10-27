@@ -311,3 +311,15 @@ Rotas com `cash.operate` e o recurso `cashbook`.
 - **Produto:** campos `code` (único) e `pos_favorite`.
 - **Pedido no painel:** campos `channel`, `pos_payments[]`, `change_given` e `seller`.
 - **Relatório:** as vendas do PDV aparecem por forma ("Balcão · Pix" etc.).
+
+## Implementado na Sprint 15 — Financeiro
+
+**Gerência** (`cash.manage`, recurso `cashbook`):
+- `GET merchant/cash/finance/summary?from&to&branch?`: `{sales, refunds, fees, net_sales, other_in, expenses, fixed_costs, fixed_paid_in_cash, result, margin_bp, by_method[{gross, fees, net}], expenses_by_category[], fixed_items[], cash_moves{supply, withdrawal}, by_day[]}`.
+- `GET/PUT merchant/cash/finance/fees`: `{fees: [{method, percent: "2,99", fixed: "0,50"}]}`.
+- `GET/POST merchant/cash/finance/fixed-costs`, `PATCH/DELETE merchant/cash/finance/fixed-costs/{id}`: `{name, category: bills|staff|supplier|other_out, amount, due_day?, branch?, active?}`. O DELETE apaga, ou só desativa se o custo já foi pago pelo caixa.
+
+**Caixa** (`cash.operate`):
+- `GET merchant/cash/sessions/{id}/report`: fechamento para imprimir.
+- `POST merchant/cash/entries` aceita `fixed_cost` (id) em saídas de despesa.
+- Os lançamentos trazem `fee_amount` e `fixed_cost`.

@@ -10,6 +10,7 @@ export const router = createRouter({
     { path: '/redefinir-senha', name: 'reset', component: () => import('./pages/ResetPasswordPage.vue'), meta: { guest: true } },
     // Comanda: fora do layout (sem menu na impressão).
     { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
+    { path: '/caixa/:id/fechamento', name: 'cash-print', component: () => import('./pages/CashPrintPage.vue'), props: true },
     { path: '/pedidos/:id/recibo', name: 'order-receipt', component: () => import('./pages/PrintPage.vue'), props: (r) => ({ id: String(r.params.id), kind: 'receipt' }) },
     // PDV em tela própria (sem o menu lateral), pensado para tela cheia.
     { path: '/pdv', name: 'pos', component: () => import('./pages/PosPage.vue') },
@@ -21,6 +22,7 @@ export const router = createRouter({
         { path: 'pedidos', name: 'orders', component: () => import('./pages/OrdersPage.vue') },
         { path: 'historico', name: 'history', component: () => import('./pages/HistoryPage.vue') },
         { path: 'caixa', name: 'cash', component: () => import('./pages/CashPage.vue') },
+        { path: 'financeiro', name: 'finance', component: () => import('./pages/FinancePage.vue') },
         { path: 'relatorios', name: 'reports', component: () => import('./pages/ReportsPage.vue') },
         { path: 'promocoes', name: 'marketing', component: () => import('./pages/MarketingPage.vue') },
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },

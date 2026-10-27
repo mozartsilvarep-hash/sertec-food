@@ -15,6 +15,7 @@ const links = computed(() => [
   { to: '/historico', label: 'Histórico', show: can('orders.view') },
   { to: '/pdv', label: 'PDV', show: can('cash.operate') },
   { to: '/caixa', label: 'Caixa', show: can('cash.operate') },
+  { to: '/financeiro', label: 'Financeiro', show: can('cash.manage') },
   { to: '/relatorios', label: 'Relatórios', show: can('reports.view') },
   { to: '/', label: 'Unidades', show: can('branches.view') },
   { to: '/cardapio', label: 'Cardápio', show: can('catalog.view') },

@@ -64,6 +64,10 @@ export interface CashEntry {
   voided: boolean
   void_reason: string | null
   change?: string | null
+  /** Taxa da maquininha/Pix/site sobre a entrada (vendas). */
+  fee_amount?: string
+  /** Saída que pagou um custo fixo. */
+  fixed_cost?: boolean
 }
 
 export interface SaleLine {
@@ -91,7 +95,7 @@ export const cashApi = {
     request<Data<CashSession>>('/merchant/cash/session', { method: 'POST', body: { branch, opening_amount } }).then((r) => r.data),
   close: (id: string, counted_amount: string, notes: string | null) =>
     request<Data<CashSession>>(`/merchant/cash/session/${enc(id)}/close`, { method: 'POST', body: { counted_amount, notes } }).then((r) => r.data),
-  entry: (body: { branch: string | null; category: CashCategory; method: CashMethod; amount: string; description?: string | null }) =>
+  entry: (body: { branch: string | null; category: CashCategory; method: CashMethod; amount: string; description?: string | null; fixed_cost?: string | null }) =>
     request<Data<CashEntry>>('/merchant/cash/entries', { method: 'POST', body }).then((r) => r.data),
   sale: (body: { branch: string | null; items: SaleLine[]; method: CashMethod; discount?: string | null; received?: string | null; note?: string | null }) =>
     request<Data<CashEntry>>('/merchant/cash/sales', { method: 'POST', body }).then((r) => r.data),
@@ -99,6 +103,7 @@ export const cashApi = {
   entries: (filter: CashFilter) => request<Data<CashEntry[]>>(`/merchant/cash/entries${filterQuery({ ...filter })}`).then((r) => r.data),
   summary: (filter: CashFilter) => request<Data<CashSummary>>(`/merchant/cash/summary${filterQuery({ ...filter })}`).then((r) => r.data),
   sessions: (branch: string | null) => request<Data<CashSession[]>>(`/merchant/cash/sessions${filterQuery({ branch })}`).then((r) => r.data),
+  sessionReport: (id: string) => request<Data<CashSessionReport>>(`/merchant/cash/sessions/${enc(id)}/report`).then((r) => r.data),
   csvUrl: (filter: CashFilter) => `/api/v1/merchant/cash/entries.csv${filterQuery({ ...filter })}`,
 }
 
@@ -154,4 +159,70 @@ export const posApi = {
     request<Data<PosCustomer>>(`/merchant/cash/pos/customer?phone=${enc(phone)}`).then((r) => r.data),
   sale: (payload: PosSalePayload, idempotencyKey: string) =>
     request<Data<PosSaleResult>>('/merchant/cash/pos/sales', { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
+}
+
+/* ---------- Financeiro (Sprint 15) ---------- */
+
+export interface CashSessionReport extends CashSession {
+  sales: string
+  sales_count: number
+  fees: string
+  voided_count: number
+  by_category: { category: CashCategory; label: string; type: 'in' | 'out'; count: number; total: string }[]
+  by_operator: { name: string; count: number; in: string; out: string }[]
+}
+
+export interface PaymentFeeRow { method: CashMethod; label: string; percent: string; fixed: string }
+
+export type FixedCostCategory = 'bills' | 'staff' | 'supplier' | 'other_out'
+
+export interface FixedCost {
+  id: string
+  name: string
+  category: FixedCostCategory
+  category_label: string
+  amount: string
+  due_day: number | null
+  active: boolean
+  branch: { id: string; name: string } | null
+}
+
+export interface FinanceSummary {
+  sales: string
+  refunds: string
+  fees: string
+  net_sales: string
+  other_in: string
+  expenses: string
+  fixed_costs: string
+  fixed_paid_in_cash: string
+  result: string
+  margin_bp: number | null
+  by_method: { method: CashMethod; label: string; count: number; gross: string; fees: string; net: string }[]
+  expenses_by_category: { category: CashCategory; label: string; count: number; total: string }[]
+  fixed_items: { id: string; name: string; monthly: string; period: string }[]
+  cash_moves: { supply: string; withdrawal: string }
+  by_day: { date: string; sales: string; fees: string; expenses: string }[]
+}
+
+export const FIXED_COST_CATEGORIES: { value: FixedCostCategory; label: string }[] = [
+  { value: 'bills', label: 'Contas (água, luz, aluguel…)' },
+  { value: 'staff', label: 'Funcionários' },
+  { value: 'supplier', label: 'Fornecedores e insumos' },
+  { value: 'other_out', label: 'Outra saída' },
+]
+
+export const financeApi = {
+  summary: (f: { from: string; to: string; branch?: string | null }) =>
+    request<Data<FinanceSummary>>(`/merchant/cash/finance/summary${filterQuery({ ...f })}`).then((r) => r.data),
+  fees: () => request<Data<PaymentFeeRow[]>>('/merchant/cash/finance/fees').then((r) => r.data),
+  saveFees: (fees: { method: CashMethod; percent: string; fixed: string }[]) =>
+    request<Data<PaymentFeeRow[]>>('/merchant/cash/finance/fees', { method: 'PUT', body: { fees } }).then((r) => r.data),
+  fixedCosts: () => request<Data<FixedCost[]>>('/merchant/cash/finance/fixed-costs').then((r) => r.data),
+  createFixedCost: (body: { name: string; category: FixedCostCategory; amount: string; due_day?: number | null; branch?: string | null }) =>
+    request<Data<FixedCost>>('/merchant/cash/finance/fixed-costs', { method: 'POST', body }).then((r) => r.data),
+  updateFixedCost: (id: string, body: Partial<{ name: string; category: FixedCostCategory; amount: string; due_day: number | null; active: boolean }>) =>
+    request<Data<FixedCost>>(`/merchant/cash/finance/fixed-costs/${enc(id)}`, { method: 'PATCH', body }).then((r) => r.data),
+  removeFixedCost: (id: string) =>
+    request<Data<FixedCost> | null>(`/merchant/cash/finance/fixed-costs/${enc(id)}`, { method: 'DELETE' }).then((r) => r?.data ?? null),
 }

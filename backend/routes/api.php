@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Cash\Http\Controllers\CashController;
+use App\Modules\Cash\Http\Controllers\FinanceController;
 use App\Modules\Cash\Http\Controllers\PosController;
 use App\Modules\Catalog\Http\Controllers\AvailabilityController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
@@ -243,12 +244,21 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::get('pos/catalog', [PosController::class, 'catalog'])->name('pos.catalog');
                 Route::get('pos/customer', [PosController::class, 'customer'])->middleware('throttle:phone-lookup')->name('pos.customer');
                 Route::post('pos/sales', [PosController::class, 'sale'])->name('pos.sales.store');
+                Route::get('sessions/{session}/report', [CashController::class, 'sessionReport'])->name('sessions.report');
             });
             Route::middleware('permission:'.P::CASH_MANAGE)->group(function () {
                 Route::post('entries/{entry}/void', [CashController::class, 'void'])->name('entries.void');
                 Route::get('summary', [CashController::class, 'summary'])->name('summary');
                 Route::get('sessions', [CashController::class, 'sessions'])->name('sessions');
                 Route::get('entries.csv', [CashController::class, 'csv'])->name('entries.csv');
+                // Financeiro (Sprint 15).
+                Route::get('finance/summary', [FinanceController::class, 'summary'])->name('finance.summary');
+                Route::get('finance/fees', [FinanceController::class, 'fees'])->name('finance.fees');
+                Route::put('finance/fees', [FinanceController::class, 'saveFees'])->name('finance.fees.update');
+                Route::get('finance/fixed-costs', [FinanceController::class, 'fixedCosts'])->name('finance.fixed.index');
+                Route::post('finance/fixed-costs', [FinanceController::class, 'storeFixedCost'])->name('finance.fixed.store');
+                Route::patch('finance/fixed-costs/{fixedCost}', [FinanceController::class, 'updateFixedCost'])->name('finance.fixed.update');
+                Route::delete('finance/fixed-costs/{fixedCost}', [FinanceController::class, 'destroyFixedCost'])->name('finance.fixed.destroy');
             });
         });
 

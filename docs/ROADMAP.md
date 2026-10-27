@@ -48,8 +48,11 @@ Planos editáveis com preço por período e recursos; mensalidade por restaurant
 ## Sprint 14 — PDV completo ✅ concluída (27/10/2026)
 Venda no balcão vira pedido (tamanhos, sabores, adicionais, promoções, cozinha); pagamento dividido com troco; desconto em R$ ou %; taxa de serviço; cliente com cartão fidelidade; recibo 80/58 mm; venda rápida (favoritos, mais vendidos, código + Enter, F2/F4, tela cheia).
 
-## Sprint 15 — Operação do salão (próxima)
-Mesas e comandas (conta aberta, lançar itens, fechar e dividir), estoque simples (baixa na venda, aviso de estoque baixo, esgotado automático) e fechamento de caixa impresso com resumo por operador.
+## Sprint 15 — Financeiro ✅ concluída (27/10/2026)
+Taxas de cartão (crédito/débito), Pix e site por forma; custos fixos mensais proporcionais ao período; resultado (vendas − estornos − taxas − despesas − custos fixos) com margem; sangria/entrada/saída com botões diretos e saída ligada a custo fixo; fechamento e parcial do caixa impressos (80/58 mm) com resumo por operador.
+
+## Sprint 16 — Operação do salão (próxima)
+Mesas e comandas (conta aberta, lançar itens, fechar e dividir) e estoque simples (baixa na venda, aviso de estoque baixo, esgotado automático).
 
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.

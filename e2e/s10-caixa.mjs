@@ -57,8 +57,7 @@ await m.getByRole('link', { name: '‹ Caixa' }).click()
 await m.getByText(/Dinheiro na gaveta/).waitFor()
 
 // 3. Sangria
-await m.getByRole('button', { name: 'Entrada / saída' }).click()
-await m.getByLabel('Tipo').selectOption({ label: 'Retirada (sangria)' })
+await m.getByRole('button', { name: 'Sangria' }).click()
 await m.getByLabel('Valor (R$)').fill('20')
 await m.getByLabel('Descrição (opcional)').fill('Depósito no banco')
 await m.getByRole('button', { name: 'Registrar' }).click()

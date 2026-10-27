@@ -7,6 +7,7 @@ use App\Modules\Cash\Enums\CashCategory;
 use App\Modules\Cash\Enums\CashMethod;
 use App\Modules\Cash\Models\CashEntry;
 use App\Modules\Cash\Models\CashSession;
+use App\Modules\Cash\Models\PaymentFee;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Models\Order;
@@ -96,7 +97,13 @@ final class CashBook
         ?Order $order = null,
         ?string $source = null,
         ?CarbonImmutable $occurredAt = null,
+        ?int $fixedCostId = null,
     ): CashEntry {
+        // Venda/pedido recebido: guarda a taxa da forma (maquininha, Pix, site) no momento.
+        $fee = $type === CashEntry::IN && in_array($category, [CashCategory::CounterSale, CashCategory::Order], true)
+            ? (PaymentFee::query()->where('method', $method)->first()?->feeCents($amountCents) ?? 0)
+            : 0;
+
         return CashEntry::query()->create([
             'branch_id' => $branch->id,
             'cash_session_id' => $this->current($branch)?->id,
@@ -104,6 +111,8 @@ final class CashBook
             'category' => $category,
             'method' => $method,
             'amount' => Money::format($amountCents),
+            'fee_amount' => Money::format($fee),
+            'fixed_cost_id' => $fixedCostId,
             'description' => $description,
             'items_json' => $items,
             'order_id' => $order?->id,

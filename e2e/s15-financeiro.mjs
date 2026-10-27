@@ -1,0 +1,96 @@
+import { launch, reporter, SHOTS, TENANT, PASSWORDS } from './lib.mjs'
+
+const out = SHOTS
+const HOST = TENANT
+const { check, done } = reporter()
+const browser = await launch()
+const m = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
+await m.goto(`${HOST}/painel/login`)
+await m.getByLabel('E-mail').fill('dono@pizzaria.localhost')
+await m.getByLabel('Senha').fill(PASSWORDS.owner)
+await m.getByRole('button', { name: 'Entrar' }).click()
+await m.waitForURL(`${HOST}/painel/`)
+
+// 1. Taxas e custo fixo
+await m.getByRole('link', { name: 'Financeiro' }).click()
+await m.getByRole('heading', { name: 'Financeiro', level: 1 }).waitFor()
+await m.getByRole('tab', { name: 'Taxas de cartão e Pix' }).click()
+await m.getByLabel('Taxa % (Cartão de crédito)').fill('4,00')
+await m.getByLabel('Taxa % (Pix)').fill('1,00')
+await m.getByRole('button', { name: 'Salvar taxas' }).click()
+await m.getByText(/Taxas salvas/).waitFor()
+check('taxas de crédito e Pix salvas', (await m.getByText('Venda de R$ 100,00: taxa R$ 4,00').count()) === 1)
+
+await m.getByRole('tab', { name: 'Custos fixos' }).click()
+await m.getByRole('button', { name: 'Novo custo fixo' }).click()
+const cf = m.getByRole('form', { name: 'Custo fixo' })
+const rentName = `Aluguel ${String(Date.now()).slice(-4)}`
+await cf.getByLabel('Nome').fill(rentName)
+await cf.getByLabel('Valor por mês (R$)').fill('3.000,00')
+await cf.getByLabel('Dia do vencimento (opcional)').fill('10')
+await cf.getByRole('button', { name: 'Salvar custo' }).click()
+await m.getByText('Custo fixo salvo').waitFor()
+check('custo fixo cadastrado', (await m.getByText(rentName).count()) >= 1)
+await m.screenshot({ path: `${out}/s15-1-custos-fixos.png`, fullPage: true })
+
+// 2. Caixa: venda no crédito pelo PDV, saída pagando o aluguel e sangria
+await m.goto(`${HOST}/painel/caixa`)
+await m.getByRole('heading', { name: 'O caixa está fechado' }).or(m.getByText(/Dinheiro na gaveta/)).first().waitFor()
+if (await m.getByRole('heading', { name: 'O caixa está fechado' }).isVisible()) {
+  await m.getByLabel('Troco inicial na gaveta (R$)').fill('100,00')
+  await m.getByRole('button', { name: 'Abrir caixa' }).click()
+  await m.getByText(/Dinheiro na gaveta/).waitFor()
+}
+await m.getByRole('link', { name: 'Abrir PDV' }).click()
+await m.getByRole('button', { name: 'Avulso' }).click()
+await m.getByRole('form', { name: 'Item avulso' }).getByLabel('Descrição').fill('Bolo inteiro')
+await m.getByRole('form', { name: 'Item avulso' }).getByLabel('Valor (R$)').fill('100,00')
+await m.getByRole('button', { name: 'Lançar' }).click()
+await m.keyboard.press('F4')
+const pay = m.getByRole('form', { name: 'Cobrança' })
+await pay.getByRole('button', { name: 'Crédito' }).click()
+await pay.getByRole('button', { name: 'Confirmar venda' }).click()
+await m.getByRole('dialog', { name: 'Venda concluída' }).waitFor()
+await m.getByRole('button', { name: /Nova venda/ }).click()
+await m.getByRole('link', { name: '‹ Caixa' }).click()
+await m.getByText(/Dinheiro na gaveta/).waitFor()
+check('venda no crédito mostra a taxa no caixa', (await m.getByRole('region', { name: 'Lançamentos do caixa' }).textContent()).includes('taxa R$ 4,00'))
+
+await m.getByRole('button', { name: 'Saída' }).click()
+await m.getByLabel('É pagamento de um custo fixo?').selectOption({ label: `${rentName} (R$ 3.000,00/mês)` })
+check('custo fixo preenche o valor', (await m.getByLabel('Valor (R$)').inputValue()) === '3000,00')
+await m.getByLabel('Forma').selectOption({ label: 'Pix' })
+await m.getByRole('button', { name: 'Registrar' }).click()
+await m.getByText('Lançamento registrado').waitFor()
+
+await m.getByRole('button', { name: 'Sangria' }).click()
+await m.getByLabel('Valor (R$)').fill('30')
+await m.getByRole('button', { name: 'Registrar' }).click()
+await m.getByRole('region', { name: 'Lançamentos do caixa' }).getByText('Retirada (sangria)').first().waitFor()
+const list = await m.getByRole('region', { name: 'Lançamentos do caixa' }).textContent()
+check('saída do custo fixo e sangria listadas', list.includes(rentName) && list.includes('custo fixo') && list.includes('Retirada (sangria)'))
+
+// 3. Fechamento impresso (parcial)
+await m.evaluate(() => { window.print = () => {} })
+await m.getByRole('link', { name: 'Imprimir parcial' }).click()
+const ticket = m.getByRole('article', { name: 'Fechamento do caixa' })
+await ticket.waitFor()
+const tt = await ticket.textContent()
+check('fechamento impresso com formas, operador e taxas', tt.includes('Por operador') && tt.includes('Taxas cartão/Pix') && tt.includes('Cartão de crédito') && tt.includes('Assinatura do responsável'))
+await m.screenshot({ path: `${out}/s15-2-fechamento.png` })
+
+// 4. Resultado do dia
+await m.goto(`${HOST}/painel/financeiro`)
+await m.getByRole('button', { name: 'Hoje' }).click()
+const res = m.getByRole('region', { name: 'Resultado do período' })
+await res.getByText('Por forma de pagamento').waitFor()
+await m.waitForTimeout(500)
+const rt = await res.textContent()
+check('resultado mostra taxas, custos fixos e sangria à parte', rt.includes('Taxas de cartão e Pix') && rt.includes('Custos fixos do período') && rt.includes(rentName) && rt.includes('não entram no resultado') && rt.includes('não contam duas vezes'))
+const cr = rt.replace(/\s+/g, ' ').match(/Cartão de crédito \(\d+\) ?R\$ ([\d.,]+) ?− R\$ ([\d.,]+) ?R\$ ([\d.,]+)/)
+const num = (v) => Number(v.replace(/\./g, '').replace(',', '.'))
+check('crédito: taxa de 4% e recebe o resto', cr !== null && Math.abs(num(cr[2]) - num(cr[1]) * 0.04) < 0.01 && Math.abs(num(cr[3]) - (num(cr[1]) - num(cr[2]))) < 0.01, cr ? cr.slice(1).join(' / ') : 'sem linha')
+await m.screenshot({ path: `${out}/s15-3-resultado.png`, fullPage: true })
+
+await browser.close()
+done()
