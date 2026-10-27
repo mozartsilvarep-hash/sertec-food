@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   ApiError, CASH_MANUAL, CASH_METHODS, cashApi, centsToString, describeError, formatMoney, formatTime, merchantApi, toCents,
-  type Branch, type CashEntry, type CashMethod, type CashSession, type CashSummary,
+  financeApi, type Branch, type CashEntry, type CashMethod, type CashSession, type CashSummary, type FixedCost,
 } from '@sertec/api-client'
 import { SAlert, SButton, SPageState, STextField } from '@sertec/ui'
 import BranchPicker from '../components/BranchPicker.vue'
@@ -97,13 +97,31 @@ function closeCash() {
 const lastClosed = ref<CashSession | null>(null)
 
 /* ---------- Entradas e saídas ---------- */
-const manual = reactive({ category: 'withdrawal' as (typeof CASH_MANUAL)[number]['value'], method: 'cash' as CashMethod, amount: '', description: '' })
+const manual = reactive({ kind: 'out' as 'withdrawal' | 'in' | 'out', category: 'withdrawal' as (typeof CASH_MANUAL)[number]['value'], method: 'cash' as CashMethod, amount: '', description: '', fixedCost: '' })
 const manualDef = computed(() => CASH_MANUAL.find((c) => c.value === manual.category))
+/** Tipos mostrados conforme o botão: sangria, entrada ou saída. */
+const manualOptions = computed(() => manual.kind === 'withdrawal'
+  ? CASH_MANUAL.filter((c) => c.value === 'withdrawal')
+  : CASH_MANUAL.filter((c) => c.type === manual.kind && c.value !== 'withdrawal'))
+const fixedCosts = ref<FixedCost[]>([])
+function startManual(kind: 'withdrawal' | 'in' | 'out') {
+  manual.kind = kind
+  manual.category = kind === 'withdrawal' ? 'withdrawal' : kind === 'in' ? 'supply' : 'supplier'
+  manual.fixedCost = ''
+  panel.value = 'lancamento'
+  if (manage && kind === 'out' && !fixedCosts.value.length) void financeApi.fixedCosts().then((c) => (fixedCosts.value = c.filter((x) => x.active))).catch(() => undefined)
+}
+function pickFixed() {
+  const cost = fixedCosts.value.find((c) => c.id === manual.fixedCost)
+  if (!cost) return
+  manual.category = cost.category
+  if (!manual.amount) manual.amount = cost.amount.replace('.', ',')
+}
 
 function saveEntry() {
   return run(async () => {
-    await cashApi.entry({ branch: branchId.value || null, category: manual.category, method: manualDef.value?.drawerOnly ? 'cash' : manual.method, amount: money(manual.amount), description: manual.description.trim() || null })
-    Object.assign(manual, { amount: '', description: '' })
+    await cashApi.entry({ branch: branchId.value || null, category: manual.category, method: manualDef.value?.drawerOnly ? 'cash' : manual.method, amount: money(manual.amount), description: manual.description.trim() || null, fixed_cost: manual.fixedCost || null })
+    Object.assign(manual, { amount: '', description: '', fixedCost: '' })
     panel.value = null
     await loadSession()
   }, 'Lançamento registrado')
@@ -157,6 +175,7 @@ onMounted(load)
         <p v-if="lastClosed" class="rounded-(--radius-control) bg-brand-50 p-3 text-sm">
           Último fechamento: esperado {{ formatMoney(lastClosed.expected_amount) }}, contado {{ formatMoney(lastClosed.counted_amount) }}
           <strong :class="Number(lastClosed.difference) === 0 ? 'text-success' : 'text-danger'">({{ Number(lastClosed.difference) === 0 ? 'conferido' : `diferença ${formatMoney(lastClosed.difference)}` }})</strong>.
+          <RouterLink :to="`/caixa/${lastClosed.id}/fechamento`" class="ml-1 font-semibold text-brand-700 underline">Imprimir fechamento</RouterLink>
         </p>
         <h2 class="text-lg font-semibold">O caixa está fechado</h2>
         <STextField v-model="opening" label="Troco inicial na gaveta (R$)" inputmode="decimal" placeholder="0,00" :error="err('opening_amount')" />
@@ -174,18 +193,27 @@ onMounted(load)
           </div>
           <div class="flex flex-wrap items-start gap-2">
             <RouterLink :to="{ path: '/pdv', query: branchId ? { branch: branchId } : {} }" class="inline-flex min-h-11 items-center rounded-(--radius-control) bg-brand-600 px-4 text-sm font-semibold text-brand-contrast hover:bg-brand-700">Abrir PDV</RouterLink>
-            <SButton variant="secondary" @click="panel = 'lancamento'">Entrada / saída</SButton>
+            <SButton variant="secondary" @click="startManual('withdrawal')">Sangria</SButton>
+            <SButton variant="secondary" @click="startManual('in')">Entrada</SButton>
+            <SButton variant="secondary" @click="startManual('out')">Saída</SButton>
+            <RouterLink :to="`/caixa/${session.id}/fechamento`" class="inline-flex min-h-11 items-center rounded-(--radius-control) px-3 text-sm font-semibold text-muted hover:bg-canvas hover:text-ink">Imprimir parcial</RouterLink>
             <SButton variant="ghost" @click="panel = 'fechar'">Fechar caixa</SButton>
           </div>
         </section>
 
         <!-- Entrada / saída -->
         <section v-if="panel === 'lancamento'" class="mb-6 grid max-w-xl gap-3 rounded-(--radius-card) border border-brand-600 bg-surface p-5" aria-label="Entrada ou saída">
-          <h2 class="text-lg font-semibold">Entrada ou saída</h2>
-          <label class="grid gap-1.5 text-sm font-medium">Tipo
+          <h2 class="text-lg font-semibold">{{ manual.kind === 'withdrawal' ? 'Sangria (retirar dinheiro da gaveta)' : manual.kind === 'in' ? 'Entrada' : 'Saída (despesa)' }}</h2>
+          <p v-if="manual.kind === 'withdrawal'" class="text-sm text-muted">Dinheiro que sai da gaveta para o cofre ou o banco. Não é despesa: só muda o dinheiro de lugar.</p>
+          <label v-if="manual.kind === 'out' && fixedCosts.length" class="grid gap-1.5 text-sm font-medium">É pagamento de um custo fixo?
+            <select v-model="manual.fixedCost" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3" @change="pickFixed">
+              <option value="">Não, é uma despesa avulsa</option>
+              <option v-for="c in fixedCosts" :key="c.id" :value="c.id">{{ c.name }} ({{ formatMoney(c.amount) }}/mês)</option>
+            </select>
+          </label>
+          <label v-if="manual.kind !== 'withdrawal'" class="grid gap-1.5 text-sm font-medium">Tipo
             <select v-model="manual.category" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
-              <optgroup label="Entradas"><option v-for="c in CASH_MANUAL.filter((x) => x.type === 'in')" :key="c.value" :value="c.value">{{ c.label }}</option></optgroup>
-              <optgroup label="Saídas"><option v-for="c in CASH_MANUAL.filter((x) => x.type === 'out')" :key="c.value" :value="c.value">{{ c.label }}</option></optgroup>
+              <option v-for="c in manualOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
           </label>
           <label v-if="!manualDef?.drawerOnly" class="grid gap-1.5 text-sm font-medium">Forma
@@ -220,7 +248,7 @@ onMounted(load)
                 <span><span class="text-muted tabular-nums">{{ formatTime(e.occurred_at, tz) }}</span> · <strong>{{ e.category_label }}</strong><template v-if="e.description"> · {{ e.description }}</template></span>
                 <span class="font-semibold tabular-nums" :class="e.type === 'out' ? 'text-danger' : 'text-success'" :style="e.voided ? 'text-decoration: line-through' : ''">{{ e.type === 'out' ? '−' : '+' }} {{ formatMoney(e.amount) }}</span>
               </div>
-              <p class="text-muted">{{ e.method_label }}<template v-if="e.items"> · {{ e.items.filter((i) => i.name !== 'Desconto').map((i) => `${i.quantity}× ${i.name}`).join(', ') }}</template><template v-if="e.created_by"> · {{ e.created_by }}</template></p>
+              <p class="text-muted">{{ e.method_label }}<template v-if="e.items"> · {{ e.items.filter((i) => i.name !== 'Desconto').map((i) => `${i.quantity}× ${i.name}`).join(', ') }}</template><template v-if="e.created_by"> · {{ e.created_by }}</template><template v-if="Number(e.fee_amount ?? 0) > 0"> · taxa {{ formatMoney(e.fee_amount!) }}</template><template v-if="e.fixed_cost"> · custo fixo</template></p>
               <p v-if="e.voided" class="text-danger">Estornado: {{ e.void_reason }}</p>
               <div v-else-if="manage">
                 <div v-if="voiding === e.id" class="mt-1 flex flex-wrap items-end gap-2">
@@ -288,7 +316,8 @@ onMounted(load)
           <li v-for="h in history" :key="h.id" class="flex flex-wrap justify-between gap-2 px-4 py-3">
             <span>{{ new Date(h.opened_at).toLocaleDateString('pt-BR', { timeZone: tz }) }} · {{ h.branch.name }}<template v-if="h.closed_by"> · fechado por {{ h.closed_by }}</template></span>
             <span v-if="h.open" class="font-semibold text-brand-700">Aberto</span>
-            <span v-else class="tabular-nums">esperado {{ formatMoney(h.expected_amount) }} · contado {{ formatMoney(h.counted_amount) }} · <strong :class="Number(h.difference) === 0 ? 'text-success' : 'text-danger'">{{ Number(h.difference) === 0 ? 'ok' : formatMoney(h.difference) }}</strong></span>
+            <span v-else class="tabular-nums">esperado {{ formatMoney(h.expected_amount) }} · contado {{ formatMoney(h.counted_amount) }} · <strong :class="Number(h.difference) === 0 ? 'text-success' : 'text-danger'">{{ Number(h.difference) === 0 ? 'ok' : formatMoney(h.difference) }}</strong>
+              · <RouterLink :to="`/caixa/${h.id}/fechamento`" class="font-semibold text-brand-700 underline">Imprimir</RouterLink></span>
           </li>
         </ul>
       </div>

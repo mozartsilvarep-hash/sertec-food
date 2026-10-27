@@ -26,6 +26,8 @@ use Illuminate\Support\Carbon;
  * @property CashCategory $category
  * @property CashMethod $method
  * @property string $amount
+ * @property string $fee_amount
+ * @property int|null $fixed_cost_id
  * @property string|null $description
  * @property list<array{name: string, quantity: int, unit_price: string, total: string}>|null $items_json
  * @property int|null $order_id

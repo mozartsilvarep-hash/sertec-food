@@ -7,6 +7,7 @@ use App\Modules\Cash\Enums\CashCategory;
 use App\Modules\Cash\Enums\CashMethod;
 use App\Modules\Cash\Models\CashEntry;
 use App\Modules\Cash\Models\CashSession;
+use App\Modules\Cash\Models\FixedCost;
 use App\Modules\Cash\Services\CashBook;
 use App\Modules\Identity\Access\MemberAccess;
 use App\Modules\Identity\Access\TenantAccess;
@@ -44,6 +45,48 @@ class CashController
         return new JsonResponse(['data' => $session === null ? null : $this->presentSession($session, withEntries: true)]);
     }
 
+    /**
+     * GET cash/sessions/{session}/report — fechamento para imprimir:
+     * formas, categorias, taxas e o que cada operador lançou.
+     */
+    public function sessionReport(Request $request, CashSession $session, TenantAccess $access): JsonResponse
+    {
+        $this->assertBranch($request, $access, $session->branch_id);
+        $rows = CashEntry::query()->valid()->where('cash_session_id', $session->id)->with('creator')->get();
+        $categories = [];
+        $operators = [];
+        $fees = 0;
+        $sales = 0;
+        $salesCount = 0;
+        foreach ($rows as $e) {
+            $cents = Money::toCents((string) $e->amount);
+            $c = $e->category->value;
+            $categories[$c] ??= ['category' => $c, 'label' => $e->category->label(), 'type' => $e->type, 'count' => 0, 'total' => 0];
+            $categories[$c]['count']++;
+            $categories[$c]['total'] += $cents;
+            if (in_array($e->category, [CashCategory::CounterSale, CashCategory::Order], true)) {
+                $fees += Money::toCents((string) $e->fee_amount);
+                $sales += $cents;
+                $salesCount++;
+            }
+            $who = $e->created_by === null ? 'Sistema (pedidos do cardápio)' : ($e->creator->name ?? 'Usuário removido');
+            $operators[$who] ??= ['name' => $who, 'count' => 0, 'in' => 0, 'out' => 0];
+            $operators[$who]['count']++;
+            $operators[$who][$e->type === CashEntry::IN ? 'in' : 'out'] += $cents;
+        }
+        $voided = CashEntry::query()->where('cash_session_id', $session->id)->whereNotNull('voided_at')->count();
+
+        return new JsonResponse(['data' => [
+            ...$this->presentSession($session, withEntries: true),
+            'sales' => Money::format($sales),
+            'sales_count' => $salesCount,
+            'fees' => Money::format($fees),
+            'voided_count' => $voided,
+            'by_category' => array_values(array_map(fn ($c) => [...$c, 'total' => Money::format($c['total'])], $categories)),
+            'by_operator' => array_values(array_map(fn ($o) => [...$o, 'in' => Money::format($o['in']), 'out' => Money::format($o['out'])], $operators)),
+        ]]);
+    }
+
     public function open(Request $request, TenantAccess $access, AuditLogger $audit): JsonResponse
     {
         $data = $request->validate(['opening_amount' => ['required', 'string', self::MONEY]], [], ['opening_amount' => 'troco inicial']);
@@ -76,6 +119,8 @@ class CashController
             'method' => ['required', Rule::enum(CashMethod::class)],
             'amount' => ['required', 'string', self::MONEY],
             'description' => ['nullable', 'string', 'max:200'],
+            // Saída que paga um custo fixo (aluguel do mês etc.).
+            'fixed_cost' => ['nullable', 'string', 'size:26'],
         ], [], ['amount' => 'valor', 'category' => 'tipo', 'method' => 'forma de pagamento', 'description' => 'descrição']);
         $branch = $this->branch($request, $access);
         $this->requireOpen($branch);
@@ -85,7 +130,15 @@ class CashController
         if ($amount <= 0) {
             throw new ApiException(422, 'cash_amount_invalid', 'Informe um valor maior que zero.');
         }
-        $entry = $this->book->record($branch, $category->isIn() ? CashEntry::IN : CashEntry::OUT, $category, $method, $amount, $data['description'] ?? null, $this->user($request));
+        $fixed = null;
+        if (! empty($data['fixed_cost'])) {
+            if ($category->isIn() || $category->isDrawerOnly()) {
+                throw new ApiException(422, 'validation_failed', 'Só saídas de despesa podem pagar um custo fixo.');
+            }
+            $fixed = PublicIds::one(FixedCost::class, $data['fixed_cost'], 'fixed_cost');
+        }
+        $description = $data['description'] ?? ($fixed !== null ? $fixed->name : null);
+        $entry = $this->book->record($branch, $category->isIn() ? CashEntry::IN : CashEntry::OUT, $category, $method, $amount, $description, $this->user($request), fixedCostId: $fixed?->id);
 
         return new JsonResponse(['data' => $this->presentEntry($entry)], 201);
     }
@@ -364,6 +417,8 @@ class CashController
             'method' => $e->method->value,
             'method_label' => $e->method->label(),
             'amount' => $e->amount,
+            'fee_amount' => $e->fee_amount,
+            'fixed_cost' => $e->fixed_cost_id !== null,
             'description' => $e->description,
             'items' => $e->items_json,
             'order_number' => $e->order?->order_number,

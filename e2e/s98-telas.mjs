@@ -41,7 +41,7 @@ for (const width of [360, 768]) {
   await lp.getByRole('button', { name: 'Entrar' }).click()
   await lp.waitForURL(TENANT + '/painel/')
   await lp.close()
-  for (const path of ['', 'pdv', 'pedidos', 'historico', 'caixa', 'relatorios', 'cardapio', 'opcoes', 'esgotados', 'promocoes', 'horarios', 'entrega', 'marca', 'pagamentos', 'equipe', 'privacidade', 'auditoria', 'assinatura', 'minha-conta']) {
+  for (const path of ['', 'pdv', 'pedidos', 'historico', 'caixa', 'financeiro', 'relatorios', 'cardapio', 'opcoes', 'esgotados', 'promocoes', 'horarios', 'entrega', 'marca', 'pagamentos', 'equipe', 'privacidade', 'auditoria', 'assinatura', 'minha-conta']) {
     await verify(m, `${width}px painel /${path}`, `${TENANT}/painel/${path}`)
   }
 

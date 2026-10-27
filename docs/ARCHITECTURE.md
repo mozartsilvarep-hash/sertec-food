@@ -473,3 +473,26 @@ A venda no balcão grava um `order`, com `channel=pos`, `fulfillment_type=counte
 - **Um toque:** produto sem opções e com um só tamanho entra direto (`quick_variant`); os outros abrem a ficha com as mesmas regras do cardápio.
 - **Teclado:** F2 busca, F4 cobra, Enter fecha a venda concluída, Esc fecha janelas. Botão de tela cheia.
 - **Recibo:** recibo de 80/58 mm em `/pedidos/{id}/recibo`, com as formas, o troco, o atendente e o aviso "Não é documento fiscal".
+
+## Decisões da Sprint 15 — Financeiro
+
+### D89 — Taxa de cada forma de pagamento
+`payment_fees` guarda, por restaurante e por forma do caixa (crédito, débito, Pix, maquininha, site, outro, dinheiro), um percentual em pontos-base mais um valor fixo por venda.
+- **Quando é calculada:** no momento em que a venda ou o pedido entra no caixa, e fica gravada em `cash_entries.fee_amount`. Mudar a taxa depois não altera o passado.
+- **Onde vale:** só em vendas do balcão e pedidos. Reforço, sangria e despesas não pagam taxa.
+- **Lançamentos antigos:** os anteriores a esta versão ficam com taxa zero.
+
+### D90 — Custos fixos e resultado
+`fixed_costs` guarda os custos do mês (aluguel, salários, internet…), do restaurante todo ou de uma unidade. O resultado do período (`FinanceReport`) é:
+
+> vendas − estornos − taxas + outras entradas − despesas lançadas − custos fixos
+
+- **Custo fixo no período:** entra proporcional aos dias. Cada dia vale 1/(dias daquele mês), então um mês inteiro dá exatamente o valor mensal.
+- **Pago pelo caixa:** a saída que paga um custo fixo leva `fixed_cost_id` e fica fora das "despesas lançadas", para não contar duas vezes.
+- **Reforço e sangria:** só mudam o dinheiro de lugar e aparecem à parte.
+- **Remover custo fixo:** só apaga se nunca foi pago pelo caixa; se já foi, fica desativado.
+
+### D91 — Fechamento impresso
+`GET cash/sessions/{id}/report` monta o fechamento: vendas e taxas, formas, movimentos por categoria, o que cada operador lançou, estornos, esperado × contado e diferença. É impresso em 80/58 mm, com linha para assinatura. Disponível como "parcial" com o caixa aberto.
+
+O caixa ganhou botões diretos de **Sangria**, **Entrada** e **Saída**. A saída pode ser o pagamento de um custo fixo e já preenche o valor.

@@ -17,6 +17,7 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s12-marca.mjs` | logo e capa enviadas, CNPJ inválido recusado, cor/razão social/Instagram/WhatsApp salvos; cardápio com logo, contatos, cor e rodapé com CNPJ; outro restaurante não herda nada |
 | `s13-cobranca.mjs` | SerTec conecta a conta MP e define preço do plano; mensalidade da Pizzaria Demo; dono paga por Pix e a tela confirma sozinha; painel SerTec mostra a fatura paga |
 | `s14-pdv.mjs` | código e favorito no produto; PDV: código + Enter, pizza com sabor, avulso, cliente, desconto, Pix + dinheiro com troco, recibo, relatório por forma, celular sem rolagem lateral |
+| `s15-financeiro.mjs` | taxas de crédito e Pix, custo fixo, venda no crédito com taxa no caixa, saída pagando o custo fixo, sangria, fechamento impresso, resultado do dia |
 | `s98-telas.mjs` | todas as telas (cardápio, painel e SerTec) em 360 px e 768 px sem rolagem lateral |
 | `s99-senha.mjs` | "Esqueci a senha" no painel da loja (link do e-mail, regra de senha, entra com a nova, link não vale 2×) e no painel SerTec. Lê o link do log (`MAIL_MAILER=log`); rode por último |
 
