@@ -3,11 +3,14 @@
 use App\Modules\Identity\Models\Role;
 use App\Modules\Identity\Models\TenantUser;
 use App\Modules\Identity\Models\User;
+use App\Modules\Platform\Models\Plan;
+use App\Modules\Platform\Models\Subscription;
 use App\Modules\Tenancy\Enums\TenantStatus;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Models\Tenant;
 use App\Modules\Tenancy\TenantContext;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\PlanSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -151,4 +154,17 @@ function withSession(string $sessionId): TestCase
     app(TenantContext::class)->clear();
 
     return $test->withCredentials()->withCookie((string) config('session.cookie'), $sessionId);
+}
+
+/** Assinatura com o caixa (PDV) liberado — ou num plano sem ele. */
+function withCashbook($tenant, bool $enabled = true): void
+{
+    if (! Plan::query()->where('slug', 'cardapio')->exists()) {
+        (new PlanSeeder)->run();
+    }
+    $plan = Plan::query()->where('slug', 'cardapio')->first();
+    if (! $enabled) {
+        $plan = Plan::query()->create(['slug' => 'sem-caixa', 'name' => 'Sem caixa', 'monthly_price' => '0.00', 'features_json' => ['cashbook' => false], 'active' => true]);
+    }
+    inTenant($tenant, fn () => Subscription::query()->create(['plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE]));
 }

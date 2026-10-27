@@ -15,6 +15,16 @@ enum CashMethod: string
     case Online = 'online';
     case Other = 'other';
 
+    /**
+     * Formas aceitas no PDV (sem "pago pelo site" nem o cartão genérico).
+     *
+     * @return list<self>
+     */
+    public static function posCases(): array
+    {
+        return [self::Cash, self::Pix, self::Debit, self::Credit, self::Other];
+    }
+
     public function label(): string
     {
         return match ($this) {
@@ -34,6 +44,7 @@ enum CashMethod: string
             PaymentMethod::Cash => self::Cash,
             PaymentMethod::CardOnDelivery => self::Card,
             PaymentMethod::Pix, PaymentMethod::OnlineCard => self::Online,
+            PaymentMethod::Pos => self::Other,
         };
     }
 }

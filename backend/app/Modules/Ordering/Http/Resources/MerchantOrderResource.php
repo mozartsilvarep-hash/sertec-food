@@ -4,6 +4,7 @@ namespace App\Modules\Ordering\Http\Resources;
 
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Order;
+use App\Modules\Ordering\Models\OrderPayment;
 use App\Modules\Ordering\Models\OrderStatusHistory;
 use App\Modules\Ordering\Support\Phone;
 use App\Modules\Payments\Support\PaymentPresenter;
@@ -34,6 +35,13 @@ class MerchantOrderResource extends JsonResource
             'payment_method' => $this->payment_method->value,
             'payment_method_label' => $this->payment_method->label(),
             'change_for' => $this->change_for,
+            // PDV: canal, quem vendeu, formas de pagamento e troco.
+            'channel' => $this->channel,
+            'change_given' => $this->change_given,
+            'pos_payments' => $this->whenLoaded('posPayments', fn () => $this->posPayments->map(fn (OrderPayment $p) => [
+                'method' => $p->method->value, 'label' => $p->method->label(), 'amount' => $p->amount,
+            ])->values()),
+            'seller' => $this->whenLoaded('seller', fn () => $this->seller?->name),
             'online_payment' => $this->whenLoaded('payments', fn () => PaymentPresenter::merchant($this->resource)),
             'fulfillment_type' => $this->fulfillment_type->value,
             'customer' => ['name' => $this->customer_name, 'phone' => Phone::format($this->customer_phone)],

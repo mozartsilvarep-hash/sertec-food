@@ -45,6 +45,12 @@ Logo, capa, cor (com tons prontos), razão social, CNPJ, Instagram e WhatsApp da
 ## Sprint 13 — Cobrança da SerTec ✅ concluída (27/10/2026)
 Planos editáveis com preço por período e recursos; mensalidade por restaurante (valor próprio, cortesia, "pago até"); faturas automáticas; avisos por e-mail (vence em breve, em atraso, pago); Pix na conta Mercado Pago da SerTec com webhook e baixa automática; baixa manual; suspensão continua manual.
 
+## Sprint 14 — PDV completo ✅ concluída (27/10/2026)
+Venda no balcão vira pedido (tamanhos, sabores, adicionais, promoções, cozinha); pagamento dividido com troco; desconto em R$ ou %; taxa de serviço; cliente com cartão fidelidade; recibo 80/58 mm; venda rápida (favoritos, mais vendidos, código + Enter, F2/F4, tela cheia).
+
+## Sprint 15 — Operação do salão (próxima)
+Mesas e comandas (conta aberta, lançar itens, fechar e dividir), estoque simples (baixa na venda, aviso de estoque baixo, esgotado automático) e fechamento de caixa impresso com resumo por operador.
+
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.
 

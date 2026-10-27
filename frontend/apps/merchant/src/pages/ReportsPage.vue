@@ -43,7 +43,7 @@ const hours = computed(() => {
 })
 const maxHour = computed(() => Math.max(1, ...hours.value.map((h) => h.orders)))
 const peak = computed(() => hours.value.reduce((a, b) => (b.orders > a.orders ? b : a), { hour: -1, orders: 0 }))
-const fulfillmentTotal = computed(() => (data.value?.by_fulfillment?.delivery ?? 0) + (data.value?.by_fulfillment?.pickup ?? 0))
+const fulfillmentTotal = computed(() => (data.value?.by_fulfillment?.delivery ?? 0) + (data.value?.by_fulfillment?.pickup ?? 0) + (data.value?.by_fulfillment?.counter ?? 0))
 
 watch(branchId, () => void load())
 onMounted(load)
@@ -117,12 +117,14 @@ onMounted(load)
           </tbody>
         </table>
       </section>
-      <section v-if="fulfillmentTotal" aria-label="Entrega e retirada">
-        <h2 class="mb-3 text-lg font-semibold">Entrega × retirada</h2>
+      <section v-if="fulfillmentTotal" aria-label="Entrega, retirada e balcão">
+        <h2 class="mb-3 text-lg font-semibold">Entrega, retirada e balcão</h2>
         <div class="flex h-4 overflow-hidden rounded-full bg-canvas">
           <span class="bg-brand-600" :style="{ width: `${((data.by_fulfillment?.delivery ?? 0) / fulfillmentTotal) * 100}%` }" />
+          <span class="bg-brand-100" :style="{ width: `${((data.by_fulfillment?.pickup ?? 0) / fulfillmentTotal) * 100}%` }" />
+          <span class="bg-ink" :style="{ width: `${((data.by_fulfillment?.counter ?? 0) / fulfillmentTotal) * 100}%` }" />
         </div>
-        <p class="mt-2 text-sm"><span class="font-semibold">{{ data.by_fulfillment?.delivery }}</span> entregas · <span class="font-semibold">{{ data.by_fulfillment?.pickup }}</span> retiradas</p>
+        <p class="mt-2 text-sm"><span class="font-semibold">{{ data.by_fulfillment?.delivery }}</span> entregas · <span class="font-semibold">{{ data.by_fulfillment?.pickup }}</span> retiradas · <span class="font-semibold">{{ data.by_fulfillment?.counter ?? 0 }}</span> no balcão (PDV)</p>
       </section>
     </div>
   </div>

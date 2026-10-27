@@ -2,12 +2,14 @@
 
 namespace App\Modules\Ordering\Http\Controllers;
 
+use App\Modules\Cash\Enums\CashMethod;
 use App\Modules\Identity\Access\TenantAccess;
 use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
 use App\Modules\Ordering\Models\Order;
 use App\Modules\Ordering\Models\OrderItem;
+use App\Modules\Ordering\Models\OrderPayment;
 use App\Modules\Ordering\Services\OrderFilters;
 use App\Modules\Payments\Enums\RefundStatus;
 use App\Modules\Payments\Models\Refund;
@@ -41,6 +43,17 @@ class ReportController
             $cents = Money::toCents(number_format((float) $row->s, 2, '.', ''));
             $revenueCents += $cents;
             $method = PaymentMethod::from((string) $row->payment_method);
+            if ($method === PaymentMethod::Pos) {
+                // Vendas do PDV: abertas pelas formas usadas no balcão (pagamento dividido).
+                $posIds = (clone $base)->where('status', OrderStatus::Completed)->where('payment_method', PaymentMethod::Pos)->select('id');
+                foreach (OrderPayment::query()->whereIn('order_id', $posIds)
+                    ->selectRaw('method, COUNT(DISTINCT order_id) AS c, SUM(amount) AS s')->groupBy('method')->toBase()->get() as $p) {
+                    $m = CashMethod::from((string) $p->method);
+                    $methods[] = ['method' => 'pos_'.$m->value, 'label' => 'Balcão · '.$m->label(), 'orders' => (int) $p->c, 'total' => Money::format(Money::toCents(number_format((float) $p->s, 2, '.', '')))];
+                }
+
+                continue;
+            }
             $methods[] = ['method' => $method->value, 'label' => $method->label(), 'orders' => (int) $row->c, 'total' => Money::format($cents)];
         }
 
@@ -55,7 +68,7 @@ class ReportController
             ->selectRaw('product_name_snapshot AS name, SUM(quantity) AS qty, SUM(line_total) AS total')
             ->groupBy('product_name_snapshot')->orderByDesc('qty')->orderByDesc('total')->limit(10)->toBase()->get();
         $days = $hours = [];
-        $fulfillment = ['delivery' => 0, 'pickup' => 0];
+        $fulfillment = ['delivery' => 0, 'pickup' => 0, 'counter' => 0];
         foreach ((clone $base)->where('status', OrderStatus::Completed)->get(['placed_at', 'total', 'fulfillment_type']) as $o) {
             $local = $o->placed_at->setTimezone($timezone);
             $d = $local->format('Y-m-d');
@@ -122,7 +135,7 @@ class ReportController
                         $o->branch->name,
                         $o->status->label(),
                         $o->customer_name,
-                        $o->fulfillment_type->value === 'delivery' ? 'Entrega' : 'Retirada',
+                        $o->fulfillment_type->label(),
                         (string) ($o->address_snapshot_json['neighborhood'] ?? ''),
                         $o->payment_method->label(),
                         $o->payment_status->label(),

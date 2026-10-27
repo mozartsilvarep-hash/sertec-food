@@ -16,6 +16,9 @@ enum PaymentMethod: string
     /** Cartão pelo Checkout Pro do Mercado Pago (dados do cartão nunca passam por nós). */
     case OnlineCard = 'online_card';
 
+    /** Venda no PDV do restaurante: já paga no balcão (formas em order_payments). */
+    case Pos = 'pos';
+
     public function isOnDelivery(): bool
     {
         return in_array($this, [self::Cash, self::CardOnDelivery], true);
@@ -23,7 +26,13 @@ enum PaymentMethod: string
 
     public function isOnline(): bool
     {
-        return ! $this->isOnDelivery();
+        return in_array($this, [self::Pix, self::OnlineCard], true);
+    }
+
+    /** Formas que o cliente pode escolher no cardápio. */
+    public function isStorefront(): bool
+    {
+        return $this !== self::Pos;
     }
 
     public function label(): string
@@ -33,6 +42,7 @@ enum PaymentMethod: string
             self::CardOnDelivery => 'Cartão na entrega',
             self::Pix => 'Pix',
             self::OnlineCard => 'Cartão pelo site',
+            self::Pos => 'Pago no balcão',
         };
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ordering\Models;
 
+use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Enums\PaymentMethod;
@@ -22,6 +23,9 @@ use Illuminate\Support\Carbon;
  * @property string $public_id
  * @property int $tenant_id
  * @property int $branch_id
+ * @property string $channel
+ * @property int|null $created_by
+ * @property string|null $change_given
  * @property int|null $customer_id
  * @property int $order_number
  * @property string $tracking_token_hash
@@ -51,10 +55,15 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, OrderTotal> $totals
  * @property-read Collection<int, OrderStatusHistory> $history
  * @property-read Collection<int, Payment> $payments
+ * @property-read Collection<int, OrderPayment> $posPayments
  */
 class Order extends Model
 {
     use BelongsToTenant, HasUlids;
+
+    public const CHANNEL_ONLINE = 'online';
+
+    public const CHANNEL_POS = 'pos';
 
     protected $guarded = ['id', 'tenant_id'];
 
@@ -86,6 +95,7 @@ class Order extends Model
             'fulfillment_type' => FulfillmentType::class,
             'address_snapshot_json' => 'array',
             'change_for' => 'decimal:2',
+            'change_given' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'discount_total' => 'decimal:2',
             'delivery_fee' => 'decimal:2',
@@ -125,5 +135,26 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class)->orderBy('id');
+    }
+
+    /**
+     * Formas de pagamento de uma venda do PDV.
+     *
+     * @return HasMany<OrderPayment, $this>
+     */
+    public function posPayments(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function isPos(): bool
+    {
+        return $this->channel === self::CHANNEL_POS;
     }
 }

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  ApiError, CASH_MANUAL, CASH_METHODS, cashApi, catalogApi, centsToString, describeError, formatMoney, formatTime, merchantApi, toCents,
-  type Branch, type CashEntry, type CashMethod, type CashSession, type CashSummary, type Product,
+  ApiError, CASH_MANUAL, CASH_METHODS, cashApi, centsToString, describeError, formatMoney, formatTime, merchantApi, toCents,
+  type Branch, type CashEntry, type CashMethod, type CashSession, type CashSummary,
 } from '@sertec/api-client'
-import { SAlert, SButton, SPageState, SStepper, STextField } from '@sertec/ui'
+import { SAlert, SButton, SPageState, STextField } from '@sertec/ui'
 import BranchPicker from '../components/BranchPicker.vue'
 import { notify } from '../notify'
 import { can, me } from '../session'
@@ -21,7 +21,7 @@ const session = ref<CashSession | null>(null)
 const entries = ref<CashEntry[]>([])
 const state = ref<'loading' | 'ready' | 'error' | 'unavailable'>('loading')
 const tab = ref<'caixa' | 'relatorio'>('caixa')
-const panel = ref<'venda' | 'lancamento' | 'fechar' | null>(null)
+const panel = ref<'lancamento' | 'fechar' | null>(null)
 const busy = ref(false)
 const errors = ref<Record<string, string[]>>({})
 const message = ref<string | null>(null)
@@ -96,76 +96,6 @@ function closeCash() {
 }
 const lastClosed = ref<CashSession | null>(null)
 
-/* ---------- Venda de balcão ---------- */
-const products = ref<Product[]>([])
-const search = ref('')
-interface Line { key: string; product_id?: string; variant_id?: string; name: string; unit: number; quantity: number }
-const cart = ref<Line[]>([])
-const sale = reactive({ method: 'cash' as CashMethod, discount: '', received: '', customName: '', customPrice: '' })
-const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-const options = computed(() => products.value
-  .filter((p) => p.active && p.kind !== 'combo')
-  .flatMap((p) => p.variants.filter((v) => v.active).map((v) => ({
-    key: `${p.id}:${v.id}`, product_id: p.id, variant_id: v.id,
-    name: p.variants.filter((x) => x.active).length > 1 ? `${p.name} (${v.name})` : p.name, unit: toCents(v.price),
-  })))
-  .filter((o) => o.unit > 0 && (!search.value || fold(o.name).includes(fold(search.value))))
-  .slice(0, 40))
-const subtotal = computed(() => cart.value.reduce((s, l) => s + l.unit * l.quantity, 0))
-const total = computed(() => Math.max(0, subtotal.value - cents(sale.discount)))
-const change = computed(() => (sale.method === 'cash' && sale.received ? cents(sale.received) - total.value : null))
-
-async function startSale() {
-  panel.value = 'venda'
-  if (products.value.length === 0) {
-    const list: Product[] = []
-    let cursor: string | null = null
-    do {
-      const page = await catalogApi.products({ cursor, per_page: 100 })
-      list.push(...page.data)
-      cursor = page.meta.next_cursor
-    } while (cursor && list.length < 1000)
-    products.value = list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-  }
-}
-
-function addLine(o: { key: string; product_id?: string; variant_id?: string; name: string; unit: number }) {
-  const found = cart.value.find((l) => l.key === o.key)
-  if (found) found.quantity++
-  else cart.value.push({ ...o, quantity: 1 })
-}
-
-function addCustom() {
-  const unit = cents(sale.customPrice)
-  if (!sale.customName.trim() || unit <= 0) return
-  addLine({ key: `custom:${Date.now()}`, name: sale.customName.trim(), unit })
-  sale.customName = ''
-  sale.customPrice = ''
-}
-
-function setQty(line: Line, q: number) {
-  if (q <= 0) cart.value = cart.value.filter((l) => l !== line)
-  else line.quantity = q
-}
-
-function finishSale() {
-  return run(async () => {
-    const entry = await cashApi.sale({
-      branch: branchId.value || null,
-      method: sale.method,
-      discount: sale.discount ? money(sale.discount) : null,
-      received: sale.method === 'cash' && sale.received ? money(sale.received) : null,
-      items: cart.value.map((l) => (l.product_id
-        ? { product_id: l.product_id, variant_id: l.variant_id, quantity: l.quantity }
-        : { description: l.name, unit_price: centsToString(l.unit), quantity: l.quantity })),
-    })
-    cart.value = []
-    Object.assign(sale, { discount: '', received: '' })
-    await loadSession()
-    if (entry.change && Number(entry.change) > 0) return `Venda registrada. Troco: ${formatMoney(entry.change)}`
-  }, 'Venda registrada')
-}
-
 /* ---------- Entradas e saídas ---------- */
 const manual = reactive({ category: 'withdrawal' as (typeof CASH_MANUAL)[number]['value'], method: 'cash' as CashMethod, amount: '', description: '' })
 const manualDef = computed(() => CASH_MANUAL.find((c) => c.value === manual.category))
@@ -209,7 +139,7 @@ onMounted(load)
 
 <template>
   <h1 class="mb-2 font-display text-2xl font-bold">Caixa</h1>
-  <p class="mb-6 max-w-[65ch] text-sm text-muted">Abra o caixa no começo do dia, registre as vendas de balcão, as entradas e as saídas, e feche conferindo o dinheiro da gaveta. Os pedidos do cardápio entram sozinhos quando são concluídos.</p>
+  <p class="mb-6 max-w-[65ch] text-sm text-muted">Abra o caixa no começo do dia, venda no PDV, registre entradas e saídas e feche conferindo o dinheiro da gaveta. Os pedidos do cardápio entram sozinhos quando são concluídos.</p>
 
   <SPageState v-if="state === 'loading'" state="loading" />
   <SPageState v-else-if="state === 'unavailable'" state="empty" title="Caixa não incluído no seu plano" message="Fale com a SerTec para liberar o caixa." />
@@ -243,50 +173,9 @@ onMounted(load)
             </p>
           </div>
           <div class="flex flex-wrap items-start gap-2">
-            <SButton @click="startSale">Nova venda</SButton>
+            <RouterLink :to="{ path: '/pdv', query: branchId ? { branch: branchId } : {} }" class="inline-flex min-h-11 items-center rounded-(--radius-control) bg-brand-600 px-4 text-sm font-semibold text-brand-contrast hover:bg-brand-700">Abrir PDV</RouterLink>
             <SButton variant="secondary" @click="panel = 'lancamento'">Entrada / saída</SButton>
             <SButton variant="ghost" @click="panel = 'fechar'">Fechar caixa</SButton>
-          </div>
-        </section>
-
-        <!-- Venda de balcão -->
-        <section v-if="panel === 'venda'" class="mb-6 grid gap-5 rounded-(--radius-card) border border-brand-600 bg-surface p-5 lg:grid-cols-[1fr_22rem]" aria-label="Venda de balcão">
-          <div class="grid content-start gap-3">
-            <h2 class="text-lg font-semibold">Venda de balcão</h2>
-            <input v-model="search" type="search" placeholder="Buscar produto" aria-label="Buscar produto" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
-            <div class="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-              <button v-for="o in options" :key="o.key" type="button" class="rounded-(--radius-control) border border-line p-2 text-left text-sm hover:border-brand-600 hover:bg-brand-50" @click="addLine(o)">
-                <span class="block font-medium">{{ o.name }}</span>
-                <span class="text-muted tabular-nums">{{ formatMoney(centsToString(o.unit)) }}</span>
-              </button>
-            </div>
-            <div class="flex flex-wrap items-end gap-2">
-              <div class="min-w-40 flex-1"><STextField v-model="sale.customName" label="Item avulso" placeholder="Ex.: Bolo de aniversário" /></div>
-              <div class="w-28"><STextField v-model="sale.customPrice" label="Valor (R$)" inputmode="decimal" /></div>
-              <SButton variant="secondary" @click="addCustom">Adicionar</SButton>
-            </div>
-          </div>
-          <div class="grid content-start gap-3 rounded-(--radius-control) bg-canvas p-4">
-            <p v-if="cart.length === 0" class="text-sm text-muted">Toque nos produtos para adicionar.</p>
-            <ul class="grid gap-2" aria-label="Itens da venda">
-              <li v-for="l in cart" :key="l.key" class="flex items-center gap-2 text-sm">
-                <span class="min-w-0 flex-1">{{ l.name }}<span class="block text-muted tabular-nums">{{ formatMoney(centsToString(l.unit * l.quantity)) }}</span></span>
-                <SStepper :model-value="l.quantity" :label="l.name" :max="999" @update:model-value="setQty(l, $event)" />
-              </li>
-            </ul>
-            <STextField v-model="sale.discount" label="Desconto (R$)" inputmode="decimal" />
-            <fieldset>
-              <legend class="mb-1.5 text-sm font-medium">Pagamento</legend>
-              <div class="flex flex-wrap gap-1.5">
-                <label v-for="m in CASH_METHODS" :key="m.value" class="cursor-pointer rounded-full border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-600 has-[:checked]:text-brand-contrast">
-                  <input v-model="sale.method" type="radio" :value="m.value" class="sr-only">{{ m.label }}
-                </label>
-              </div>
-            </fieldset>
-            <STextField v-if="sale.method === 'cash'" v-model="sale.received" label="Recebido (R$)" inputmode="decimal" />
-            <p v-if="change !== null" class="text-sm" :class="change < 0 ? 'text-danger' : 'font-semibold'">{{ change < 0 ? 'Valor recebido menor que o total' : `Troco: ${formatMoney(centsToString(change))}` }}</p>
-            <SButton block :loading="busy" :disabled="cart.length === 0 || (change !== null && change < 0)" @click="finishSale">Concluir venda · {{ formatMoney(centsToString(total)) }}</SButton>
-            <SButton variant="ghost" @click="panel = null">Fechar</SButton>
           </div>
         </section>
 

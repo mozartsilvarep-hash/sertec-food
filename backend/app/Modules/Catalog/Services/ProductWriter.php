@@ -21,13 +21,16 @@ use Illuminate\Validation\ValidationException;
 final class ProductWriter
 {
     /**
-     * @param  array{name?: string, description?: string|null, active?: bool, kind?: string, available_days?: list<int>|null, available_from?: string|null, available_until?: string|null, combo_slots?: list<array{id?: string|null, name: string, quantity: int, product_ids: list<string>}>, variants?: list<array{id?: string|null, name: string, price: string, active?: bool}>, option_group_ids?: list<string>, category_ids?: list<string>}  $data
+     * @param  array{name?: string, description?: string|null, code?: string|null, pos_favorite?: bool, active?: bool, kind?: string, available_days?: list<int>|null, available_from?: string|null, available_until?: string|null, combo_slots?: list<array{id?: string|null, name: string, quantity: int, product_ids: list<string>}>, variants?: list<array{id?: string|null, name: string, price: string, active?: bool}>, option_group_ids?: list<string>, category_ids?: list<string>}  $data
      */
     public function save(?Product $product, array $data): Product
     {
         return DB::transaction(function () use ($product, $data) {
             $product ??= new Product;
-            $product->fill(array_intersect_key($data, array_flip(['name', 'description', 'active', 'kind', 'available_days', 'available_from', 'available_until'])));
+            $product->fill(array_intersect_key($data, array_flip(['name', 'description', 'active', 'kind', 'available_days', 'available_from', 'available_until', 'pos_favorite'])));
+            if (array_key_exists('code', $data)) {
+                $product->code = $data['code'] === null || trim((string) $data['code']) === '' ? null : strtoupper(trim((string) $data['code']));
+            }
             if (array_key_exists('available_days', $data)) {
                 $days = $data['available_days'] ?? [];
                 // Todos os dias (ou nenhum marcado) = sem restrição.

@@ -10,6 +10,9 @@ export const router = createRouter({
     { path: '/redefinir-senha', name: 'reset', component: () => import('./pages/ResetPasswordPage.vue'), meta: { guest: true } },
     // Comanda: fora do layout (sem menu na impressão).
     { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
+    { path: '/pedidos/:id/recibo', name: 'order-receipt', component: () => import('./pages/PrintPage.vue'), props: (r) => ({ id: String(r.params.id), kind: 'receipt' }) },
+    // PDV em tela própria (sem o menu lateral), pensado para tela cheia.
+    { path: '/pdv', name: 'pos', component: () => import('./pages/PosPage.vue') },
     {
       path: '/',
       component: PanelLayout,
