@@ -44,7 +44,7 @@ defineEmits<{ open: [] }>()
         decoding="async"
         width="96"
         height="96"
-        class="size-24 shrink-0 rounded-xl object-cover"
+        class="size-24 shrink-0 rounded-2xl object-cover sm:size-28"
         :class="!product.available && 'grayscale'"
       >
     </button>

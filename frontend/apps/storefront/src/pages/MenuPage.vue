@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, formatMoney, publicCatalogApi, type ProductSummary, type PublicMenu } from '@sertec/api-client'
 import { SPageState } from '@sertec/ui'
 import CartBar from '../components/CartBar.vue'
 import ProductRow from '../components/ProductRow.vue'
 import ProductSheet from '../components/ProductSheet.vue'
+import HighlightStrip from '../components/HighlightStrip.vue'
+import StoreFooter from '../components/StoreFooter.vue'
 import StoreHero from '../components/StoreHero.vue'
+import { highlights } from '../identity'
 import { branch, branchId, lastOrder, selectBranch, store } from '../shop'
 
 const menus = ref<PublicMenu[]>([])
@@ -25,6 +28,33 @@ const categories = computed(() => {
     }))
     .filter((c) => c.products.length > 0)
 })
+
+const featured = computed(() => (search.value ? [] : highlights(menus.value)))
+
+// Categoria visível no momento: destaca o atalho e o mantém à vista na barra.
+// A última seção cujo título já passou da barra fixa; no fim da página, a última.
+const active = ref<string | null>(null)
+let ticking = false
+function updateActive() {
+  ticking = false
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id^="cat-"]'))
+  if (!sections.length) return
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+  let current: HTMLElement | null = atBottom ? sections[sections.length - 1]! : null
+  if (!current) for (const s of sections) if (s.getBoundingClientRect().top <= 140) current = s
+  const id = current ? current.id.slice(4) : null
+  if (id === active.value) return
+  active.value = id
+  if (id) document.getElementById(`chip-${id}`)?.scrollIntoView({ block: 'nearest', inline: 'center' })
+}
+function onScroll() {
+  if (!ticking) {
+    ticking = true
+    requestAnimationFrame(updateActive)
+  }
+}
+onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 
 function normalize(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
@@ -69,32 +99,42 @@ onMounted(async () => {
       <a v-if="store.announcement.link" :href="store.announcement.link" class="ml-1 font-semibold whitespace-nowrap underline underline-offset-2">{{ store.announcement.link_label ?? 'Saiba mais' }}</a>
     </p>
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
-    <p v-if="store.loyalty" class="border-b border-line bg-brand-50 px-4 py-2.5 text-center text-sm">
-      <strong>Cartão fidelidade:</strong> a cada {{ store.loyalty.stamps_required }} pedidos<template v-if="store.loyalty.min_order && Number(store.loyalty.min_order) > 0"> acima de {{ formatMoney(store.loyalty.min_order) }}</template>, ganhe {{ store.loyalty.reward_label }}.
-    </p>
-
-    <RouterLink
-      :to="recentOrder ? `/pedido/${recentOrder}` : '/acompanhar'"
-      class="block border-b border-line bg-brand-50 px-4 py-3 text-center text-sm font-semibold text-brand-700"
-    >
-      {{ recentOrder ? 'Acompanhar meu último pedido' : 'Já pediu? Acompanhe seu pedido' }}
-    </RouterLink>
+    <div class="mx-auto grid max-w-2xl gap-2 px-4 pb-2 sm:px-6">
+      <p v-if="store.loyalty" class="flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm">
+        <svg viewBox="0 0 24 24" class="mt-0.5 size-5 shrink-0 text-brand-700" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="9" r="6" /><path d="m8.5 14.5-1.5 7 5-3 5 3-1.5-7" /></svg>
+        <span><strong>Cartão fidelidade:</strong> a cada {{ store.loyalty.stamps_required }} pedidos<template v-if="store.loyalty.min_order && Number(store.loyalty.min_order) > 0"> acima de {{ formatMoney(store.loyalty.min_order) }}</template>, ganhe {{ store.loyalty.reward_label }}.</span>
+      </p>
+      <RouterLink
+        :to="recentOrder ? `/pedido/${recentOrder}` : '/acompanhar'"
+        class="flex min-h-11 items-center justify-between rounded-2xl border border-line px-4 text-sm font-semibold text-brand-700 hover:bg-canvas"
+      >
+        {{ recentOrder ? 'Acompanhar meu último pedido' : 'Já pediu? Acompanhe seu pedido' }}
+        <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </RouterLink>
+    </div>
 
     <nav
       v-if="categories.length > 1 && !search"
       class="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur"
       aria-label="Categorias"
     >
-      <ul class="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none]">
-        <li v-for="c in categories" :key="c.id">
-          <a :href="`#cat-${c.id}`" class="block rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted hover:bg-canvas hover:text-ink">
+      <ul class="mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-5">
+        <li v-for="c in categories" :id="`chip-${c.id}`" :key="c.id">
+          <a
+            :href="`#cat-${c.id}`"
+            class="block rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors"
+            :class="active === c.id ? 'bg-brand-600 text-brand-contrast' : 'text-muted hover:bg-canvas hover:text-ink'"
+            :aria-current="active === c.id ? 'true' : undefined"
+          >
             {{ c.name }}
           </a>
         </li>
       </ul>
     </nav>
 
-    <main class="mx-auto max-w-2xl px-4 pb-28 sm:px-6">
+    <main class="mx-auto max-w-2xl px-4 sm:px-6">
+      <HighlightStrip v-if="featured.length" :products="featured" @open="open" />
+
       <div class="py-5">
         <label for="busca" class="sr-only">Buscar no cardápio</label>
         <input
@@ -124,13 +164,7 @@ onMounted(async () => {
         </ul>
       </section>
 
-      <footer class="mt-12 border-t border-line pt-6 pb-24 text-center text-sm text-muted">
-        <RouterLink to="/acompanhar" class="font-semibold text-brand-700 hover:underline">Acompanhar pedido</RouterLink>
-        <span aria-hidden="true"> · </span>
-        <RouterLink to="/privacidade" class="hover:text-ink hover:underline">Privacidade</RouterLink>
-        <span aria-hidden="true"> · </span>
-        <span>Cardápio digital SerTec Food</span>
-      </footer>
+      <StoreFooter :store="store" :branch="branch" />
     </main>
 
     <ProductSheet :product-id="openProduct" :branch-id="branchId" @close="openProduct = null" />

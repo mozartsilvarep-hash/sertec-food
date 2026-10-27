@@ -388,3 +388,27 @@ O que o público vê é só a contagem de selos e prêmios (`customers/lookup`, 
 
 ### Nota técnica
 Controllers não recebem pelo construtor serviços que dependem do tenant, porque a instância é reaproveitada entre requisições. Isso já vinha documentado em `MerchantAuthController`. `CustomerLookupController` passou a receber `CustomerDirectory` por parâmetro do método.
+
+## Decisões da Sprint 12 — Marca e visual
+
+### D78 — Logo e capa com o mesmo upload seguro das fotos
+A validação e o reencode em WebP saíram de `ProductImageStore` para `App\Support\Images\WebpEncoder`. O encoder confere o tipo pelo conteúdo, limita tamanho e dimensões e descarta EXIF e payloads. `BrandImageStore` usa o mesmo encoder:
+- **Logo:** recorte central quadrado de 512 px.
+- **Capa:** recorte 2,5:1 de até 1600 px.
+
+As imagens ficam em `brand/{tenant}/` no disco público. Ao trocar ou remover, o arquivo antigo é apagado.
+
+A capa vira a prévia do link (og:image), com a foto de produto como alternativa, e a logo vira o ícone da aba.
+
+### D79 — Identificação da empresa
+`legal_name`, `cnpj`, `instagram` e `whatsapp` ficam em `tenants` e são editados pelo dono em Marca. O rodapé do cardápio mostra razão social, CNPJ, endereço e telefone, como pede o Decreto 7.962/2013.
+- **CNPJ:** validado com dígitos verificadores, já no formato alfanumérico (IN RFB 2.229/2024). É guardado só com os 14 caracteres.
+- **WhatsApp:** guardado com 55. Sem número próprio, o botão do cardápio usa o telefone da unidade.
+
+### D80 — Cardápio redesenhado
+- **Topo:** capa (ou faixa na cor da marca), logo sobreposta (ou monograma com as iniciais), nome, situação e botões de WhatsApp, Instagram e "Como chegar" (Google Maps).
+- **Destaques:** faixa horizontal com fotos dos produtos em promoção, combos e preços "de/por". Só aparece com 2 ou mais produtos.
+- **Categorias:** a barra destaca a categoria visível.
+- **Rodapé:** dados legais.
+
+Continua sem CSS por cliente: tudo vem de `--brand-*`. O painel oferece 9 tons prontos com contraste AA.

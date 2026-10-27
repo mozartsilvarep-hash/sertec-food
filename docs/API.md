@@ -273,3 +273,9 @@ Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, re
   - `GET/PUT merchant/loyalty` `{active, stamps_required (2–50), min_order?, reward_type (fixed|percent), reward_amount?, reward_percent?, reward_max?}`;
   - `GET merchant/loyalty/card?phone=` devolve selos, prêmios e o histórico (últimos 50);
   - `POST merchant/loyalty/card/adjust` `{phone, stamps (±1..50), note?}`.
+
+## Implementado na Sprint 12 — Marca e visual
+
+- `GET storefront` → também `logo_url`, `cover_url`, `legal_name`, `cnpj` (formatado), `instagram` (sem @), `whatsapp` (dígitos com 55).
+- `PATCH merchant/settings` aceita `legal_name`, `cnpj` (validado; numérico ou alfanumérico), `instagram`, `whatsapp`.
+- `POST merchant/settings/{logo|cover}` (multipart `image`, JPG/PNG/WebP até 5 MB) e `DELETE merchant/settings/{logo|cover}`. Exigem `settings.update` e devolvem as configurações atualizadas.

@@ -32,6 +32,15 @@ export interface StorefrontInfo {
   timezone: string
   description: string | null
   brand_color: string | null
+  logo_url?: string | null
+  cover_url?: string | null
+  /** Razão social e CNPJ (formatado) para o rodapé. */
+  legal_name?: string | null
+  cnpj?: string | null
+  /** Perfil sem @. */
+  instagram?: string | null
+  /** Só dígitos, com 55. */
+  whatsapp?: string | null
   branches: BranchStatus[]
   /** Formas aceitas; Pix e cartão pelo site só aparecem com o Mercado Pago conectado. */
   payment_methods?: { method: 'cash' | 'card_on_delivery' | 'pix' | 'online_card'; label: string; online: boolean }[]
@@ -242,7 +251,20 @@ export interface BranchHours {
   exceptions: ScheduleException[]
   status: { open: boolean; closes_at: string | null; next_opening_at: string | null }
 }
-export interface TenantSettings { name: string; slug: string; timezone: string; description: string | null; brand_color: string | null }
+export interface TenantSettings {
+  name: string
+  slug: string
+  timezone: string
+  description: string | null
+  brand_color: string | null
+  logo_url: string | null
+  cover_url: string | null
+  legal_name: string | null
+  cnpj: string | null
+  instagram: string | null
+  whatsapp: string | null
+}
+export type TenantSettingsInput = Partial<Pick<TenantSettings, 'description' | 'brand_color' | 'legal_name' | 'cnpj' | 'instagram' | 'whatsapp'>>
 export interface Paginated<T> { data: T[]; meta: { next_cursor: string | null; prev_cursor: string | null; per_page: number } }
 
 const m = '/merchant'
@@ -293,6 +315,10 @@ export const catalogApi = {
     request<Data<BranchHours>>(`${m}/branches/${enc(branch)}/hours`, { method: 'PUT', body }).then((r) => r.data),
 
   settings: () => request<Data<TenantSettings>>(`${m}/settings`).then((r) => r.data),
-  saveSettings: (body: { description?: string | null; brand_color?: string | null }) =>
+  saveSettings: (body: TenantSettingsInput) =>
     request<Data<TenantSettings>>(`${m}/settings`, { method: 'PATCH', body }).then((r) => r.data),
+  uploadBrandImage: (kind: 'logo' | 'cover', file: File) =>
+    request<Data<TenantSettings>>(`${m}/settings/${kind}`, { method: 'POST', form: { image: file } }).then((r) => r.data),
+  deleteBrandImage: (kind: 'logo' | 'cover') =>
+    request<Data<TenantSettings>>(`${m}/settings/${kind}`, { method: 'DELETE' }).then((r) => r.data),
 }

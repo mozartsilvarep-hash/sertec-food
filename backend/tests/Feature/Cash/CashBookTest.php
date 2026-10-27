@@ -87,7 +87,7 @@ it('resumo do período, histórico de caixas e CSV seguro (gerência)', function
     cash($this, 'post', 'entries', ['category' => 'bills', 'method' => 'pix', 'amount' => '12,30', 'description' => 'Luz'])->assertCreated();
     cash($this, 'post', "session/{$s}/close", ['counted_amount' => '50'])->assertOk();
 
-    $sum = cash($this, 'get', 'summary?from='.now()->format('Y-m-d'))->assertOk()->json('data');
+    $sum = cash($this, 'get', 'summary?from='.now($this->a->timezone)->format('Y-m-d'))->assertOk()->json('data');
     expect($sum)->toMatchArray(['in' => '40.00', 'out' => '12.30', 'balance' => '27.70'])
         ->and(collect($sum['by_category'])->pluck('label')->all())->toBe(['Venda no balcão', 'Contas (água, luz, aluguel…)'])
         ->and($sum['by_day'][0])->toMatchArray(['in' => '40.00', 'out' => '12.30']);
