@@ -120,6 +120,12 @@ final class OrderTransitions
 
         $locked->save();
 
+        if ($isCancel && $locked->isPos() && $locked->payment_status === PaymentStatus::Paid) {
+            // Venda do PDV cancelada: o dinheiro volta ao cliente (saída no caixa).
+            app(CashBook::class)->recordPosCancel($locked, $actor);
+            $locked->forceFill(['payment_status' => PaymentStatus::Refunded])->save();
+        }
+
         if ($next === OrderStatus::Completed) {
             // Livro-caixa: pedido concluído entra sozinho (uma vez só).
             app(CashBook::class)->recordOrder($locked);

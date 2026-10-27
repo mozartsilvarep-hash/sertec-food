@@ -12,12 +12,13 @@ const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const manage = can('catalog.manage')
 
-type Form = ProductInput & { variants: VariantInput[]; available_days: number[]; available_from: string; available_until: string; combo_slots: ComboSlot[] }
+type Form = ProductInput & { variants: VariantInput[]; available_days: number[]; available_from: string; available_until: string; combo_slots: ComboSlot[]; code: string; pos_favorite: boolean }
 const form = reactive<Form>({
   name: '', description: '', active: true,
   variants: [{ name: 'Único', price: '' }],
   option_group_ids: [], category_ids: [],
   kind: 'item', available_days: [], available_from: '', available_until: '', combo_slots: [],
+  code: '', pos_favorite: false,
 })
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 // Produtos que podem entrar num combo (não combos, não o próprio).
@@ -87,6 +88,8 @@ function applyProduct(p: Product) {
     available_from: p.available_from ?? '',
     available_until: p.available_until ?? '',
     combo_slots: (p.combo_slots ?? []).map((c) => ({ ...c, product_ids: [...c.product_ids] })),
+    code: p.code ?? '',
+    pos_favorite: p.pos_favorite ?? false,
   })
   imageUrl.value = p.image_url
 }
@@ -121,6 +124,7 @@ async function save() {
     available_from: form.available_from || null,
     available_until: form.available_until || null,
     combo_slots: isCombo.value ? form.combo_slots.map((c) => ({ ...c, quantity: Number(c.quantity) || 1 })) : null,
+    code: form.code.trim() || null,
   }
   try {
     const saved = props.id ? await catalogApi.updateProduct(props.id, payload) : await catalogApi.createProduct(payload)
@@ -185,6 +189,15 @@ onMounted(load)
       <STextField v-model="form.name" label="Nome" required :error="fieldError('name')" />
       <STextArea v-model="form.description as string" label="Descrição" :maxlength="2000" hint="Ingredientes, tamanho da porção, quantas pessoas serve." />
       <SSwitch v-model="form.active" label="Visível no cardápio" />
+    </section>
+
+    <section class="grid gap-3" aria-labelledby="h-pdv">
+      <h2 id="h-pdv" class="font-semibold">No PDV (caixa)</h2>
+      <div class="grid gap-4 sm:grid-cols-[12rem_1fr] sm:items-end">
+        <STextField v-model="form.code" label="Código" placeholder="Ex.: 12 ou COCA" :error="fieldError('code')" />
+        <SSwitch v-model="form.pos_favorite" label="Botão grande na venda rápida" />
+      </div>
+      <p class="text-sm text-muted">Digite o código no PDV para lançar o produto sem procurar.</p>
     </section>
 
     <fieldset class="grid gap-2">

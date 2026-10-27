@@ -39,7 +39,7 @@ class CheckoutRequest extends FormRequest
             }],
             // O Mercado Pago exige e-mail do pagador no Pix.
             'customer.email' => [Rule::requiredIf(fn () => $this->input('payment.method') === PaymentMethod::Pix->value), 'nullable', 'email', 'max:191'],
-            'fulfillment.type' => ['required', Rule::enum(FulfillmentType::class)],
+            'fulfillment.type' => ['required', Rule::enum(FulfillmentType::class)->except([FulfillmentType::Counter])],
             'fulfillment.zone_id' => [Rule::requiredIf($delivery), 'nullable', 'string', 'size:26'],
             'fulfillment.use_saved_address' => ['sometimes', 'boolean'],
             'fulfillment.address' => ['nullable', 'array'],
@@ -48,7 +48,7 @@ class CheckoutRequest extends FormRequest
             'fulfillment.address.complement' => ['nullable', 'string', 'max:80'],
             'fulfillment.address.neighborhood' => [Rule::requiredIf($typed), 'nullable', 'string', 'max:80'],
             'fulfillment.address.reference' => ['nullable', 'string', 'max:150'],
-            'payment.method' => ['required', Rule::enum(PaymentMethod::class)],
+            'payment.method' => ['required', Rule::enum(PaymentMethod::class)->except([PaymentMethod::Pos])],
             'payment.change_for' => ['nullable', 'string', ProductRequest::MONEY],
             'coupon' => ['nullable', 'string', 'max:30'],
             // Usar o prêmio do cartão fidelidade deste celular.

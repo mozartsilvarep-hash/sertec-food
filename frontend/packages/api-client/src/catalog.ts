@@ -177,6 +177,9 @@ export interface Product {
   description: string | null
   image_url: string | null
   thumb_url?: string | null
+  /** PDV: código curto e botão de favorito. */
+  code?: string | null
+  pos_favorite?: boolean
   active: boolean
   variants: (VariantInput & { id: string; active: boolean })[]
   option_group_ids: string[]
@@ -209,6 +212,8 @@ export interface ProductInput {
   available_from?: string | null
   available_until?: string | null
   combo_slots?: ComboSlot[] | null
+  code?: string | null
+  pos_favorite?: boolean
 }
 export interface OptionInput {
   id?: string | null

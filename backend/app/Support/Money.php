@@ -31,6 +31,12 @@ final class Money
         return $sign.intdiv($abs, 100).'.'.str_pad((string) ($abs % 100), 2, '0', STR_PAD_LEFT);
     }
 
+    /** "R$ 1.234,56" para mensagens. */
+    public static function br(int $cents): string
+    {
+        return 'R$ '.number_format($cents / 100, 2, ',', '.');
+    }
+
     /**
      * Média com arredondamento "meio para cima" no centavo.
      *

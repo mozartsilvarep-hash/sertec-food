@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Cash\Http\Controllers\CashController;
+use App\Modules\Cash\Http\Controllers\PosController;
 use App\Modules\Catalog\Http\Controllers\AvailabilityController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\MenuController;
@@ -238,6 +239,10 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::post('entries', [CashController::class, 'entry'])->name('entries.store');
                 Route::post('sales', [CashController::class, 'sale'])->name('sales.store');
                 Route::get('entries', [CashController::class, 'entries'])->name('entries.index');
+                // PDV (Sprint 14).
+                Route::get('pos/catalog', [PosController::class, 'catalog'])->name('pos.catalog');
+                Route::get('pos/customer', [PosController::class, 'customer'])->middleware('throttle:phone-lookup')->name('pos.customer');
+                Route::post('pos/sales', [PosController::class, 'sale'])->name('pos.sales.store');
             });
             Route::middleware('permission:'.P::CASH_MANAGE)->group(function () {
                 Route::post('entries/{entry}/void', [CashController::class, 'void'])->name('entries.void');

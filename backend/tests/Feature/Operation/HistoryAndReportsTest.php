@@ -79,7 +79,7 @@ it('resumo: faturamento só de concluídos, por forma de pagamento, ticket médi
         ->assertJsonCount(1, 'data.top_products')
         ->assertJsonPath('data.by_day.0', ['date' => now('America/Sao_Paulo')->toDateString(), 'orders' => 2, 'revenue' => '120.00'])
         ->assertJsonPath('data.by_hour.0.orders', 2)
-        ->assertJsonPath('data.by_fulfillment', ['delivery' => 0, 'pickup' => 2]);
+        ->assertJsonPath('data.by_fulfillment', ['delivery' => 0, 'pickup' => 2, 'counter' => 0]);
 });
 
 it('CSV: separador ;, BOM, valores com vírgula, fórmulas neutralizadas e sem telefone; exportação auditada', function () {

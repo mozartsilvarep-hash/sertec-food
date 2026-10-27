@@ -101,3 +101,57 @@ export const cashApi = {
   sessions: (branch: string | null) => request<Data<CashSession[]>>(`/merchant/cash/sessions${filterQuery({ branch })}`).then((r) => r.data),
   csvUrl: (filter: CashFilter) => `/api/v1/merchant/cash/entries.csv${filterQuery({ ...filter })}`,
 }
+
+/* ---------- PDV (Sprint 14) ---------- */
+
+export type PosMethod = 'cash' | 'pix' | 'debit' | 'credit' | 'other'
+
+export interface PosCatalog {
+  branch_id: string
+  menus: import('./catalog').PublicMenu[]
+  /** id do produto → código e favorito. */
+  products: Record<string, { code: string | null; favorite: boolean; quick_variant: string | null }>
+  /** Mais vendidos nos últimos 30 dias (ids). */
+  top: string[]
+  methods: { method: PosMethod; label: string }[]
+}
+
+export interface PosLine {
+  product_id?: string
+  variant_id?: string
+  options?: { option: string; quantity: number }[]
+  description?: string
+  unit_price?: string
+  quantity: number
+  notes?: string | null
+}
+
+export interface PosSalePayload {
+  branch?: string | null
+  items: PosLine[]
+  customer?: { name?: string | null; phone?: string | null } | null
+  use_loyalty?: boolean
+  discount?: { type: 'amount' | 'percent'; value: string } | null
+  service_percent?: number | null
+  payments: { method: PosMethod; amount: string }[]
+  cash_received?: string | null
+  send_to_kitchen?: boolean
+  notes?: string | null
+}
+
+export interface PosSaleResult { order_id: string; order_number: number; status: string; total: string; change: string | null }
+
+export interface PosCustomer {
+  phone: string
+  name: string | null
+  loyalty: import('./catalog').LoyaltyStatus | null
+}
+
+export const posApi = {
+  catalog: (branch?: string | null) =>
+    request<Data<PosCatalog>>(`/merchant/cash/pos/catalog${filterQuery({ branch })}`).then((r) => r.data),
+  customer: (phone: string) =>
+    request<Data<PosCustomer>>(`/merchant/cash/pos/customer?phone=${enc(phone)}`).then((r) => r.data),
+  sale: (payload: PosSalePayload, idempotencyKey: string) =>
+    request<Data<PosSaleResult>>('/merchant/cash/pos/sales', { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
+}

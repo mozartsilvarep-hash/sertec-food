@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $tenant_id
  * @property string $name
  * @property string|null $description
+ * @property string|null $code
+ * @property bool $pos_favorite
  * @property string|null $image_key
  * @property bool $active
  * @property string $kind item | combo
@@ -34,7 +36,7 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use BelongsToTenant, HasFactory, HasUlids, SoftDeletes;
 
-    protected $fillable = ['tenant_id', 'name', 'description', 'active', 'kind', 'available_days', 'available_from', 'available_until'];
+    protected $fillable = ['tenant_id', 'name', 'description', 'active', 'kind', 'available_days', 'available_from', 'available_until', 'pos_favorite'];
 
     public const KIND_ITEM = 'item';
 
@@ -53,7 +55,7 @@ class Product extends Model
 
     protected function casts(): array
     {
-        return ['active' => 'boolean', 'available_days' => 'array'];
+        return ['active' => 'boolean', 'available_days' => 'array', 'pos_favorite' => 'boolean'];
     }
 
     /** @return HasMany<ProductVariant, $this> */

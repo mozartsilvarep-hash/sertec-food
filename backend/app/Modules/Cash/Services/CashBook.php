@@ -116,6 +116,10 @@ final class CashBook
     /** Pedido concluído entra no caixa (uma única vez). */
     public function recordOrder(Order $order): void
     {
+        // Venda do PDV já entrou no caixa na hora do pagamento (uma linha por forma).
+        if ($order->isPos()) {
+            return;
+        }
         $source = 'order:'.$order->id;
         if (CashEntry::query()->where('source', $source)->exists()) {
             return;
@@ -146,6 +150,34 @@ final class CashBook
             $sale->branch, CashEntry::OUT, CashCategory::Refund, $sale->method, Money::toCents((string) $refund->amount),
             'Estorno do pedido nº '.$order->order_number, null, order: $order, source: $source,
         );
+    }
+
+    /** Venda do PDV: cada forma de pagamento vira uma entrada no caixa aberto. */
+    public function recordPosSale(Order $order, User $user): void
+    {
+        $order->loadMissing('branch', 'posPayments');
+        foreach ($order->posPayments as $i => $payment) {
+            $this->record(
+                $order->branch, CashEntry::IN, CashCategory::CounterSale, $payment->method, Money::toCents((string) $payment->amount),
+                'Venda nº '.$order->order_number, $user, order: $order, source: "pos:{$order->id}:{$i}",
+            );
+        }
+    }
+
+    /** Venda do PDV cancelada: devolve cada forma recebida (saída), uma vez só. */
+    public function recordPosCancel(Order $order, ?User $user): void
+    {
+        $order->loadMissing('branch', 'posPayments');
+        foreach ($order->posPayments as $i => $payment) {
+            $source = "pos-cancel:{$order->id}:{$i}";
+            if (CashEntry::query()->where('source', $source)->exists()) {
+                continue;
+            }
+            $this->record(
+                $order->branch, CashEntry::OUT, CashCategory::Refund, $payment->method, Money::toCents((string) $payment->amount),
+                'Cancelamento da venda nº '.$order->order_number, $user, order: $order, source: $source,
+            );
+        }
     }
 
     /**

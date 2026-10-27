@@ -447,3 +447,29 @@ Continua sem CSS por cliente: tudo vem de `--brand-*`. O painel oferece 9 tons p
 
 ### Nota técnica (testes)
 `withSession()` passou a enviar o cookie de sessão de verdade (`withCredentials`) e a zerar guard e contexto entre requisições. Antes, a sessão da requisição anterior "vazava" para a seguinte, o que mascarava testes que alternam painel SerTec e painel do restaurante. Os login helpers sempre começam uma sessão nova.
+
+## Decisões da Sprint 14 — PDV completo
+
+### D85 — Venda do PDV é um pedido
+A venda no balcão grava um `order`, com `channel=pos`, `fulfillment_type=counter`, `payment_method=pos` e `created_by` (quem vendeu). Por isso entra no histórico, nos relatórios, no "mais vendidos" e no cartão fidelidade.
+- **Preço:** os itens do cardápio passam pelo mesmo carrinho e calculadora do site (tamanhos, sabores, adicionais, promoções, "leve N, pague M"). Só o item avulso usa o valor digitado.
+- **Cozinha:** "Mandar para a cozinha" cria o pedido já aceito, que segue o fluxo normal até "Concluído". Sem essa opção, a venda nasce concluída.
+- **Cardápio online:** `counter` e `pos` são recusados no checkout do site, e `pos` não aparece nas formas de pagamento do cardápio.
+
+### D86 — Pagamento dividido, desconto e taxa
+- **Formas:** cada forma vai para `order_payments` (dinheiro, Pix, débito, crédito, outro). A soma precisa ser exatamente o total calculado pelo servidor; se não for, o erro 422 `sale_payment_mismatch` traz o total certo.
+- **Troco:** o dinheiro recebido acima da parte em dinheiro vira troco, guardado em `change_given`.
+- **Desconto do caixa:** em R$ ou %, sobre os itens já com promoção.
+- **Ordem de cálculo:** subtotal − promoções − desconto − prêmio da fidelidade + taxa de serviço (no máximo 20%). Cada parcela tem sua linha em `order_totals`.
+
+### D87 — Caixa e cancelamento
+- **Caixa:** o PDV só vende com o caixa da unidade aberto. Cada forma de pagamento entra no caixa na hora (`source pos:{pedido}:{n}`); o `recordOrder` ignora pedidos do PDV, para não contar duas vezes.
+- **Cancelamento:** cancelar uma venda do PDV lança uma saída "Estorno" por forma e marca o pagamento como devolvido.
+- **Clique duplo:** o `Idempotency-Key` obrigatório (prefixo `pos:`) garante que não vira duas vendas.
+
+### D88 — Venda rápida
+- **Produto:** ganhou `code`, único por restaurante, que o PDV lança ao digitar + Enter. Ganhou também `pos_favorite`.
+- **Botões da tela inicial:** favoritos marcados e os 12 mais vendidos nos últimos 30 dias.
+- **Um toque:** produto sem opções e com um só tamanho entra direto (`quick_variant`); os outros abrem a ficha com as mesmas regras do cardápio.
+- **Teclado:** F2 busca, F4 cobra, Enter fecha a venda concluída, Esc fecha janelas. Botão de tela cheia.
+- **Recibo:** recibo de 80/58 mm em `/pedidos/{id}/recibo`, com as formas, o troco, o atendente e o aviso "Não é documento fiscal".

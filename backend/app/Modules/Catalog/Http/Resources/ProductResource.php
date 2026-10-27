@@ -20,6 +20,8 @@ class ProductResource extends JsonResource
             'id' => $this->public_id,
             'name' => $this->name,
             'description' => $this->description,
+            'code' => $this->code,
+            'pos_favorite' => (bool) $this->pos_favorite,
             'image_url' => ProductImageStore::url($this->image_key),
             'thumb_url' => ProductImageStore::thumbUrl($this->image_key),
             'active' => $this->active,

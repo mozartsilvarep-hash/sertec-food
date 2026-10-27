@@ -2,7 +2,9 @@
 
 namespace App\Modules\Catalog\Http\Requests;
 
+use App\Modules\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ProductRequest extends FormRequest
 {
@@ -22,6 +24,10 @@ class ProductRequest extends FormRequest
         return [
             'name' => [$required, 'string', 'max:150'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            // PDV: código curto (único no restaurante) e botão de favorito.
+            'code' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('products', 'code')
+                ->where('tenant_id', app(TenantContext::class)->id())->ignore($this->route('product')?->id)],
+            'pos_favorite' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
             'variants' => [$required, 'array', 'min:1', 'max:20'],
             'variants.*.id' => ['sometimes', 'nullable', 'string', 'size:26'],
@@ -52,6 +58,7 @@ class ProductRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'code' => 'código',
             'available_from' => 'início do horário',
             'available_until' => 'fim do horário',
             'combo_slots.*.name' => 'nome do item do combo',
@@ -64,6 +71,8 @@ class ProductRequest extends FormRequest
     {
         return [
             'variants.*.price.regex' => 'Preço inválido: use o formato 12.50.',
+            'code.regex' => 'Use só letras, números e hífen no código.',
+            'code.unique' => 'Outro produto já usa este código.',
             'variants.min' => 'Informe ao menos um tamanho/preço.',
             'combo_slots.required_if' => 'Um combo precisa de ao menos um item (ex.: "2 bolos de pote").',
             'combo_slots.*.product_ids.required' => 'Escolha os produtos que podem entrar neste item do combo.',

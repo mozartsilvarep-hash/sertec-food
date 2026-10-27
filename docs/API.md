@@ -299,3 +299,15 @@ Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, re
   - `POST admin/tenants/{id}/billing/invoices` gera a cobrança agora.
 
 **Webhook:** `POST billing/webhooks/mercadopago`, só no host admin, assinado como o webhook dos restaurantes.
+
+## Implementado na Sprint 14 — PDV
+
+Rotas com `cash.operate` e o recurso `cashbook`.
+- `GET merchant/cash/pos/catalog?branch=`: `{menus, products: {id: {code, favorite, quick_variant}}, top[], methods[]}`.
+- `GET merchant/cash/pos/customer?phone=`: `{phone, name, loyalty}`.
+- `POST merchant/cash/pos/sales` (header `Idempotency-Key` obrigatório):
+  - corpo: `{branch, items[{product_id, variant_id, options[], quantity, notes} | {description, unit_price, quantity}], customer?{name, phone}, use_loyalty?, discount?{type: amount|percent, value}, service_percent?, payments[{method: cash|pix|debit|credit|other, amount}], cash_received?, send_to_kitchen?, notes?}`;
+  - resposta 201: `{order_id, order_number, status, total, change}`.
+- **Produto:** campos `code` (único) e `pos_favorite`.
+- **Pedido no painel:** campos `channel`, `pos_payments[]`, `change_given` e `seller`.
+- **Relatório:** as vendas do PDV aparecem por forma ("Balcão · Pix" etc.).

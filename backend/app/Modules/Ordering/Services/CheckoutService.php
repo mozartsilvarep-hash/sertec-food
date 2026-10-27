@@ -182,7 +182,7 @@ final class CheckoutService
         $customer->fill(['name' => $customerData['name'], 'email' => $customerData['email'] ?? $customer->email, 'last_order_at' => $now]);
         $customer->save();
 
-        $number = $this->nextNumber($branch->id);
+        $number = self::nextNumber($branch->id);
         $trackingToken = bin2hex(random_bytes(20));
 
         $order = Order::query()->create([
@@ -210,7 +210,7 @@ final class CheckoutService
         ]);
 
         foreach ($cart->items as $item) {
-            $this->snapshotItem($order, $item, $view['quotes'][$item->id]);
+            self::snapshotItem($order, $item, $view['quotes'][$item->id]);
         }
 
         $lines = [
@@ -264,7 +264,7 @@ final class CheckoutService
         return ['status' => 201, 'body' => $body, 'payment' => $payment];
     }
 
-    private function snapshotItem(Order $order, CartItem $item, PriceQuote $quote): void
+    public static function snapshotItem(Order $order, CartItem $item, PriceQuote $quote): void
     {
         $orderItem = OrderItem::query()->create([
             'order_id' => $order->id,
@@ -290,7 +290,7 @@ final class CheckoutService
         }
     }
 
-    private function nextNumber(int $branchId): int
+    public static function nextNumber(int $branchId): int
     {
         OrderSequence::query()->firstOrCreate(['branch_id' => $branchId], ['last_number' => 0]);
 

@@ -68,8 +68,8 @@ export interface CouponPreview {
 
 /* ---------- Checkout e acompanhamento (público) ---------- */
 
-export type FulfillmentType = 'pickup' | 'delivery'
-export type PaymentMethod = 'cash' | 'card_on_delivery' | 'pix' | 'online_card'
+export type FulfillmentType = 'pickup' | 'delivery' | 'counter'
+export type PaymentMethod = 'cash' | 'card_on_delivery' | 'pix' | 'online_card' | 'pos'
 
 export interface CheckoutPayload {
   /** Anti-spam (campo invisível): só robôs preenchem. */
@@ -217,6 +217,11 @@ export interface MerchantOrder {
   totals?: { code: string; label: string; amount: string }[]
   history?: { from: string | null; to: string; label: string; note: string | null; at: string }[]
   online_payment?: MerchantOnlinePayment | null
+  /** online = cardápio; pos = PDV. */
+  channel?: 'online' | 'pos'
+  change_given?: string | null
+  pos_payments?: { method: string; label: string; amount: string }[]
+  seller?: string | null
 }
 
 export interface MerchantOnlinePayment {
@@ -299,7 +304,7 @@ export interface ReportSummary {
   top_products?: { name: string; quantity: number; total: string }[]
   by_day?: { date: string; orders: number; revenue: string }[]
   by_hour?: { hour: number; orders: number }[]
-  by_fulfillment?: { delivery: number; pickup: number }
+  by_fulfillment?: { delivery: number; pickup: number; counter?: number }
 }
 
 export interface AuditEntry {

@@ -10,7 +10,9 @@ import { readPref, writePref } from '../storage'
  * Comanda para impressora térmica (58 ou 80 mm). Para imprimir sem a janela
  * de confirmação, use o Chrome com --kiosk-printing e a térmica como padrão.
  */
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ id: string; kind?: 'ticket' | 'receipt' }>()
+const receipt = computed(() => props.kind === 'receipt')
+const FULFILLMENT: Record<string, string> = { delivery: 'Entrega', pickup: 'Retirada', counter: 'Balcão' }
 const router = useRouter()
 const order = ref<MerchantOrder | null>(null)
 const failed = ref(false)
@@ -49,18 +51,18 @@ onMounted(async () => {
     <SPageState v-if="failed" state="error" title="Pedido não encontrado" />
     <SPageState v-else-if="!order" state="loading" />
 
-    <article v-else class="ticket mx-auto bg-white font-mono text-black shadow print:shadow-none" :class="width === '58' ? 'w-[58mm] text-[11px]' : 'w-[80mm] text-[12px]'" aria-label="Comanda">
+    <article v-else class="ticket mx-auto bg-white font-mono text-black shadow print:shadow-none" :class="width === '58' ? 'w-[58mm] text-[11px]' : 'w-[80mm] text-[12px]'" :aria-label="receipt ? 'Recibo' : 'Comanda'">
       <header class="border-b border-dashed border-black pb-2 text-center">
         <p class="text-[1.15em] font-bold">{{ me?.tenant.name }}</p>
         <p>{{ order.branch.name }}</p>
         <p class="mt-1 text-[2em] leading-none font-bold">#{{ order.number }}</p>
-        <p class="font-bold uppercase">{{ order.fulfillment_type === 'delivery' ? 'Entrega' : 'Retirada' }}</p>
+        <p class="font-bold uppercase">{{ receipt ? 'Recibo de venda' : FULFILLMENT[order.fulfillment_type] }}</p>
         <p>{{ formatDateTime(order.placed_at, tz) }}</p>
       </header>
 
-      <section class="border-b border-dashed border-black py-2">
+      <section v-if="!(receipt && order.customer.name === 'Cliente balcão')" class="border-b border-dashed border-black py-2">
         <p class="font-bold">{{ order.customer.name }}</p>
-        <p>{{ order.customer.phone }}</p>
+        <p v-if="order.customer.phone">{{ order.customer.phone }}</p>
         <template v-if="order.fulfillment_type === 'delivery' && order.address">
           <p>{{ order.address.street }}, {{ order.address.number }}<template v-if="order.address.complement"> - {{ order.address.complement }}</template></p>
           <p>{{ order.address.neighborhood }}</p>
@@ -70,7 +72,7 @@ onMounted(async () => {
 
       <section class="border-b border-dashed border-black py-2">
         <div v-for="(item, i) in order.items ?? []" :key="i" class="mb-1.5">
-          <p class="flex justify-between gap-2 font-bold"><span class="min-w-0">{{ item.quantity }}x {{ item.name }}<template v-if="item.variant !== 'Única' && item.variant !== 'Único'"> ({{ item.variant }})</template></span><span class="shrink-0 whitespace-nowrap">{{ formatMoney(item.line_total) }}</span></p>
+          <p class="flex justify-between gap-2 font-bold"><span class="min-w-0">{{ item.quantity }}x {{ item.name }}<template v-if="item.variant && item.variant !== 'Única' && item.variant !== 'Único'"> ({{ item.variant }})</template></span><span class="shrink-0 whitespace-nowrap">{{ formatMoney(item.line_total) }}</span></p>
           <p v-for="(opt, j) in item.options" :key="j" class="pl-3">- {{ opt.quantity > 1 ? `${opt.quantity}x ` : '' }}{{ opt.name }}</p>
           <p v-if="item.notes" class="pl-3 font-bold">OBS: {{ item.notes }}</p>
         </div>
@@ -81,11 +83,20 @@ onMounted(async () => {
       </section>
 
       <section class="py-2">
-        <p class="font-bold">Pagamento: {{ order.payment_method_label }}</p>
+        <template v-if="order.pos_payments?.length">
+          <p v-for="(p, i) in order.pos_payments" :key="i" class="flex justify-between font-bold"><span>{{ p.label }}</span><span>{{ formatMoney(p.amount) }}</span></p>
+          <p v-if="order.change_given && Number(order.change_given) > 0" class="flex justify-between"><span>Troco</span><span>{{ formatMoney(order.change_given) }}</span></p>
+          <p v-if="order.seller" class="mt-1">Atendente: {{ order.seller }}</p>
+        </template>
+        <p v-else class="font-bold">Pagamento: {{ order.payment_method_label }}</p>
         <p v-if="order.online_payment?.status === 'approved'" class="font-bold">*** PAGO PELO SITE ***</p>
         <p v-if="order.change_for">Troco para {{ formatMoney(order.change_for) }}</p>
         <p v-if="order.notes" class="mt-1 font-bold">OBS DO PEDIDO: {{ order.notes }}</p>
       </section>
+      <footer v-if="receipt" class="border-t border-dashed border-black pt-2 text-center">
+        <p>Obrigado pela preferência!</p>
+        <p class="mt-1 text-[0.9em]">Não é documento fiscal</p>
+      </footer>
     </article>
   </div>
 </template>

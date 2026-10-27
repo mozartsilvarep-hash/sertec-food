@@ -63,7 +63,7 @@ class MerchantOrderController
     {
         $this->guard($request, $order, $access);
 
-        return new MerchantOrderResource($order->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds']));
+        return new MerchantOrderResource($order->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds', 'posPayments', 'seller']));
     }
 
     public function updateStatus(Request $request, Order $order, TenantAccess $access, OrderTransitions $transitions): MerchantOrderResource
@@ -86,7 +86,7 @@ class MerchantOrderController
             $data['note'] ?? null,
         );
 
-        return new MerchantOrderResource($updated->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds']));
+        return new MerchantOrderResource($updated->load(['branch', 'items.options', 'totals', 'history', 'payments.refunds', 'posPayments', 'seller']));
     }
 
     private function guard(Request $request, Order $order, TenantAccess $access): void

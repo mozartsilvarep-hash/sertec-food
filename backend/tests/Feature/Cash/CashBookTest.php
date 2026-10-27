@@ -2,25 +2,10 @@
 
 use App\Modules\Cash\Models\CashEntry;
 use App\Modules\Identity\Models\Role;
-use App\Modules\Platform\Models\Plan;
-use App\Modules\Platform\Models\Subscription;
-use Database\Seeders\PlanSeeder;
 use Tests\Support\CatalogFixture;
 use Tests\Support\FakeMercadoPago;
 use Tests\Support\Pay;
 use Tests\Support\Shop;
-
-function withCashbook($tenant, bool $enabled = true): void
-{
-    if (! Plan::query()->where('slug', 'cardapio')->exists()) {
-        (new PlanSeeder)->run();
-    }
-    $plan = Plan::query()->where('slug', 'cardapio')->first();
-    if (! $enabled) {
-        $plan = Plan::query()->create(['slug' => 'sem-caixa', 'name' => 'Sem caixa', 'monthly_price' => '0.00', 'features_json' => ['cashbook' => false], 'active' => true]);
-    }
-    inTenant($tenant, fn () => Subscription::query()->create(['plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE]));
-}
 
 beforeEach(function () {
     $this->a = makeTenant('tenant-a');
