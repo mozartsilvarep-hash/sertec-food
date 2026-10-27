@@ -6,6 +6,7 @@ import {
 import { SAlert, SButton, SPageState } from '@sertec/ui'
 import { me } from '../session'
 import { STATUS_LABEL, STATUS_TONE } from '../labels'
+import TenantBilling from '../components/TenantBilling.vue'
 
 const props = defineProps<{ id: string }>()
 const tenant = ref<AdminTenant | null>(null)
@@ -13,7 +14,6 @@ const failed = ref(false)
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
 const ok = ref<string | null>(null)
-const plans = ref<{ slug: string; name: string }[]>([])
 const newPassword = ref<{ email: string; password: string } | null>(null)
 const confirmReset = ref(false)
 const hostname = ref('')
@@ -47,8 +47,6 @@ async function act(key: string, fn: () => Promise<unknown>, success?: string) {
 const setStatus = (status: TenantStatus) =>
   act(`status-${status}`, async () => { tenant.value = await adminTenantsApi.update(props.id, { status }) }, `Situação: ${STATUS_LABEL[status]}`)
 
-const setPlan = (plan: string) =>
-  act('plan', async () => { tenant.value = await adminTenantsApi.update(props.id, { plan: plan || null }) }, 'Plano atualizado')
 
 async function resetPassword() {
   if (!confirmReset.value) {
@@ -79,7 +77,6 @@ const removeDomain = (domainId: string) =>
 
 onMounted(async () => {
   await load()
-  plans.value = await adminTenantsApi.plans().catch(() => [])
 })
 </script>
 
@@ -120,12 +117,7 @@ onMounted(async () => {
             <SButton v-if="tenant.status !== 'active' && tenant.status !== 'cancelled'" :loading="busy === 'status-active'" @click="setStatus('active')">Ativar</SButton>
             <SButton v-if="tenant.status === 'active'" variant="secondary" :loading="busy === 'status-suspended'" @click="setStatus('suspended')">Suspender</SButton>
           </div>
-          <label class="mb-5 grid gap-1.5 text-sm font-medium">Plano
-            <select :value="tenant.plan ?? ''" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3" @change="setPlan(($event.target as HTMLSelectElement).value)">
-              <option value="">Sem plano</option>
-              <option v-for="p in plans" :key="p.slug" :value="p.slug">{{ p.name }}</option>
-            </select>
-          </label>
+          <p class="mb-5 text-sm text-muted">Plano, período e valor ficam em “Mensalidade”, abaixo.</p>
           <p class="mb-2 text-sm text-muted">Acesso do proprietário</p>
           <SButton variant="secondary" :loading="busy === 'reset'" @click="resetPassword">{{ confirmReset ? 'Confirmar: gerar nova senha' : 'Gerar nova senha do proprietário' }}</SButton>
           <p v-if="confirmReset" class="mt-2 text-sm text-danger">A senha atual deixa de funcionar e as sessões abertas são encerradas.</p>
@@ -136,6 +128,8 @@ onMounted(async () => {
         </template>
         <p v-else class="text-sm text-muted">Somente administradores alteram estabelecimentos.</p>
       </section>
+
+      <TenantBilling :tenant-id="tenant.id" :superadmin="superadmin" @changed="load" />
 
       <section class="rounded-(--radius-card) border border-line bg-surface p-5 lg:col-span-2" aria-labelledby="h-dominios">
         <h2 id="h-dominios" class="mb-3 font-semibold">Domínios</h2>

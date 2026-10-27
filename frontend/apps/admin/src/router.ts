@@ -16,6 +16,7 @@ export const router = createRouter({
         { path: 'novo', name: 'tenant-new', component: () => import('./pages/TenantNewPage.vue') },
         { path: 'estabelecimentos/:id', name: 'tenant', component: () => import('./pages/TenantPage.vue'), props: true },
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
+        { path: 'cobranca', name: 'billing', component: () => import('./pages/BillingPage.vue') },
         { path: 'sistema', name: 'system', component: () => import('./pages/SystemPage.vue') },
       ],
     },

@@ -6,6 +6,8 @@ export interface MerchantMe {
   roles: string[]
   permissions: string[]
   all_branches: boolean
+  /** Mensalidade SerTec perto do vencimento ou atrasada (só para o proprietário). */
+  billing?: { invoice_id: string; due_date: string; amount: string; overdue: boolean } | null
 }
 
 export interface Branch {

@@ -138,13 +138,18 @@ class AdminTenantController
         $tenant->save();
 
         if (array_key_exists('plan', $data)) {
-            $current = Subscription::query()->where('tenant_id', $tenant->id)->where('status', Subscription::STATUS_ACTIVE)->first();
+            $current = Subscription::query()->where('tenant_id', $tenant->id)
+                ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_PAST_DUE, Subscription::STATUS_TRIALING])->latest('id')->first();
             $plan = $data['plan'] === null ? null : (Plan::query()->where('slug', $data['plan'])->first()
                 ?? throw new ApiException(422, 'plan_not_found', 'Plano não encontrado.'));
             if ($current?->plan_id !== $plan?->id) {
                 $current?->forceFill(['status' => Subscription::STATUS_CANCELLED])->save();
                 if ($plan !== null) {
-                    Subscription::query()->create(['tenant_id' => $tenant->id, 'plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE]);
+                    // Mantém o que já foi pago e o período de cobrança.
+                    Subscription::query()->create([
+                        'tenant_id' => $tenant->id, 'plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE,
+                        'billing_months' => $current->billing_months ?? 1, 'paid_until' => $current?->paid_until,
+                    ]);
                 }
                 $changes['plan'] = [$current?->plan->slug, $plan?->slug];
             }
@@ -185,7 +190,7 @@ class AdminTenantController
     public static function summary(Tenant $t): array
     {
         $primary = $t->domains->firstWhere('is_primary', true) ?? $t->domains->first();
-        $subscription = $t->subscriptions->firstWhere('status', Subscription::STATUS_ACTIVE);
+        $subscription = $t->subscriptions->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_PAST_DUE, Subscription::STATUS_TRIALING])->sortByDesc('id')->first();
 
         return [
             'id' => $t->public_id,
@@ -194,6 +199,8 @@ class AdminTenantController
             'status' => $t->status->value,
             'host' => $primary?->hostname,
             'plan' => $subscription?->plan->slug,
+            'billing_status' => $subscription?->status,
+            'paid_until' => $subscription?->paid_until?->toDateString(),
             'created_at' => $t->created_at?->toIso8601String(),
         ];
     }

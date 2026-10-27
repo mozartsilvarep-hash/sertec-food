@@ -15,7 +15,10 @@ use Illuminate\Support\Carbon;
  * @property int $tenant_id
  * @property int $plan_id
  * @property string $status
+ * @property int $billing_months
+ * @property string|null $price
  * @property Carbon|null $period_end
+ * @property Carbon|null $paid_until
  * @property-read Plan $plan
  */
 class Subscription extends Model
@@ -31,11 +34,11 @@ class Subscription extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
-    protected $fillable = ['tenant_id', 'plan_id', 'status', 'period_end'];
+    protected $fillable = ['tenant_id', 'plan_id', 'status', 'period_end', 'billing_months', 'price', 'paid_until'];
 
     protected function casts(): array
     {
-        return ['period_end' => 'datetime'];
+        return ['period_end' => 'datetime', 'paid_until' => 'date', 'price' => 'decimal:2', 'billing_months' => 'integer'];
     }
 
     /**
@@ -46,12 +49,24 @@ class Subscription extends Model
         return $this->belongsTo(Plan::class);
     }
 
+    /** Valor a cobrar por período; null = sem preço definido; "0.00" = cortesia. */
+    public function effectivePrice(): ?string
+    {
+        if ($this->price !== null) {
+            return number_format((float) $this->price, 2, '.', '');
+        }
+
+        return $this->plan->priceFor($this->billing_months);
+    }
+
     /**
      * @param  Builder<Subscription>  $query
      */
     public function scopeCurrent(Builder $query): void
     {
-        $query->whereIn('status', [self::STATUS_TRIALING, self::STATUS_ACTIVE])
+        // Mensalidade atrasada não corta o sistema sozinha: a SerTec suspende
+        // o estabelecimento manualmente se quiser (D83).
+        $query->whereIn('status', [self::STATUS_TRIALING, self::STATUS_ACTIVE, self::STATUS_PAST_DUE])
             ->where(fn (Builder $q) => $q->whereNull('period_end')->orWhere('period_end', '>', now()))
             ->latest('id');
     }

@@ -31,11 +31,15 @@ use App\Modules\Payments\Http\Controllers\RefundController;
 use App\Modules\Platform\Features\Feature;
 use App\Modules\Platform\Http\Controllers\AdminAuditController;
 use App\Modules\Platform\Http\Controllers\AdminAuthController;
+use App\Modules\Platform\Http\Controllers\AdminBillingController;
 use App\Modules\Platform\Http\Controllers\AdminDomainController;
 use App\Modules\Platform\Http\Controllers\AdminMailController;
+use App\Modules\Platform\Http\Controllers\AdminPlanController;
 use App\Modules\Platform\Http\Controllers\AdminTenantController;
+use App\Modules\Platform\Http\Controllers\BillingWebhookController;
 use App\Modules\Platform\Http\Controllers\HealthController;
 use App\Modules\Platform\Http\Controllers\MerchantAuditController;
+use App\Modules\Platform\Http\Controllers\MerchantBillingController;
 use App\Modules\Platform\Http\Controllers\TlsAskController;
 use App\Modules\Platform\Http\Middleware\AuditMutations;
 use App\Modules\Tenancy\Http\Controllers\BranchController;
@@ -243,6 +247,13 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
             });
         });
 
+        Route::middleware('permission:'.P::BILLING_MANAGE)->prefix('billing')->name('billing.')->group(function () {
+            Route::get('/', [MerchantBillingController::class, 'show'])->name('show');
+            Route::post('invoices/{invoice}/pix', [MerchantBillingController::class, 'pix'])
+                ->middleware('throttle:payment-actions')->name('invoices.pix');
+            Route::get('invoices/{invoice}', [MerchantBillingController::class, 'status'])->name('invoices.show');
+        });
+
         Route::middleware('permission:'.P::PAYMENTS_MANAGE)->group(function () {
             Route::get('payments/mercadopago', [PaymentSettingsController::class, 'show'])->name('payments.mercadopago.show');
             Route::put('payments/mercadopago', [PaymentSettingsController::class, 'update'])
@@ -276,12 +287,30 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
         Route::post('tenants/{tenant}/domains/{domain}/primary', [AdminDomainController::class, 'primary'])->name('tenants.domains.primary');
         Route::delete('tenants/{tenant}/domains/{domain}', [AdminDomainController::class, 'destroy'])->name('tenants.domains.destroy');
         Route::get('plans', [AdminTenantController::class, 'plans'])->name('plans.index');
+        // Cobrança SerTec (Sprint 13).
+        Route::get('billing/plans', [AdminPlanController::class, 'index'])->name('billing.plans.index');
+        Route::post('billing/plans', [AdminPlanController::class, 'store'])->name('billing.plans.store');
+        Route::patch('billing/plans/{plan}', [AdminPlanController::class, 'update'])->name('billing.plans.update');
+        Route::get('billing/settings', [AdminBillingController::class, 'settings'])->name('billing.settings');
+        Route::put('billing/settings', [AdminBillingController::class, 'saveSettings'])
+            ->middleware('throttle:payment-actions')->name('billing.settings.update');
+        Route::delete('billing/settings', [AdminBillingController::class, 'deleteSettings'])->name('billing.settings.destroy');
+        Route::get('billing/invoices', [AdminBillingController::class, 'invoices'])->name('billing.invoices');
+        Route::post('billing/invoices/{invoice}/pay', [AdminBillingController::class, 'payInvoice'])->name('billing.invoices.pay');
+        Route::post('billing/invoices/{invoice}/cancel', [AdminBillingController::class, 'cancelInvoice'])->name('billing.invoices.cancel');
+        Route::get('tenants/{tenant}/billing', [AdminBillingController::class, 'tenant'])->name('tenants.billing');
+        Route::put('tenants/{tenant}/billing', [AdminBillingController::class, 'updateTenant'])->name('tenants.billing.update');
+        Route::post('tenants/{tenant}/billing/invoices', [AdminBillingController::class, 'createInvoice'])->name('tenants.billing.invoices.store');
         Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
         Route::get('system/mail', [AdminMailController::class, 'show'])->name('system.mail');
         Route::post('system/mail/test', [AdminMailController::class, 'test'])
             ->middleware('throttle:payment-actions')->name('system.mail.test');
     });
 });
+
+// Webhook da conta Mercado Pago da SerTec (mensalidades) — host admin.
+Route::middleware(['platform.host', 'throttle:webhooks'])
+    ->post('billing/webhooks/mercadopago', BillingWebhookController::class)->name('billing.webhook');
 
 // Perguntado pelo Caddy antes de emitir certificado (on-demand TLS). A borda
 // bloqueia /api/v1/internal/* vindo de fora; só a rede interna alcança.
