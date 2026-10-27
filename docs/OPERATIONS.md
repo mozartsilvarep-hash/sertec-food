@@ -151,6 +151,40 @@ Dicas:
   - só é enviado a quem pode entrar naquele painel;
   - nunca fica gravado em log, fila ou banco (lá fica só o hash do token).
 
+## 6.3 Mensalidade dos restaurantes (cobrança SerTec)
+
+Os restaurantes pagam a mensalidade por Pix, direto na conta Mercado Pago da SerTec. O dinheiro não passa pela conta deles.
+
+**Configurar uma vez (Painel SerTec → Cobrança):**
+1. **Mercado Pago:**
+   - cole o **Access Token de produção** da conta da SerTec (Mercado Pago → Suas integrações → Credenciais de produção);
+   - o painel valida o token e guarda criptografado; depois mostra só os 4 últimos caracteres.
+2. **Webhook:**
+   - no Mercado Pago, cadastre o endereço mostrado na tela (`https://admin.../api/v1/billing/webhooks/mercadopago`), evento **Pagamentos**;
+   - cole a **assinatura secreta** no painel.
+   - Sem o webhook, a confirmação ainda acontece: pela tela do restaurante, que confere a cada poucos segundos, e pela rotina de hora em hora.
+3. **Planos:** defina o preço de cada período (mensal, trimestral, semestral, anual) e os recursos incluídos.
+   - Período vazio = não oferecido.
+   - Mudança de preço vale só para as próximas faturas.
+
+**Para cada restaurante** (Painel SerTec → estabelecimento → Mensalidade):
+- **Plano e período.** Em "Valor próprio", deixe vazio para usar o preço do plano, ou informe outro valor (`0` = cortesia, nunca cobra).
+- **Pago até:** use para registrar o que já foi pago antes do sistema. A próxima fatura começa no dia seguinte.
+- **Gerar cobrança agora:** cria a fatura sem esperar a rotina.
+
+**Como funciona sozinho** (`billing:run`, de hora em hora no scheduler):
+
+| Quando | O que acontece |
+|---|---|
+| 7 dias antes do fim do período pago | Gera a fatura do próximo período, com vencimento no primeiro dia dele. A primeira fatura de um restaurante vence em 5 dias. |
+| 3 dias antes do vencimento | E-mail "vence em breve" para o proprietário; faixa de aviso no painel do restaurante. |
+| No dia seguinte ao vencimento | E-mail "em atraso"; situação "Em atraso". |
+| Quando o Pix é pago | Baixa automática, "pago até" avança e o proprietário recebe o e-mail "pagamento confirmado". |
+
+- **Atraso não desliga nada sozinho.** Para suspender, use **Suspender** no estabelecimento: o cardápio fica fora do ar até reativar.
+- **Pagamento por fora** (transferência, dinheiro): em Cobrança → Faturas, use **Dar baixa** com uma observação.
+- **Conferir pela linha de comando:** `sf exec app php artisan billing:run`. Pode rodar quantas vezes quiser: não duplica fatura nem e-mail.
+
 ## 7. Backups
 
 O container `backup` roda `ops/backup.sh` todo dia às 03:30 de Maceió:

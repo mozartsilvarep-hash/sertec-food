@@ -51,6 +51,9 @@ final class Permissions
     /** Caixa: estornar lançamentos, relatórios e exportação. */
     public const CASH_MANAGE = 'cash.manage';
 
+    /** Ver e pagar a mensalidade da SerTec (só o proprietário). */
+    public const BILLING_MANAGE = 'billing.manage';
+
     /**
      * @return array<string, string> chave => descrição
      */
@@ -74,6 +77,7 @@ final class Permissions
             self::PAYMENTS_REFUND => 'Reembolsar pagamentos',
             self::CASH_OPERATE => 'Operar o caixa',
             self::CASH_MANAGE => 'Gerenciar o caixa e relatórios do caixa',
+            self::BILLING_MANAGE => 'Ver e pagar a mensalidade',
         ];
     }
 
@@ -88,7 +92,7 @@ final class Permissions
 
         return [
             Role::OWNER => ['name' => 'Proprietário', 'permissions' => $all],
-            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE, self::AUDIT_VIEW]))],
+            Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE, self::AUDIT_VIEW, self::BILLING_MANAGE]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
                 self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
                 self::CASH_OPERATE,

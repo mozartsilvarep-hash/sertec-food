@@ -279,3 +279,23 @@ Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, re
 - `GET storefront` → também `logo_url`, `cover_url`, `legal_name`, `cnpj` (formatado), `instagram` (sem @), `whatsapp` (dígitos com 55).
 - `PATCH merchant/settings` aceita `legal_name`, `cnpj` (validado; numérico ou alfanumérico), `instagram`, `whatsapp`.
 - `POST merchant/settings/{logo|cover}` (multipart `image`, JPG/PNG/WebP até 5 MB) e `DELETE merchant/settings/{logo|cover}`. Exigem `settings.update` e devolvem as configurações atualizadas.
+
+## Implementado na Sprint 13 — Cobrança da SerTec
+
+**Painel do restaurante** (`billing.manage`, só o proprietário):
+- `GET merchant/billing` devolve `{subscription, pix_available, invoices[]}` e gera a fatura do próximo período se já estiver na janela.
+- `POST merchant/billing/invoices/{id}/pix` devolve o Pix (código copia e cola, QR em base64, validade de 24 h). Reaproveita o Pix enquanto ele vale.
+- `GET merchant/billing/invoices/{id}` devolve a situação; com Pix pendente, confere no Mercado Pago (no máximo a cada 10 s).
+- `GET merchant/me` ganhou `billing: {invoice_id, due_date, amount, overdue}` quando a fatura vence em até 3 dias ou está atrasada.
+
+**Painel SerTec** (leitura para a equipe; escrita só superadmin):
+- **Planos:** `GET/POST admin/billing/plans` e `PATCH admin/billing/plans/{slug}`, com `{name, description, active, prices: {"1","3","6","12"}, features: {...}}`.
+- **Conta Mercado Pago da SerTec:** `GET/PUT/DELETE admin/billing/settings` (`{access_token, webhook_secret}`). O token nunca é devolvido.
+- **Faturas:**
+  - `GET admin/billing/invoices?status=open|overdue|paid|cancelled` devolve as faturas e os totais (em aberto, atrasado, recebido no mês);
+  - `POST admin/billing/invoices/{id}/pay|cancel` (`{note}`).
+- **Mensalidade de um restaurante:**
+  - `GET/PUT admin/tenants/{id}/billing` (`{plan, billing_months, price?, paid_until?}`);
+  - `POST admin/tenants/{id}/billing/invoices` gera a cobrança agora.
+
+**Webhook:** `POST billing/webhooks/mercadopago`, só no host admin, assinado como o webhook dos restaurantes.

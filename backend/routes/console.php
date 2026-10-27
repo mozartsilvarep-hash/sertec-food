@@ -11,3 +11,6 @@ Schedule::command('payments:reconcile')->everyMinute()->withoutOverlapping()->on
 
 // LGPD: retenção de dados pessoais de pedidos antigos (madrugada).
 Schedule::command('privacy:anonymize')->dailyAt('04:10')->withoutOverlapping()->onOneServer();
+
+// Mensalidade SerTec: faturas, conferência de Pix e avisos por e-mail (D82).
+Schedule::command('billing:run')->hourlyAt(17)->withoutOverlapping()->onOneServer();

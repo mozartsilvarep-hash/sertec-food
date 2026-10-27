@@ -7,8 +7,9 @@ use App\Modules\Platform\Models\Plan;
 use Illuminate\Database\Seeder;
 
 /**
- * Planos iniciais. PREÇOS em 0.00 de propósito: valores comerciais são
- * decisão da SerTec e devem ser definidos no painel/seed antes do piloto.
+ * Planos iniciais. Só CRIA os que faltam: preço, nome e recursos são
+ * editados no painel SerTec e nunca sobrescritos por um novo seed (D81).
+ * Recursos novos chegam aos planos existentes por migration.
  */
 class PlanSeeder extends Seeder
 {
@@ -31,9 +32,10 @@ class PlanSeeder extends Seeder
                 $features[$feature] = true;
             }
 
-            Plan::query()->updateOrCreate(['slug' => $slug], [
+            Plan::query()->firstOrCreate(['slug' => $slug], [
                 'name' => $plan['name'],
                 'monthly_price' => '0.00',
+                'prices_json' => ['1' => null, '3' => null, '6' => null, '12' => null],
                 'features_json' => $features,
                 'active' => true,
             ]);

@@ -412,3 +412,38 @@ A capa vira a prévia do link (og:image), com a foto de produto como alternativa
 - **Rodapé:** dados legais.
 
 Continua sem CSS por cliente: tudo vem de `--brand-*`. O painel oferece 9 tons prontos com contraste AA.
+
+## Decisões da Sprint 13 — Cobrança da SerTec
+
+### D81 — Planos editáveis e preço por período
+- **Preços:** `plans.prices_json` guarda o preço de cada período (`1`, `3`, `6`, `12` meses); período vazio = não oferecido. `monthly_price` continua igual ao preço mensal, para compatibilidade.
+- **Edição:** no Painel SerTec (só superadmin), com auditoria.
+- **Seed:** o `PlanSeeder` passou a só **criar** os planos que faltam (`firstOrCreate`). Rodar o seed num deploy nunca sobrescreve preço, nome ou recursos definidos no painel.
+
+### D82 — Assinatura, faturas e rotina
+- **Assinatura:** a `subscription` ganhou `billing_months`, `price` (null = preço do plano; `0.00` = cortesia) e `paid_until` (último dia pago, inclusive).
+- **Faturas:** cada período cobrado vira um `invoice` com `tenant_id` e `BelongsToTenant`. O `invoice` guarda nome do plano, valor, período e vencimento congelados no momento da criação.
+  - Um índice único (assinatura, início do período) impede fatura duplicada.
+- **Rotina `billing:run`** (de hora em hora, idempotente): entra no contexto de cada restaurante (`TenantContext::run`, sem modo plataforma) e faz três coisas:
+  - gera a fatura 7 dias antes do fim do período pago;
+  - confere Pix pendentes;
+  - envia os avisos "vence em breve" (3 dias antes) e "em atraso" (1 dia depois), cada um uma única vez (`reminded_*_at`).
+- **E-mails:** saem pela fila (`SendInvoiceNotice`, só ids na fila) para os proprietários ativos do restaurante.
+
+### D83 — Atraso não corta o sistema
+`past_due` passou a contar como assinatura vigente no `FeatureGate`. A suspensão é decisão manual da SerTec, pela situação do estabelecimento, que já tira o cardápio do ar. Isso evita derrubar a loja de um cliente por atraso de webhook ou erro de cadastro.
+
+### D84 — Pix na conta da SerTec
+- **Credenciais:** o token da SerTec fica em `platform_settings` (cast `encrypted:array`, oculto na serialização), cadastrado e validado no painel (`/users/me`, conta do Brasil). O painel nunca devolve o token; mostra só os 4 últimos caracteres.
+- **Gateway:** o `PaymentGateway` é reaproveitado com uma `IntegrationConnection` montada em memória, que nunca é gravada.
+- **Referência:** `sertec-fatura:{tenant}:{fatura}`. O webhook (`POST /api/v1/billing/webhooks/mercadopago`, só no host admin) segue o mesmo desenho do webhook dos restaurantes:
+  - assinatura HMAC conferida quando há segredo;
+  - caixa de entrada `billing_events` com deduplicação;
+  - processamento na fila (`ProcessBillingEvent`).
+- **Fonte do status:** sempre a API, nunca o corpo da notificação. A fatura é achada pela referência dentro do contexto do restaurante.
+- **Baixa:** exige `approved`, valor maior ou igual ao da fatura e o mesmo recebedor (`collector_id`).
+- **Concorrência:** a baixa trava fatura e assinatura (`lockForUpdate`), então Pix e baixa manual simultâneos dão baixa uma vez só.
+- **Permissão:** `billing.manage` (nova, só do proprietário) dá acesso à tela Assinatura do painel do restaurante.
+
+### Nota técnica (testes)
+`withSession()` passou a enviar o cookie de sessão de verdade (`withCredentials`) e a zerar guard e contexto entre requisições. Antes, a sessão da requisição anterior "vazava" para a seguinte, o que mascarava testes que alternam painel SerTec e painel do restaurante. Os login helpers sempre começam uma sessão nova.

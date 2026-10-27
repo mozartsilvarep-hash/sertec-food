@@ -42,8 +42,8 @@ Selos por celular (pedido concluído acima do mínimo), prêmio fixo ou percentu
 ## Sprint 12 — Marca e visual ✅ concluída (26/10/2026)
 Logo, capa, cor (com tons prontos), razão social, CNPJ, Instagram e WhatsApp da loja; cardápio redesenhado (topo com capa e logo, destaques, categorias que acompanham a rolagem, rodapé com dados legais).
 
-## Sprint 13 — Cobrança da SerTec (próxima)
-Planos com valor e período, vencimentos, e-mails de aviso (provedor a decidir) e pagamento da mensalidade por Pix na conta Mercado Pago da SerTec.
+## Sprint 13 — Cobrança da SerTec ✅ concluída (27/10/2026)
+Planos editáveis com preço por período e recursos; mensalidade por restaurante (valor próprio, cortesia, "pago até"); faturas automáticas; avisos por e-mail (vence em breve, em atraso, pago); Pix na conta Mercado Pago da SerTec com webhook e baixa automática; baixa manual; suspensão continua manual.
 
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.

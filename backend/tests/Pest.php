@@ -109,7 +109,8 @@ function adminUrl(string $path): string
  */
 function merchantLogin(Tenant $tenant, User $user, string $password = 'password'): string
 {
-    $response = test()->postJson(tenantUrl($tenant, 'merchant/auth/login'), [
+    // Sessão nova: não reaproveita o cookie de outro login do mesmo teste.
+    $response = test()->withCookie((string) config('session.cookie'), '')->postJson(tenantUrl($tenant, 'merchant/auth/login'), [
         'email' => $user->email,
         'password' => $password,
     ]);
@@ -120,7 +121,7 @@ function merchantLogin(Tenant $tenant, User $user, string $password = 'password'
 
 function adminLogin(User $user, string $password = 'password'): string
 {
-    $response = test()->postJson(adminUrl('admin/auth/login'), [
+    $response = test()->withCookie((string) config('session.cookie'), '')->postJson(adminUrl('admin/auth/login'), [
         'email' => $user->email,
         'password' => $password,
     ]);
@@ -144,6 +145,10 @@ function withSession(string $sessionId): TestCase
 {
     /** @var TestCase $test */
     $test = test();
+    // Cada requisição autentica de novo pelo cookie (como em produção): sem
+    // isto, o guard guardaria o usuário da requisição anterior do teste.
+    app('auth')->forgetGuards();
+    app(TenantContext::class)->clear();
 
-    return $test->withCookie((string) config('session.cookie'), $sessionId);
+    return $test->withCredentials()->withCookie((string) config('session.cookie'), $sessionId);
 }

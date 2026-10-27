@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { merchantApi } from '@sertec/api-client'
+import { formatDay, formatMoney, merchantApi } from '@sertec/api-client'
 import { SButton } from '@sertec/ui'
 import LiveBar from '../components/LiveBar.vue'
 import { startLive, stopLive } from '../live'
@@ -27,6 +27,7 @@ const links = computed(() => [
   { to: '/equipe', label: 'Equipe', show: can('staff.manage') },
   { to: '/privacidade', label: 'Privacidade (LGPD)', show: can('settings.update') },
   { to: '/auditoria', label: 'Auditoria', show: can('audit.view') },
+  { to: '/assinatura', label: 'Assinatura', show: can('billing.manage') },
   { to: '/minha-conta', label: 'Minha conta', show: true },
 ].filter((l) => l.show))
 
@@ -80,6 +81,18 @@ onBeforeUnmount(stopLive)
 
     <div class="min-w-0">
       <LiveBar v-if="live" />
+      <p
+        v-if="me?.billing && $route.name !== 'billing'"
+        class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm md:px-8"
+        :class="me.billing.overdue ? 'bg-danger text-white' : 'bg-warning/10 text-ink'"
+        role="status"
+      >
+        <span>
+          {{ me.billing.overdue ? 'Mensalidade em atraso' : 'Sua mensalidade vence em breve' }}:
+          <strong>{{ formatMoney(me.billing.amount) }}</strong>, vencimento {{ formatDay(me.billing.due_date) }}.
+        </span>
+        <RouterLink to="/assinatura" class="font-semibold underline underline-offset-2">Pagar com Pix</RouterLink>
+      </p>
       <main class="min-w-0 px-4 py-6 md:px-8 md:py-8">
         <RouterView />
       </main>
