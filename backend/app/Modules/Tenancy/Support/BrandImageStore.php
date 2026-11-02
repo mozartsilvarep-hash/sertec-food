@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Logo e capa da loja: mesmo reencode seguro das fotos de produto
+ * Logo, capa e padronagem da loja: mesmo reencode seguro das fotos de produto
  * (WebpEncoder), recortadas na proporção em que aparecem no cardápio.
  */
 final class BrandImageStore
@@ -20,6 +20,8 @@ final class BrandImageStore
     public const KINDS = [
         'logo' => ['column' => 'logo_key', 'min' => 120, 'max' => 512, 'ratio' => 1.0],
         'cover' => ['column' => 'cover_key', 'min' => 400, 'max' => 1600, 'ratio' => 2.5],
+        // Azulejo repetido no topo sem capa (ex.: cupcakes da confeitaria).
+        'pattern' => ['column' => 'pattern_key', 'min' => 120, 'max' => 600, 'ratio' => 1.0],
     ];
 
     public function store(Tenant $tenant, string $kind, UploadedFile $file): string

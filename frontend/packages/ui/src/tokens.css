@@ -2,13 +2,17 @@
  * Tokens de design SerTec Food (Tailwind v4).
  *
  * A marca de cada estabelecimento é aplicada em runtime sobrescrevendo as
- * variáveis --brand-* no <html> (ver applyBrand()). Nada de CSS por cliente.
+ * variáveis --brand-* (cor principal, applyBrand()) e --theme-* (fundo, texto,
+ * fontes e cantos, applyTheme()) no <html>. Nada de CSS por cliente: só valores
+ * fechados e validados no servidor (StoreTheme.php).
  * Padrões escolhidos com contraste AA para texto branco sobre --brand-600.
  */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--theme-font-body, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   /* Títulos: Bricolage Grotesque, servida pelo próprio app (sem Google Fonts). */
-  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--theme-font-display, "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif);
+  /* Assinatura (nome da loja em letra cursiva), só quando o tema define. */
+  --font-script: var(--theme-font-script, var(--theme-font-display, "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif));
 
   --color-brand-50: var(--brand-50, #fff7ed);
   --color-brand-100: var(--brand-100, #ffedd5);
@@ -17,18 +21,20 @@
   --color-brand-700: var(--brand-700, #9a3412);
   --color-brand-contrast: var(--brand-contrast, #ffffff);
 
-  --color-surface: #ffffff;
-  --color-canvas: #fafaf9;
-  --color-ink: #1c1917;
-  --color-muted: #57534e;
-  --color-line: #e7e5e4;
+  --color-surface: var(--theme-surface, #ffffff);
+  --color-canvas: var(--theme-canvas, #fafaf9);
+  --color-ink: var(--theme-ink, #1c1917);
+  --color-muted: var(--theme-muted, #57534e);
+  --color-line: var(--theme-line, #e7e5e4);
+  /* Cor de destaque do topo (sem capa); sem tema, a própria cor da marca. */
+  --color-accent: var(--theme-accent, var(--brand-600, #c2410c));
   --color-danger: #b91c1c;
   --color-danger-soft: #fef2f2;
   --color-success: #15803d;
   --color-warning: #a16207;
 
-  --radius-card: 0.875rem;
-  --radius-control: 0.625rem;
+  --radius-card: var(--theme-radius-card, 0.875rem);
+  --radius-control: var(--theme-radius-control, 0.625rem);
 }
 
 @layer base {
@@ -36,6 +42,11 @@
     color: var(--color-ink);
     background: var(--color-canvas);
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* Fonte de título com um único peso: sem negrito "falso" (ver applyTheme). */
+  html[data-display-single] .font-display {
+    font-synthesis-weight: none;
   }
 
   :focus-visible {

@@ -6,11 +6,14 @@ use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Tenancy\Support\BrandColor;
 use App\Modules\Tenancy\Support\BrandImageStore;
 use App\Modules\Tenancy\Support\Cnpj;
+use App\Modules\Tenancy\Support\SiteThemeImporter;
+use App\Modules\Tenancy\Support\StoreTheme;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Configurações visíveis do estabelecimento. Nome e slug são alterados
@@ -32,6 +35,8 @@ class SettingsController
                     $fail('Cor clara demais: o texto branco ficaria ilegível. Escolha um tom mais escuro.');
                 }
             }],
+            // Tema do cardápio: validado campo a campo em StoreTheme (cores, fontes, cantos, contraste).
+            'theme' => ['sometimes', 'nullable', 'array'],
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:150'],
             'cnpj' => ['sometimes', 'nullable', 'string', 'max:20', function (string $attribute, mixed $value, \Closure $fail) {
                 if (is_string($value) && ! Cnpj::isValid($value)) {
@@ -52,6 +57,18 @@ class SettingsController
             'instagram' => 'Instagram',
         ]);
 
+        if (array_key_exists('theme', $data)) {
+            if ($data['theme'] === null) {
+                $data['theme_json'] = null;
+            } else {
+                $parsed = StoreTheme::parse($data['theme']);
+                if ($parsed['errors'] !== []) {
+                    throw ValidationException::withMessages($parsed['errors']);
+                }
+                $data['theme_json'] = $parsed['theme'];
+            }
+            unset($data['theme']);
+        }
         if (isset($data['brand_color'])) {
             $data['brand_color'] = strtolower($data['brand_color']);
         }
@@ -70,6 +87,10 @@ class SettingsController
         }
 
         $tenant = $context->get();
+        if (array_key_exists('theme_json', $data)) {
+            $tenant->theme_json = $data['theme_json'];
+            unset($data['theme_json']);
+        }
         $tenant->fill($data)->save();
         Cache::forget("storefront-meta:{$tenant->id}");
         $audit->record('tenant.settings_updated', $tenant, ['fields' => array_keys($data)]);
@@ -77,7 +98,36 @@ class SettingsController
         return new JsonResponse(['data' => $this->present($context)]);
     }
 
-    /** POST merchant/settings/{logo|cover} — envia a imagem (multipart "image"). */
+    /**
+     * POST merchant/settings/theme/import — lê o tema.json de um site autorizado
+     * e devolve a proposta (cor principal + tema) para o painel mostrar na
+     * prévia. Nada é salvo aqui: quem salva é o PATCH, depois da revisão.
+     */
+    public function importTheme(Request $request, TenantContext $context, SiteThemeImporter $importer): JsonResponse
+    {
+        $data = $request->validate(['origin' => ['required', 'string', 'max:200']], [], ['origin' => 'site']);
+        $tenant = $context->get();
+        $site = StoreTheme::fromSiteContract($importer->fetch($data['origin'], $tenant->feed_origins_json ?? []));
+
+        $parsed = StoreTheme::parse($site['theme']);
+        $warnings = array_values($parsed['errors']);
+        $theme = $parsed['theme'];
+        // Campos em formato inválido já ficam de fora; problemas de contraste
+        // voltam como aviso, para ajustar na prévia antes de salvar.
+        $brand = $site['brand_color'];
+        if ($brand !== null && (! preg_match('/^#[0-9a-fA-F]{6}$/', $brand) || ! BrandColor::isAccessible($brand))) {
+            $warnings[] = 'A cor principal do site é clara demais para botões com texto branco; mantivemos a atual.';
+            $brand = null;
+        }
+
+        return new JsonResponse(['data' => [
+            'brand_color' => $brand === null ? null : strtolower($brand),
+            'theme' => $theme,
+            'warnings' => $warnings,
+        ]]);
+    }
+
+    /** POST merchant/settings/{logo|cover|pattern} — envia a imagem (multipart "image"). */
     public function uploadImage(Request $request, string $kind, TenantContext $context, BrandImageStore $images, AuditLogger $audit): JsonResponse
     {
         abort_unless(isset(BrandImageStore::KINDS[$kind]), 404);
@@ -116,6 +166,10 @@ class SettingsController
             'brand_color' => $tenant->brand_color,
             'logo_url' => BrandImageStore::url($tenant->logo_key),
             'cover_url' => BrandImageStore::url($tenant->cover_key),
+            'pattern_url' => BrandImageStore::url($tenant->pattern_key),
+            'theme' => StoreTheme::resolved($tenant->theme_json),
+            // Sites autorizados (Promoções › Vitrine): de onde dá para importar o tema.
+            'site_origins' => $tenant->feed_origins_json ?? [],
             'legal_name' => $tenant->legal_name,
             'cnpj' => $tenant->cnpj === null ? null : Cnpj::format($tenant->cnpj),
             'instagram' => $tenant->instagram,

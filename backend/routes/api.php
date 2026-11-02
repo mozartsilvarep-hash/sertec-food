@@ -135,8 +135,9 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
 
         Route::middleware('permission:'.P::SETTINGS_VIEW)->get('settings', [SettingsController::class, 'show'])->name('settings.show');
         Route::middleware('permission:'.P::SETTINGS_UPDATE)->patch('settings', [SettingsController::class, 'update'])->name('settings.update');
-        Route::middleware('permission:'.P::SETTINGS_UPDATE)->post('settings/{kind}', [SettingsController::class, 'uploadImage'])->whereIn('kind', ['logo', 'cover'])->name('settings.image.upload');
-        Route::middleware('permission:'.P::SETTINGS_UPDATE)->delete('settings/{kind}', [SettingsController::class, 'deleteImage'])->whereIn('kind', ['logo', 'cover'])->name('settings.image.delete');
+        Route::middleware('permission:'.P::SETTINGS_UPDATE)->post('settings/{kind}', [SettingsController::class, 'uploadImage'])->whereIn('kind', ['logo', 'cover', 'pattern'])->name('settings.image.upload');
+        Route::middleware('permission:'.P::SETTINGS_UPDATE)->delete('settings/{kind}', [SettingsController::class, 'deleteImage'])->whereIn('kind', ['logo', 'cover', 'pattern'])->name('settings.image.delete');
+        Route::middleware(['permission:'.P::SETTINGS_UPDATE, 'throttle:theme-import'])->post('settings/theme/import', [SettingsController::class, 'importTheme'])->name('settings.theme.import');
 
         // Catálogo — leitura
         Route::middleware('permission:'.P::CATALOG_VIEW)->group(function () {

@@ -9,6 +9,8 @@ use App\Modules\Platform\Domains\DnsResolver;
 use App\Modules\Platform\Domains\SystemDnsResolver;
 use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Tenancy\TenantContext;
+use App\Support\Http\PublicHostResolver;
+use App\Support\Http\SystemPublicHostResolver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(PaymentGateway::class, MercadoPagoGateway::class);
         $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
+        $this->app->bind(PublicHostResolver::class, SystemPublicHostResolver::class);
     }
 
     public function boot(): void
@@ -87,6 +90,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Painel consulta o pulso a cada 3 s; folga para várias abas/unidades.
         RateLimiter::for('pulse', fn (Request $request) => Limit::perMinute(90)->by('pulse:'.$request->user()?->getAuthIdentifier()));
+
+        // Importar tema do site: o servidor busca uma URL externa; poucas vezes por minuto.
+        RateLimiter::for('theme-import', fn (Request $request) => Limit::perMinute(6)->by('theme:'.$request->getHost()));
 
         RateLimiter::for('exports', fn (Request $request) => Limit::perMinute(6)->by('exports:'.$request->user()?->getAuthIdentifier()));
 
