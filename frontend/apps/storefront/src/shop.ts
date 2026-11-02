@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import {
   ApiError, cartApi, publicCatalogApi, type AddToCart, type BranchStatus, type CartView, type StorefrontInfo,
 } from '@sertec/api-client'
-import { applyBrand, deriveBrand } from '@sertec/ui'
+import { applyTheme } from '@sertec/ui'
 import { readPref, removePref, writePref } from './storage'
 
 /** Estado compartilhado do cardápio: loja, unidade escolhida e carrinho. */
@@ -25,7 +25,8 @@ const key = (name: string) => `${name}:${store.value?.slug ?? 'x'}`
 export async function loadStore(): Promise<void> {
   store.value = await publicCatalogApi.storefront()
   document.title = `${store.value.name} · Cardápio`
-  if (store.value.brand_color) applyBrand(deriveBrand(store.value.brand_color))
+  // Cor principal + tema (fundo, texto, fontes, cantos); as fontes baixam em paralelo.
+  void applyTheme(store.value.theme, store.value.brand_color)
   const saved = readPref(key('branch'))
   branchId.value = store.value.branches.some((b) => b.id === saved) ? saved : (store.value.branches[0]?.id ?? null)
   // O cardápio já começa a carregar junto com o carrinho (uma ida a menos à rede).

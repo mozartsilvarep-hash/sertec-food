@@ -26,6 +26,20 @@ export interface BranchStatus {
   fulfillment?: { pickup_enabled: boolean; delivery_enabled: boolean; pickup_eta_minutes: number; zones: PublicZone[] }
 }
 
+/** Tema do cardápio (cores, fontes e cantos). Ver StoreTheme.php. */
+export interface StoreTheme {
+  colors: { canvas: string; surface: string; ink: string; muted: string; line: string; accent: string | null }
+  fonts: { display: string; body: string; script: string | null }
+  radius: 'square' | 'soft' | 'round'
+}
+
+/** Tema enviado ao salvar (campos vazios = padrão). */
+export interface StoreThemeInput {
+  colors?: Partial<Record<keyof StoreTheme['colors'], string | null>>
+  fonts?: Partial<Record<keyof StoreTheme['fonts'], string | null>>
+  radius?: StoreTheme['radius'] | null
+}
+
 export interface StorefrontInfo {
   name: string
   slug: string
@@ -34,6 +48,9 @@ export interface StorefrontInfo {
   brand_color: string | null
   logo_url?: string | null
   cover_url?: string | null
+  /** Padronagem (azulejo) do topo quando não há capa. */
+  pattern_url?: string | null
+  theme?: StoreTheme
   /** Razão social e CNPJ (formatado) para o rodapé. */
   legal_name?: string | null
   cnpj?: string | null
@@ -267,12 +284,25 @@ export interface TenantSettings {
   brand_color: string | null
   logo_url: string | null
   cover_url: string | null
+  pattern_url: string | null
+  theme: StoreTheme
+  /** Sites autorizados (Promoções › Vitrine), de onde o tema pode ser importado. */
+  site_origins: string[]
   legal_name: string | null
   cnpj: string | null
   instagram: string | null
   whatsapp: string | null
 }
-export type TenantSettingsInput = Partial<Pick<TenantSettings, 'description' | 'brand_color' | 'legal_name' | 'cnpj' | 'instagram' | 'whatsapp'>>
+export type TenantSettingsInput = Partial<Pick<TenantSettings, 'description' | 'brand_color' | 'legal_name' | 'cnpj' | 'instagram' | 'whatsapp'>> & {
+  theme?: StoreThemeInput | null
+}
+/** Proposta lida do tema.json do site (não salva até o PATCH). */
+export interface ImportedTheme {
+  brand_color: string | null
+  theme: StoreThemeInput
+  warnings: string[]
+}
+export type BrandImageKind = 'logo' | 'cover' | 'pattern'
 export interface Paginated<T> { data: T[]; meta: { next_cursor: string | null; prev_cursor: string | null; per_page: number } }
 
 const m = '/merchant'
@@ -325,8 +355,10 @@ export const catalogApi = {
   settings: () => request<Data<TenantSettings>>(`${m}/settings`).then((r) => r.data),
   saveSettings: (body: TenantSettingsInput) =>
     request<Data<TenantSettings>>(`${m}/settings`, { method: 'PATCH', body }).then((r) => r.data),
-  uploadBrandImage: (kind: 'logo' | 'cover', file: File) =>
+  uploadBrandImage: (kind: BrandImageKind, file: File) =>
     request<Data<TenantSettings>>(`${m}/settings/${kind}`, { method: 'POST', form: { image: file } }).then((r) => r.data),
-  deleteBrandImage: (kind: 'logo' | 'cover') =>
+  deleteBrandImage: (kind: BrandImageKind) =>
     request<Data<TenantSettings>>(`${m}/settings/${kind}`, { method: 'DELETE' }).then((r) => r.data),
+  importTheme: (origin: string) =>
+    request<Data<ImportedTheme>>(`${m}/settings/theme/import`, { method: 'POST', body: { origin } }).then((r) => r.data),
 }

@@ -12,9 +12,15 @@ final class BrandColor
 
     public static function contrastWithWhite(string $hex): float
     {
-        $luminance = self::luminance($hex);
+        return self::contrast($hex, '#ffffff');
+    }
 
-        return (1.0 + 0.05) / ($luminance + 0.05);
+    /** Razão de contraste WCAG entre duas cores (1 a 21). */
+    public static function contrast(string $a, string $b): float
+    {
+        [$light, $dark] = [max(self::luminance($a), self::luminance($b)), min(self::luminance($a), self::luminance($b))];
+
+        return ($light + 0.05) / ($dark + 0.05);
     }
 
     public static function isAccessible(string $hex): bool
@@ -22,7 +28,7 @@ final class BrandColor
         return self::contrastWithWhite($hex) >= self::MIN_CONTRAST;
     }
 
-    private static function luminance(string $hex): float
+    public static function luminance(string $hex): float
     {
         $hex = ltrim($hex, '#');
         $channels = array_map(

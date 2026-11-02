@@ -129,6 +129,8 @@ O site institucional pode mostrar as promoções e a faixa de aviso direto da lo
 
 O feed segue o contrato v1, tem cache de 60 s e não contém dados de clientes.
 
+**Loja com a cara do site:** publique `tema.json` na raiz do site (contrato em `docs/TEMA-DO-SITE.md`). Depois, no painel do restaurante → **Marca → Tema da loja → Importar do site**, confira a prévia, envie a padronagem do topo (opcional) e salve.
+
 ## 6.2 E-mail ("Esqueci a senha")
 
 O sistema envia e-mails pelo servidor SMTP da SerTec. No piloto é a caixa `noreply@sertecsolution.com.br`, no Mail Server do aaPanel.

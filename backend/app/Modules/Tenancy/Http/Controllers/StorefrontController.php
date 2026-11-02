@@ -11,6 +11,7 @@ use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Schedule\OpeningSchedule;
 use App\Modules\Tenancy\Support\BrandImageStore;
 use App\Modules\Tenancy\Support\Cnpj;
+use App\Modules\Tenancy\Support\StoreTheme;
 use App\Modules\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -50,6 +51,9 @@ class StorefrontController
             'brand_color' => $tenant->brand_color,
             'logo_url' => BrandImageStore::url($tenant->logo_key),
             'cover_url' => BrandImageStore::url($tenant->cover_key),
+            // Tema do cardápio (cores, fontes, cantos) e padronagem do topo.
+            'theme' => StoreTheme::resolved($tenant->theme_json),
+            'pattern_url' => BrandImageStore::url($tenant->pattern_key),
             // Identificação do fornecedor no rodapé (Decreto 7.962/2013).
             'legal_name' => $tenant->legal_name,
             'cnpj' => $tenant->cnpj === null ? null : Cnpj::format($tenant->cnpj),

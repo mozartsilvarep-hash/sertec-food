@@ -7,6 +7,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenantFromHost;
 use App\Modules\Tenancy\Models\Tenant;
 use App\Modules\Tenancy\Support\BrandImageStore;
+use App\Modules\Tenancy\Support\StoreTheme;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -43,7 +44,7 @@ class StorefrontShellController
     }
 
     /**
-     * @param  array{title: string, description: string, image: string|null, icon?: string|null, preload?: string|null, url: string|null, color: string|null, robots: string}  $meta
+     * @param  array{title: string, description: string, image: string|null, icon?: string|null, preload?: string|null, url: string|null, color: string|null, robots: string, css?: string}  $meta
      */
     public static function inject(string $html, array $meta): string
     {
@@ -74,6 +75,11 @@ class StorefrontShellController
         if ($meta['color']) {
             $tags[] = '<meta name="theme-color" content="'.$e($meta['color']).'" />';
         }
+        // Cores do tema já no HTML: a página não "pisca" com as cores padrão.
+        // Só #rrggbb validados entram (StoreTheme::cssVariables); a checagem abaixo é defesa extra.
+        if (! empty($meta['css']) && preg_match('/^:root\{[a-z0-9#:;-]+\}$/', $meta['css'])) {
+            $tags[] = '<style id="tema-loja">'.$meta['css'].'</style>';
+        }
 
         $html = (string) preg_replace('#<title>.*?</title>#s', '<title>'.$e($meta['title']).'</title>', $html, 1);
         $html = (string) preg_replace('#<meta name="description" content="[^"]*"\s*/?>#', '<meta name="description" content="'.$e($meta['description']).'" />', $html, 1);
@@ -82,7 +88,7 @@ class StorefrontShellController
     }
 
     /**
-     * @return array{title: string, description: string, image: string|null, preload: string|null, icon: string|null, url: string, color: string|null, robots: string}
+     * @return array{title: string, description: string, image: string|null, preload: string|null, icon: string|null, url: string, color: string|null, robots: string, css: string}
      */
     private function meta(Tenant $tenant, Request $request): array
     {
@@ -101,6 +107,7 @@ class StorefrontShellController
             'url' => $base.'/',
             'color' => $tenant->brand_color,
             'robots' => 'index,follow',
+            'css' => StoreTheme::cssVariables($tenant->theme_json, $tenant->brand_color),
         ];
     }
 }

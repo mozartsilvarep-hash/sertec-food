@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $brand_color
  * @property string|null $logo_key
  * @property string|null $cover_key
+ * @property string|null $pattern_key
+ * @property array<string, mixed>|null $theme_json
  * @property string|null $legal_name
  * @property string|null $cnpj
  * @property string|null $instagram
@@ -87,6 +89,7 @@ class Tenant extends Model
             'status' => TenantStatus::class,
             'announcement_json' => 'array',
             'feed_origins_json' => 'array',
+            'theme_json' => 'array',
         ];
     }
 

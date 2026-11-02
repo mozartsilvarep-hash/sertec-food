@@ -496,3 +496,12 @@ A venda no balcão grava um `order`, com `channel=pos`, `fulfillment_type=counte
 `GET cash/sessions/{id}/report` monta o fechamento: vendas e taxas, formas, movimentos por categoria, o que cada operador lançou, estornos, esperado × contado e diferença. É impresso em 80/58 mm, com linha para assinatura. Disponível como "parcial" com o caixa aberto.
 
 O caixa ganhou botões diretos de **Sangria**, **Entrada** e **Saída**. A saída pode ser o pagamento de um custo fixo e já preenche o valor.
+
+## Tema da loja
+
+### D92 — Tema por valores fechados, não CSS por cliente
+`tenants.theme_json` guarda cores (fundo, cartões, texto, texto suave, linhas, destaque), fontes (títulos, texto, assinatura) e o estilo de canto; `tenants.pattern_key`, a padronagem do topo.
+- **Validação:** `StoreTheme` aceita só `#rrggbb`, chaves de fonte de uma lista curada e `square|soft|round`, e exige contraste AA do texto e do texto suave sobre o fundo e os cartões.
+- **Aplicação:** `tokens.css` lê `--theme-*` com fallback para os valores de antes, então lojas sem tema não mudam. `applyTheme()` define as variáveis no `<html>` e baixa só as fontes usadas (Fontsource, chunks sob demanda). O shell do cardápio injeta as cores no HTML para não piscar.
+- **Importar do site:** `SiteThemeImporter` lê o `tema.json` (contrato v1) só de sites autorizados, com IP público fixado na conexão. Devolve uma proposta; quem salva é o PATCH.
+- Detalhes e contrato: `docs/TEMA-DO-SITE.md`.

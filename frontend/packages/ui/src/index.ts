@@ -11,3 +11,7 @@ export { default as STextArea } from './components/STextArea.vue'
 export { default as STextField } from './components/STextField.vue'
 export type { LoginError } from './components/SLoginCard.vue'
 export { applyBrand, deriveBrand, type BrandColors } from './brand'
+export {
+  applyTheme, contrastRatio, DEFAULT_THEME_COLORS, FONTS, fontsFor, fontStack, loadThemeFonts, RADII, themeContrastIssues,
+  type FontOption, type FontRole, type ThemeColorKey, type ThemeInput, type ThemeRadius,
+} from './theme'

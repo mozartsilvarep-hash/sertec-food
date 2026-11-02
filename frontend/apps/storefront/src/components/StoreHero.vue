@@ -10,11 +10,17 @@ const status = computed(() => (props.branch ? openingLabel(props.branch, props.s
 const whatsapp = computed(() => storeWhatsapp(props.store, props.branch))
 const instagram = computed(() => instagramUrl(props.store.instagram))
 const maps = computed(() => mapsUrl(props.branch?.address, props.store.name))
+/** Nome em letra cursiva quando o tema tem fonte de assinatura (ex.: confeitaria). */
+const scriptName = computed(() => !!props.store.theme?.fonts.script)
+/** Topo sem capa: cor de destaque do tema com a padronagem da loja, ou a trama padrão. */
+const bandStyle = computed(() => props.store.pattern_url
+  ? { backgroundImage: `url("${props.store.pattern_url}")`, backgroundSize: '160px 160px', backgroundRepeat: 'repeat' }
+  : { backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.14) 1px, transparent 0)', backgroundSize: '14px 14px' })
 </script>
 
 <template>
   <header>
-    <!-- Faixa: capa da loja ou a cor da marca com uma trama sutil. -->
+    <!-- Faixa: capa da loja, ou a cor de destaque com a padronagem (ou uma trama sutil). -->
     <div class="relative mx-auto max-w-3xl">
       <img
         v-if="store.cover_url"
@@ -26,8 +32,8 @@ const maps = computed(() => mapsUrl(props.branch?.address, props.store.name))
       >
       <div
         v-else
-        class="h-28 w-full bg-brand-600 sm:h-36 sm:rounded-b-[1.75rem]"
-        style="background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.14) 1px, transparent 0); background-size: 14px 14px"
+        class="h-28 w-full bg-accent sm:h-36 sm:rounded-b-[1.75rem]"
+        :style="bandStyle"
         aria-hidden="true"
       />
     </div>
@@ -49,7 +55,12 @@ const maps = computed(() => mapsUrl(props.branch?.address, props.store.name))
         >{{ initials(store.name) }}</span>
       </div>
 
-      <h1 class="mt-4 font-display text-[clamp(2rem,8vw,3.25rem)] leading-[0.98] font-extrabold tracking-[-0.025em] text-balance">
+      <h1
+        class="mt-4 text-balance"
+        :class="scriptName
+          ? 'font-script text-[clamp(2.6rem,11vw,4.25rem)] leading-[1.05] font-normal'
+          : 'font-display text-[clamp(2rem,8vw,3.25rem)] leading-[0.98] font-extrabold tracking-[-0.025em]'"
+      >
         {{ store.name }}
       </h1>
       <p v-if="store.description" class="mt-2.5 max-w-[60ch] text-base/relaxed text-muted">

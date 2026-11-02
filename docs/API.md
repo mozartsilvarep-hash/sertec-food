@@ -278,7 +278,10 @@ Sem `branch`, a rota usa a única unidade do usuário; se houver mais de uma, re
 
 - `GET storefront` → também `logo_url`, `cover_url`, `legal_name`, `cnpj` (formatado), `instagram` (sem @), `whatsapp` (dígitos com 55).
 - `PATCH merchant/settings` aceita `legal_name`, `cnpj` (validado; numérico ou alfanumérico), `instagram`, `whatsapp`.
-- `POST merchant/settings/{logo|cover}` (multipart `image`, JPG/PNG/WebP até 5 MB) e `DELETE merchant/settings/{logo|cover}`. Exigem `settings.update` e devolvem as configurações atualizadas.
+- `POST merchant/settings/{logo|cover|pattern}` (multipart `image`, JPG/PNG/WebP até 5 MB) e `DELETE merchant/settings/{logo|cover|pattern}`. Exigem `settings.update` e devolvem as configurações atualizadas.
+- `PATCH merchant/settings` aceita `theme` (`{colors, fonts, radius}`, ou `null` para voltar ao padrão); 422 com `theme.colors.*`, `theme.fonts.*` ou `theme.radius`. `GET` devolve `theme` (com padrões preenchidos), `pattern_url` e `site_origins`.
+- `POST merchant/settings/theme/import {origin}`: lê `https://<origin>/tema.json` (origem precisa estar nos sites autorizados) e devolve `{brand_color, theme, warnings}` sem salvar. `settings.update`, throttle `theme-import` (6/min).
+- `GET storefront` inclui `theme` e `pattern_url`. Contrato do `tema.json`: `docs/TEMA-DO-SITE.md`.
 
 ## Implementado na Sprint 13 — Cobrança da SerTec
 
