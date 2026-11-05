@@ -3,6 +3,7 @@ export { default as SButton } from './components/SButton.vue'
 export { default as SLoginCard } from './components/SLoginCard.vue'
 export { default as SPasswordResetCard } from './components/SPasswordResetCard.vue'
 export { default as SPageState } from './components/SPageState.vue'
+export { default as SNotFound } from './components/SNotFound.vue'
 export { default as SSheet } from './components/SSheet.vue'
 export { default as SSignature } from './components/SSignature.vue'
 export { default as SStepper } from './components/SStepper.vue'
@@ -11,6 +12,7 @@ export { default as STextArea } from './components/STextArea.vue'
 export { default as STextField } from './components/STextField.vue'
 export type { LoginError } from './components/SLoginCard.vue'
 export { applyBrand, deriveBrand, type BrandColors } from './brand'
+export { enableHoverHints, refreshHint } from './hoverHints'
 export {
   applyTheme, contrastRatio, DEFAULT_THEME_COLORS, FONTS, fontsFor, fontStack, loadThemeFonts, RADII, themeContrastIssues,
   type FontOption, type FontRole, type ThemeColorKey, type ThemeInput, type ThemeRadius,

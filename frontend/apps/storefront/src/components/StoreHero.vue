@@ -21,24 +21,24 @@ const bandStyle = computed(() => props.store.pattern_url
 <template>
   <header>
     <!-- Faixa: capa da loja, ou a cor de destaque com a padronagem (ou uma trama sutil). -->
-    <div class="relative mx-auto max-w-3xl">
+    <div class="relative mx-auto max-w-3xl lg:max-w-5xl">
       <img
         v-if="store.cover_url"
         :src="store.cover_url"
         alt=""
-        class="aspect-[2.5/1] w-full object-cover sm:rounded-b-[1.75rem]"
+        class="aspect-[2.5/1] w-full object-cover sm:rounded-b-[1.75rem] lg:max-h-[22rem]"
         fetchpriority="high"
         decoding="async"
       >
       <div
         v-else
-        class="h-28 w-full bg-accent sm:h-36 sm:rounded-b-[1.75rem]"
+        class="h-28 w-full bg-accent sm:h-36 sm:rounded-b-[1.75rem] lg:h-44"
         :style="bandStyle"
         aria-hidden="true"
       />
     </div>
 
-    <div class="mx-auto max-w-2xl px-4 pb-6 sm:px-6">
+    <div class="mx-auto max-w-2xl px-4 pb-6 sm:px-6 lg:max-w-5xl">
       <div class="-mt-11 flex items-end gap-4 sm:-mt-14">
         <img
           v-if="store.logo_url"

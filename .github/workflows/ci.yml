@@ -146,25 +146,23 @@ jobs:
           for i in $(seq 1 40); do sf exec -T app php artisan migrate --force && break; sleep 3; done
           for c in PermissionSeeder RoleSeeder PlanSeeder; do sf exec -T app php artisan db:seed --class=$c --force; done
           sf exec -T app php artisan tenant:create demo "Demo" --owner-email=dono@example.test --owner-name=Dono --activate
-          # Nginx como o do aaPanel: repassa para 127.0.0.1:8088 acrescentando X-Forwarded-For.
+          # Nginx como o do aaPanel, com o MESMO trecho que vai para a Config do
+          # site (ops/aapanel/nginx-proxy.conf). O repositório fica em
+          # /opt/sertec-food, como na VPS (página de manutenção).
           cat > /tmp/aapanel.conf <<'EOF'
           server {
             listen 127.0.0.1:8099;
-            location / {
-              proxy_pass http://127.0.0.1:8088;
-              proxy_set_header Host $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto https;
-            }
+            include /etc/nginx/sertec-proxy.conf;
           }
           EOF
-          docker run -d --name aapanel --network host -v /tmp/aapanel.conf:/etc/nginx/conf.d/default.conf:ro nginx:1.27-alpine
+          docker run -d --name aapanel --network host -v /tmp/aapanel.conf:/etc/nginx/conf.d/default.conf:ro \
+            -v "$PWD/ops/aapanel/nginx-proxy.conf:/etc/nginx/sertec-proxy.conf:ro" -v "$PWD:/opt/sertec-food:ro" nginx:1.27-alpine
           sleep 2
           fail() {
             diag=$( { echo "$1"; echo '--- direto no Caddy:'; curl -sS -i -H 'Host: demo.cardapios.example.test' http://127.0.0.1:8088/ | head -c 400; echo; echo '--- /up admin direto:'; curl -sS -i -H "$A" http://127.0.0.1:8088/up | head -c 400; echo; echo '--- web public:'; sf exec -T web ls -la /var/www/backend/public; echo '--- rotas:'; sf exec -T web caddy adapt --config /etc/caddy/Caddyfile.proxy --adapter caddyfile 2>/dev/null | jq -c '[.apps.http.servers.srv0.routes[0] | .. | objects | select(.match? and ((.match|tostring)|contains("/up")))] | .[0]' | head -c 5000; echo; echo '--- logs:'; sf logs --no-color --tail 25 web app 2>&1 | cut -c1-300; } | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
             echo "::error title=Atrás do aaPanel::$diag"; exit 1
           }
+          docker exec aapanel nginx -t || fail 'trecho do aaPanel inválido'
           A='Host: admin.cardapios.example.test'
           # Laravel de verdade (o Caddy responde 200 vazio quando não repassa ao PHP).
           curl -fsS -H "$A" http://127.0.0.1:8099/up | grep -q 'SerTec Food' || fail 'health /up não chegou ao Laravel'
@@ -178,6 +176,28 @@ jobs:
           [ "$code" != 419 ] && [ "$code" -ge 400 ] || fail "login respondeu $code"
           ip=$(sf exec -T mariadb mariadb -usertec -px sertec_food -N -e "select ip from audit_logs where action='auth.platform.login_failed' order by id desc limit 1")
           [ "$ip" = 203.0.113.9 ] || fail "IP registrado: '$ip' (esperado 203.0.113.9)"
+          # Robôs procurando arquivos sensíveis: 404 no nginx e também direto no Caddy.
+          D='Host: demo.cardapios.example.test'
+          for p in /.env /.git/config /wp-login.php /phpmyadmin/ /backup.sql; do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' -H "$D" "http://127.0.0.1:8099$p")" = 404 ] || fail "nginx não barrou $p"
+            [ "$(curl -s -o /dev/null -w '%{http_code}' -H "$D" "http://127.0.0.1:8088$p")" = 404 ] || fail "Caddy não barrou $p"
+          done
+          curl -fsS -H "$D" http://127.0.0.1:8099/ | grep -q '<title>' || fail 'cardápio parou de abrir'
+          # Deploy em andamento (PHP fora): página amigável nas telas, JSON na API.
+          sf stop app
+          page=$(curl -s -w '\nHTTP %{http_code}' -H "$D" http://127.0.0.1:8099/)
+          grep -q 'Voltamos em instantes' <<<"$page" && grep -q 'HTTP 502' <<<"$page" || fail "sem página de manutenção do Caddy: $(tail -c 300 <<<"$page")"
+          api=$(curl -s -w '\nHTTP %{http_code}' -H "$D" http://127.0.0.1:8099/api/v1/storefront)
+          grep -q '"service_unavailable"' <<<"$api" && grep -q 'HTTP 503' <<<"$api" || fail "API sem JSON de manutenção: $api"
+          # Caddy fora: o próprio nginx mostra a página (alias para o repositório).
+          sf stop web
+          page=$(curl -s -w '\nHTTP %{http_code}' -H "$D" http://127.0.0.1:8099/)
+          grep -q 'Voltamos em instantes' <<<"$page" && grep -q 'HTTP 502' <<<"$page" || fail "sem página de manutenção do nginx: $(tail -c 300 <<<"$page")"
+          docker rm -f aapanel
           sf down -v
       - name: Scripts de operação (sintaxe)
         run: for f in ops/*.sh; do bash -n "$f"; done
+      - name: Trecho de nginx para sites estáticos (sintaxe)
+        run: |
+          printf 'server {\n listen 8080;\n root /usr/share/nginx/html;\n include /etc/nginx/site.conf;\n}\n' > /tmp/site.conf
+          docker run --rm -v /tmp/site.conf:/etc/nginx/conf.d/default.conf:ro -v "$PWD/ops/aapanel/site-estatico.conf:/etc/nginx/site.conf:ro" nginx:1.27-alpine nginx -t

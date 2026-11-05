@@ -41,9 +41,10 @@ export const router = createRouter({
         { path: 'marca', name: 'brand', component: () => import('./pages/BrandPage.vue') },
         { path: 'assinatura', name: 'billing', component: () => import('./pages/BillingPage.vue') },
         { path: 'pagamentos', name: 'payments', component: () => import('./pages/PaymentsPage.vue') },
+        // Endereço desconhecido: página 404 dentro do painel (com o menu).
+        { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('./pages/NotFoundPage.vue') },
       ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 

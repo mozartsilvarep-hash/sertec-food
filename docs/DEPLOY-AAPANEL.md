@@ -250,13 +250,31 @@ Os backups diários ficam em `/opt/sertec-food/backups`, criptografados com a `B
 
 ## 12. Atualizar uma versão
 
+Um comando só, que faz backup, baixa a versão nova, compila (com `--pull`, que traz as correções de segurança das imagens base de PHP e Caddy), sobe, roda as migrations e confere a saúde:
+
+```bash
+sudo bash /opt/sertec-food/ops/deploy.sh
+```
+
+- Para no primeiro erro e diz o que aconteceu. O backup fica em `/opt/sertec-food/backups/`.
+- Durante os segundos em que os containers trocam, quem abrir o cardápio ou o painel vê "Voltamos em instantes" (página de manutenção do Caddy e do nginx).
+- Voltar para a versão anterior: o próprio script imprime o comando no final (`sudo VERSAO=<commit> bash /opt/sertec-food/ops/deploy.sh`).
+
+Passo a passo manual (o mesmo que o script faz):
+
 ```bash
 sf exec backup bash /ops/backup.sh      # backup antes
 git pull
-sf build --pull && sf up -d             # --pull traz as correções de segurança das imagens base (PHP, Caddy)
+sf build --pull && sf up -d
 sf exec app php artisan migrate --force
 sf exec app php artisan ops:status
 ```
+
+### 12.0 Quando o trecho do nginx mudar
+
+Se a versão nova alterar `ops/aapanel/nginx-proxy.conf`, cole o trecho novo na Config de **cada** site do SerTec Food no aaPanel (o painel `admin.cardapios…` e cada domínio próprio, como `loja.yriscakes.com.br`), no lugar do antigo. Nas linhas `#ERROR-PAGE-START`…`#ERROR-PAGE-END` que o aaPanel cria, comente o `error_page 502` (se existir): a página de manutenção do trecho substitui.
+
+Sites estáticos de clientes (ex.: `yriscakes.com.br`) usam `ops/aapanel/site-estatico.conf`: cabeçalhos de segurança, bloqueio de varreduras e páginas de erro da marca.
 
 ## 12.1 Proteção extra contra ataques (recomendado)
 

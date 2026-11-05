@@ -36,13 +36,15 @@ class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict(! $this->app->isProduction());
 
         // Por e-mail + IP + host: limita força bruta sem bloquear o
-        // restaurante inteiro por causa de um IP compartilhado.
+        // restaurante inteiro por causa de um IP compartilhado. O teto por
+        // conta (de qualquer IP) segura ataque distribuído contra um e-mail.
         RateLimiter::for('login', function (Request $request) {
-            $email = strtolower((string) $request->input('email'));
+            $email = strtolower(trim((string) $request->input('email')));
 
             return [
                 Limit::perMinute((int) config('auth.login_per_minute', 5))->by('login:'.$request->getHost().'|'.$email.'|'.$request->ip()),
                 Limit::perMinute(30)->by('login-ip:'.$request->ip()),
+                Limit::perMinutes(15, (int) config('auth.login_per_account_15min', 30))->by('login-acct:'.$request->getHost().'|'.$email),
             ];
         });
 

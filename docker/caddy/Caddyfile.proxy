@@ -46,6 +46,47 @@
 	encode zstd gzip
 }
 
+# Proteções da borda e páginas de erro (importado em cada site).
+(edge) {
+	# Envios: fotos até 10 MB (igual ao PHP). Corpo maior nem chega ao app.
+	request_body {
+		max_size 12MB
+	}
+	# Robôs procurando arquivos sensíveis (/.env, /.git, wp-login.php,
+	# phpmyadmin...): 404 imediato, sem passar pelo PHP nem pelas SPAs.
+	# /.well-known continua livre (certificados e afins).
+	@probes {
+		path /.* */.* *.php *.phtml *.env *.ini *.sql *.bak *.old *.swp /wp-* /wordpress* /xmlrpc* /cgi-bin/* /phpmyadmin* /pma/* /vendor/* /node_modules/* /server-status* /actuator*
+		not path /.well-known/*
+	}
+	handle @probes {
+		respond 404
+	}
+	# Erros da própria borda (ex.: PHP reiniciando durante o deploy = 502):
+	# a API responde no formato de sempre; as telas, com uma página amigável.
+	# Erros do Laravel (403, 404, 500...) têm páginas próprias em
+	# backend/resources/views/errors.
+	handle_errors {
+		import security_headers
+		@api path /api/* /up
+		handle @api {
+			header Content-Type "application/json; charset=utf-8"
+			header Retry-After 30
+			respond `{"code":"service_unavailable","message":"Sistema em manutenção. Tente de novo em instantes.","details":null,"request_id":null}` 503
+		}
+		handle {
+			root * /srv/www/erros
+			map {err.status_code} {erro_pagina} {
+				~^5 /indisponivel.html
+				default /404.html
+			}
+			rewrite * {erro_pagina}
+			header Cache-Control "no-store"
+			file_server
+		}
+	}
+}
+
 (api) {
 	handle /api/v1/internal/* {
 		respond 404
@@ -82,6 +123,7 @@
 # Painel SerTec
 http://{$TENANCY_ADMIN_HOST} {
 	import security_headers
+	import edge
 	import api
 	handle {
 		root * /srv/www/admin
@@ -94,6 +136,7 @@ http://{$TENANCY_ADMIN_HOST} {
 # (o app recusa hosts desconhecidos).
 http:// {
 	import security_headers
+	import edge
 	import api
 
 	handle /painel/* {

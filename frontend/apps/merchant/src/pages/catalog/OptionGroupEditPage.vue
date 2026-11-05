@@ -138,7 +138,8 @@ onMounted(load)
   <SPageState v-else-if="state === 'notfound'" state="empty" title="Grupo não encontrado" />
   <SPageState v-else-if="state === 'error'" state="error" @retry="load" />
 
-  <form v-else class="grid max-w-4xl gap-8" @submit.prevent="save">
+  <!-- min-w-0 nos filhos: a tabela de opções rola dentro da própria caixa, sem alargar a página no celular. -->
+  <form v-else class="grid max-w-4xl gap-8 [&>*]:min-w-0" @submit.prevent="save">
     <SAlert v-if="errorMessage">{{ errorMessage }}</SAlert>
 
     <section class="grid gap-4 sm:max-w-md">

@@ -505,3 +505,19 @@ O caixa ganhou botões diretos de **Sangria**, **Entrada** e **Saída**. A saíd
 - **Aplicação:** `tokens.css` lê `--theme-*` com fallback para os valores de antes, então lojas sem tema não mudam. `applyTheme()` define as variáveis no `<html>` e baixa só as fontes usadas (Fontsource, chunks sob demanda). O shell do cardápio injeta as cores no HTML para não piscar.
 - **Importar do site:** `SiteThemeImporter` lê o `tema.json` (contrato v1) só de sites autorizados, com IP público fixado na conexão. Devolve uma proposta; quem salva é o PATCH.
 - Detalhes e contrato: `docs/TEMA-DO-SITE.md`.
+
+## Revisão de segurança, erros e telas (05/11/2026)
+
+### D93 — Páginas de erro em três camadas
+- **Laravel** (`resources/views/errors`): HTML fora da API, com o código do atendimento. A API continua só JSON (`ErrorRenderer`).
+- **Caddy** (`handle_errors` no snippet `edge`): quando o PHP está fora, telas recebem `docker/caddy/erros/indisponivel.html` e a API recebe JSON 503.
+- **nginx do aaPanel:** quando o Caddy está fora, `error_page 502 503 504` serve o mesmo arquivo direto do repositório (`/opt/sertec-food/docker/caddy/erros`).
+
+### D94 — Dicas ao passar o mouse sem marcar elemento por elemento
+`enableHoverHints()` (`@sertec/ui`) escuta `mouseover`/`focusin` na página: texto cortado de verdade (`truncate`/`line-clamp`) ganha `title` com o texto completo, e botão só com ícone ganha `title` com o `aria-label`. `title` escrito à mão nunca é trocado.
+
+### D95 — Menu do painel por assunto
+Operação, Cardápio, Loja e Conta, com ícone e descrição ao passar o mouse. Fica fixo no computador e, no celular, a seção aberta rola para a vista. "Cardápio" continua marcado nas páginas filhas (ex.: editar produto).
+
+### D96 — Deploy em um comando
+`ops/deploy.sh`: backup → `git merge --ff-only` → `build --pull` → `up -d` → migrations → `ops:status` e `/up` pela borda. Para no primeiro erro; `VERSAO=<commit>` volta para uma versão anterior.

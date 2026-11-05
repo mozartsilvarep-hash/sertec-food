@@ -99,7 +99,7 @@ onMounted(async () => {
       <a v-if="store.announcement.link" :href="store.announcement.link" class="ml-1 font-semibold whitespace-nowrap underline underline-offset-2">{{ store.announcement.link_label ?? 'Saiba mais' }}</a>
     </p>
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
-    <div class="mx-auto grid max-w-2xl gap-2 px-4 pb-2 sm:px-6">
+    <div class="mx-auto grid max-w-2xl gap-2 px-4 pb-2 sm:px-6 lg:max-w-5xl" :class="store.loyalty && 'lg:grid-cols-2'">
       <p v-if="store.loyalty" class="flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm">
         <svg viewBox="0 0 24 24" class="mt-0.5 size-5 shrink-0 text-brand-700" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="9" r="6" /><path d="m8.5 14.5-1.5 7 5-3 5 3-1.5-7" /></svg>
         <span><strong>Cartão fidelidade:</strong> a cada {{ store.loyalty.stamps_required }} pedidos<template v-if="store.loyalty.min_order && Number(store.loyalty.min_order) > 0"> acima de {{ formatMoney(store.loyalty.min_order) }}</template>, ganhe {{ store.loyalty.reward_label }}.</span>
@@ -118,7 +118,7 @@ onMounted(async () => {
       class="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur"
       aria-label="Categorias"
     >
-      <ul class="relative mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-5">
+      <ul class="relative mx-auto flex max-w-2xl gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-5 lg:max-w-5xl">
         <li v-for="c in categories" :id="`chip-${c.id}`" :key="c.id">
           <a
             :href="`#cat-${c.id}`"
@@ -132,7 +132,7 @@ onMounted(async () => {
       </ul>
     </nav>
 
-    <main class="mx-auto max-w-2xl px-4 sm:px-6">
+    <main class="mx-auto max-w-2xl px-4 sm:px-6 lg:max-w-5xl">
       <HighlightStrip v-if="featured.length" :products="featured" @open="open" />
 
       <div class="py-5">
@@ -142,7 +142,7 @@ onMounted(async () => {
           v-model="search"
           type="search"
           placeholder="Buscar no cardápio"
-          class="min-h-11 w-full rounded-full border border-line bg-surface px-4 text-base placeholder:text-muted"
+          class="min-h-11 w-full rounded-full border border-line bg-surface px-4 text-base placeholder:text-muted lg:max-w-xl"
         >
       </div>
 
@@ -159,7 +159,7 @@ onMounted(async () => {
       <section v-for="c in categories" :id="`cat-${c.id}`" :key="c.id" class="scroll-mt-16 pt-4" :aria-labelledby="`h-${c.id}`">
         <h2 :id="`h-${c.id}`" class="font-display text-2xl font-bold tracking-tight">{{ c.name }}</h2>
         <p v-if="c.description" class="mt-1 text-sm text-muted">{{ c.description }}</p>
-        <ul class="divide-y divide-line">
+        <ul class="grid gap-x-10 lg:grid-cols-2">
           <ProductRow v-for="p in c.products" :key="p.id" :product="p" @open="open(p)" />
         </ul>
       </section>
