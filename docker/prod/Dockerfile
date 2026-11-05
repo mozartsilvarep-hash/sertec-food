@@ -58,6 +58,8 @@ CMD ["php-fpm"]
 # ---------- 4. Web: Caddy (HTTPS automático) + SPAs ----------
 FROM caddy:2.10-alpine AS web
 COPY docker/caddy/Caddyfile docker/caddy/Caddyfile.proxy /etc/caddy/
+# Páginas de erro da borda (manutenção, 404 de arquivo).
+COPY docker/caddy/erros /srv/www/erros
 # O php_fastcgi do Caddy só repassa ao PHP se /index.php existir no disco
 # DESTE container, sob o "root" do site (try_files). O código real fica no
 # container "app"; aqui basta um arquivo vazio com o mesmo caminho. Sem ele

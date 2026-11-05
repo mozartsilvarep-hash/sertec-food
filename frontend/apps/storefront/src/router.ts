@@ -18,6 +18,6 @@ export const router = createRouter({
     { path: '/acompanhar', name: 'track-phone', component: () => import('./pages/TrackByPhonePage.vue') },
     { path: '/pedido/:token', name: 'track', component: () => import('./pages/TrackPage.vue'), props: true },
     { path: '/privacidade', name: 'privacy', component: () => import('./pages/PrivacyPage.vue') },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./pages/NotFoundPage.vue') },
   ],
 })

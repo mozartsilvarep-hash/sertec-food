@@ -18,9 +18,10 @@ export const router = createRouter({
         { path: 'auditoria', name: 'audit', component: () => import('./pages/AuditPage.vue') },
         { path: 'cobranca', name: 'billing', component: () => import('./pages/BillingPage.vue') },
         { path: 'sistema', name: 'system', component: () => import('./pages/SystemPage.vue') },
+        // Endereço desconhecido: página 404 dentro do painel (com o menu).
+        { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('./pages/NotFoundPage.vue') },
       ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 

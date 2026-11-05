@@ -31,7 +31,7 @@ docker compose exec php php artisan migrate:fresh --seed --force
 docker compose exec php php artisan demo:prepare-e2e e2e-local-123
 
 # 2. Mercado Pago falso (cenário s3): rode na máquina e aponte o backend para ele
-#    (backend/.env: MERCADOPAGO_BASE_URL=http://host.docker.internal:9911 e LOGIN_PER_MINUTE=100)
+#    (backend/.env: MERCADOPAGO_BASE_URL=http://host.docker.internal:9911, LOGIN_PER_MINUTE=100 e LOGIN_PER_ACCOUNT_15MIN=1000)
 cd e2e && npm install && npx playwright install chromium
 node fake-mercadopago.mjs &
 

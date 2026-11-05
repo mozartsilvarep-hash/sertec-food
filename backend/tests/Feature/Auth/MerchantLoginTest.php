@@ -80,3 +80,21 @@ it('rotas protegidas exigem autenticação', function () {
         ->assertUnauthorized()
         ->assertJsonPath('code', 'unauthenticated');
 });
+
+it('limita tentativas por conta mesmo trocando de IP (ataque distribuído)', function () {
+    config(['auth.login_per_account_15min' => 3]);
+    foreach (['198.51.100.1', '198.51.100.2', '198.51.100.3'] as $ip) {
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->postJson(tenantUrl($this->tenant, 'merchant/auth/login'), ['email' => 'Dono@Example.com ', 'password' => 'x'])
+            ->assertStatus(422);
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])
+        ->postJson(tenantUrl($this->tenant, 'merchant/auth/login'), ['email' => 'dono@example.com', 'password' => 'password'])
+        ->assertStatus(429);
+
+    // Outra conta do mesmo restaurante não é afetada.
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.4'])
+        ->postJson(tenantUrl($this->tenant, 'merchant/auth/login'), ['email' => 'outra@example.com', 'password' => 'x'])
+        ->assertStatus(422);
+});

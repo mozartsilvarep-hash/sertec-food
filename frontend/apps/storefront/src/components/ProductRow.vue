@@ -6,16 +6,17 @@ defineEmits<{ open: [] }>()
 </script>
 
 <template>
-  <li>
+  <!-- Linha divisória entre produtos; em telas grandes (2 colunas) a 1ª linha de cada coluna fica sem. -->
+  <li class="border-t border-line first:border-t-0 lg:nth-2:border-t-0">
     <button
       type="button"
-      class="flex w-full items-start gap-4 py-4 text-left disabled:cursor-not-allowed"
+      class="flex h-full w-full items-start gap-4 py-4 text-left transition-colors hover:bg-ink/[0.03] disabled:cursor-not-allowed disabled:hover:bg-transparent lg:-mx-3 lg:w-[calc(100%+1.5rem)] lg:rounded-xl lg:px-3"
       :disabled="!product.available"
       @click="$emit('open')"
     >
       <span class="min-w-0 flex-1">
         <span class="block font-semibold text-ink" :class="!product.available && 'text-muted'">{{ product.name }}</span>
-        <span v-if="product.description" class="mt-1 line-clamp-2 block text-sm text-muted">{{ product.description }}</span>
+        <span v-if="product.description" class="mt-1 line-clamp-2 text-sm text-muted">{{ product.description }}</span>
         <span class="mt-2 block text-sm">
           <template v-if="!product.available">
             <span class="font-semibold text-muted">{{ product.availability ?? 'Esgotado hoje' }}</span>

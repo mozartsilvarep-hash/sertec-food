@@ -54,3 +54,21 @@ São duas falhas críticas de execução remota de código no próprio PHP, que 
   - a identificação do restaurante (razão social e CNPJ).
 - **Checkout:** a pessoa escolhe "Lembrar meus dados neste aparelho".
 - **Painéis:** usam só o cookie de sessão, essencial para o login.
+
+## Revisão de segurança — 05/11/2026
+
+Revisão completa do código e da borda. O código seguia sem SQL com dado do usuário, imagens reprocessadas no servidor, sessão segura e limites por rota; as mudanças reforçam a borda e as páginas de erro.
+
+### Borda (Caddy e nginx do aaPanel)
+- **Varreduras de robôs** (`/.env`, `/.git`, `wp-login.php`, `phpmyadmin`, `*.sql`, `*.bak`…): 404 imediato no nginx e no Caddy, sem chegar ao PHP nem às telas. `/.well-known` continua livre. Testado no CI pelos dois caminhos.
+- **Tamanho de envio:** o Caddy recusa corpo acima de 12 MB (o nginx já limitava).
+- **`server_tokens off`** no trecho do aaPanel: as respostas não anunciam a versão do nginx.
+- **Sites estáticos de clientes:** `ops/aapanel/site-estatico.conf` com HSTS, CSP sem `unsafe-inline`, anti-clickjacking e bloqueio de varreduras (sintaxe testada no CI).
+
+### Login
+- Além do limite por e-mail + IP (5/min) e por IP (30/min), agora há um teto **por conta, somando todos os IPs**: 30 tentativas a cada 15 minutos (`LOGIN_PER_ACCOUNT_15MIN`). Segura ataque distribuído contra um mesmo e-mail.
+
+### Páginas de erro
+- **Fora da API:** 403, 404, 419, 429, 500 e 503 em português, sem detalhes internos, com o código do atendimento (`X-Request-Id`) para o suporte localizar o erro no log.
+- **Servidor reiniciando (deploy) ou fora:** "Voltamos em instantes" no lugar da página padrão do nginx/Caddy. A API responde `503 service_unavailable` em JSON.
+- **Telas (cardápio e painéis):** endereço desconhecido mostra "Página não encontrada" em vez de voltar ao início sem explicação.

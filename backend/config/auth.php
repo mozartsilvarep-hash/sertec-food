@@ -119,4 +119,6 @@ return [
     | desenvolvimento para rodar os testes ponta a ponta (e2e/README.md).
     */
     'login_per_minute' => (int) env('LOGIN_PER_MINUTE', 5),
+    // Tentativas por conta em 15 min, somando todos os IPs (ataque distribuído).
+    'login_per_account_15min' => (int) env('LOGIN_PER_ACCOUNT_15MIN', 30),
 ];
