@@ -37,6 +37,7 @@ class MerchantOrderResource extends JsonResource
             'change_for' => $this->change_for,
             // PDV: canal, quem vendeu, formas de pagamento e troco.
             'channel' => $this->channel,
+            'table_label' => $this->table_label,
             'change_given' => $this->change_given,
             'pos_payments' => $this->whenLoaded('posPayments', fn () => $this->posPayments->map(fn (OrderPayment $p) => [
                 'method' => $p->method->value, 'label' => $p->method->label(), 'amount' => $p->amount,

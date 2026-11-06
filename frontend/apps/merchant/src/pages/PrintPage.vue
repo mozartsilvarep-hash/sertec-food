@@ -57,6 +57,7 @@ onMounted(async () => {
         <p>{{ order.branch.name }}</p>
         <p class="mt-1 text-[2em] leading-none font-bold">#{{ order.number }}</p>
         <p class="font-bold uppercase">{{ receipt ? 'Recibo de venda' : FULFILLMENT[order.fulfillment_type] }}</p>
+        <p v-if="order.table_label" class="text-[1.3em] font-bold">{{ order.table_label }}</p>
         <p>{{ formatDateTime(order.placed_at, tz) }}</p>
       </header>
 

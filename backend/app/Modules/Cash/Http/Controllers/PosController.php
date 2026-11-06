@@ -9,6 +9,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Services\CatalogReader;
 use App\Modules\Identity\Access\TenantAccess;
 use App\Modules\Identity\Models\User;
+use App\Modules\Identity\Permissions;
 use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Customer;
@@ -69,14 +70,19 @@ class PosController
         ]]);
     }
 
-    /** POST merchant/pos/sales — Idempotency-Key obrigatório (clique duplo não vende duas vezes). */
-    public function sale(Request $request, TenantAccess $access, PosSaleService $pos): JsonResponse
+    public const ATTRIBUTES = [
+        'items' => 'itens', 'items.*.description' => 'descrição', 'items.*.unit_price' => 'valor', 'payments' => 'pagamento',
+        'payments.*.amount' => 'valor', 'cash_received' => 'dinheiro recebido', 'service_percent' => 'taxa de serviço', 'discount.value' => 'desconto',
+    ];
+
+    /**
+     * Itens da venda (cardápio ou avulso) — também usados na comanda.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public static function itemRules(): array
     {
-        $key = (string) $request->header('Idempotency-Key', '');
-        if (! preg_match('/^[A-Za-z0-9-]{16,80}$/', $key)) {
-            throw new ApiException(422, 'idempotency_key_required', 'Cabeçalho Idempotency-Key ausente ou inválido.');
-        }
-        $data = $request->validate([
+        return [
             'items' => ['required', 'array', 'min:1', 'max:80'],
             'items.*.product_id' => ['nullable', 'string', 'size:26'],
             'items.*.variant_id' => ['required_with:items.*.product_id', 'nullable', 'string', 'size:26'],
@@ -87,6 +93,17 @@ class PosController
             'items.*.unit_price' => ['required_without:items.*.product_id', 'nullable', 'string', self::MONEY],
             'items.*.quantity' => ['required', 'integer', 'between:1,999'],
             'items.*.notes' => ['nullable', 'string', 'max:140'],
+        ];
+    }
+
+    /**
+     * Cliente, descontos, taxa e pagamento — também no fechamento da comanda.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public static function checkoutRules(): array
+    {
+        return [
             'customer.name' => ['nullable', 'string', 'max:120'],
             'customer.phone' => ['nullable', 'string', 'max:25'],
             'use_loyalty' => ['sometimes', 'boolean'],
@@ -97,19 +114,36 @@ class PosController
             'payments.*.method' => ['required', Rule::in(array_map(fn (CashMethod $m) => $m->value, CashMethod::posCases()))],
             'payments.*.amount' => ['required', 'string', self::MONEY],
             'cash_received' => ['nullable', 'string', self::MONEY],
-            'send_to_kitchen' => ['sometimes', 'boolean'],
             'notes' => ['nullable', 'string', 'max:300'],
-        ], [], [
-            'items' => 'itens', 'items.*.description' => 'descrição', 'items.*.unit_price' => 'valor', 'payments' => 'pagamento',
-            'payments.*.amount' => 'valor', 'cash_received' => 'dinheiro recebido', 'service_percent' => 'taxa de serviço', 'discount.value' => 'desconto',
-        ]);
+        ];
+    }
+
+    /** POST merchant/pos/sales — Idempotency-Key obrigatório (clique duplo não vende duas vezes). */
+    public function sale(Request $request, TenantAccess $access, PosSaleService $pos): JsonResponse
+    {
+        $key = self::idempotencyKey($request);
+        $data = $request->validate([
+            ...self::itemRules(),
+            ...self::checkoutRules(),
+            'send_to_kitchen' => ['sometimes', 'boolean'],
+        ], [], self::ATTRIBUTES);
         $user = $request->user();
         if (! $user instanceof User) {
             throw ApiException::forbidden();
         }
-        $result = $pos->sell($this->branch($request, $access), $user, $key, $data);
+        $result = $pos->sell($this->branch($request, $access), $user, $key, $data, $access->for($user)->can(Permissions::CASH_MANAGE));
 
         return new JsonResponse($result['body'], $result['status']);
+    }
+
+    public static function idempotencyKey(Request $request): string
+    {
+        $key = (string) $request->header('Idempotency-Key', '');
+        if (! preg_match('/^[A-Za-z0-9-]{16,80}$/', $key)) {
+            throw new ApiException(422, 'idempotency_key_required', 'Cabeçalho Idempotency-Key ausente ou inválido.');
+        }
+
+        return $key;
     }
 
     private function branch(Request $request, TenantAccess $tenantAccess): Branch

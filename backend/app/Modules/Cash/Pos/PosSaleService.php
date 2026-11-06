@@ -4,7 +4,11 @@ namespace App\Modules\Cash\Pos;
 
 use App\Http\Errors\ApiException;
 use App\Modules\Cash\Enums\CashMethod;
+use App\Modules\Cash\Models\Tab;
+use App\Modules\Cash\Models\TabItem;
 use App\Modules\Cash\Services\CashBook;
+use App\Modules\Catalog\Models\StockMovement;
+use App\Modules\Catalog\Stock\StockService;
 use App\Modules\Identity\Models\User;
 use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\FulfillmentType;
@@ -16,6 +20,7 @@ use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\IdempotencyKey;
 use App\Modules\Ordering\Models\Order;
 use App\Modules\Ordering\Models\OrderItem;
+use App\Modules\Ordering\Models\OrderItemOption;
 use App\Modules\Ordering\Models\OrderPayment;
 use App\Modules\Ordering\Models\OrderStatusHistory;
 use App\Modules\Ordering\Models\OrderTotal;
@@ -45,20 +50,26 @@ final class PosSaleService
 {
     public const MAX_SERVICE_PERCENT = 20;
 
+    /** Desconto do caixa acima disto (% dos itens) só com cash.manage. */
+    public const OPERATOR_MAX_DISCOUNT_PERCENT = 10;
+
     public function __construct(
         private readonly CartService $carts,
         private readonly CashBook $book,
         private readonly LoyaltyService $loyalty,
         private readonly AuditLogger $audit,
+        private readonly StockService $stock,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data  validado por PosSaleRequest
      * @return array{status: int, body: array<string, mixed>}
      */
-    public function sell(Branch $branch, User $user, string $key, array $data): array
+    public function sell(Branch $branch, User $user, string $key, array $data, bool $canManage = true, ?Tab $tab = null): array
     {
-        $hash = hash('sha256', (string) json_encode($data));
+        $hash = hash('sha256', (string) json_encode([$tab?->public_id, $data]));
+        $data['_manager'] = $canManage;
+        $data['_tab'] = $tab;
         try {
             return DB::transaction(fn () => $this->run($branch, $user, 'pos:'.$key, $hash, $data));
         } catch (QueryException $e) {
@@ -95,9 +106,24 @@ final class PosSaleService
             throw new ApiException(409, 'cash_closed', 'Abra o caixa desta unidade para vender.');
         }
 
+        // 0. Comanda: itens já lançados (preço calculado no lançamento).
+        $tab = $data['_tab'] instanceof Tab ? $data['_tab'] : null;
+        $tabItems = [];
+        if ($tab !== null) {
+            /** @var Tab $tab */
+            $tab = Tab::query()->whereKey($tab->id)->lockForUpdate()->firstOrFail();
+            if (! $tab->isOpen() || $tab->branch_id !== $branch->id) {
+                throw new ApiException(409, 'tab_not_open', 'Esta conta já foi fechada.');
+            }
+            $tabItems = TabItem::query()->where('tab_id', $tab->id)->whereNull('voided_at')->orderBy('id')->get()->all();
+            if ($tabItems === []) {
+                throw new ApiException(422, 'sale_empty', 'A conta não tem itens.');
+            }
+        }
+
         // 1. Itens do cardápio: mesmo carrinho e calculadora do site.
         /** @var list<array<string, mixed>> $lines */
-        $lines = $data['items'];
+        $lines = $tab !== null ? [] : $data['items'];
         $menuLines = array_values(array_filter($lines, fn (array $l) => ! empty($l['product_id'])));
         $customLines = array_values(array_filter($lines, fn (array $l) => empty($l['product_id'])));
 
@@ -133,7 +159,8 @@ final class PosSaleService
             $custom[] = ['name' => trim((string) $line['description']), 'unit' => $unit, 'qty' => $qty, 'notes' => $line['notes'] ?? null];
         }
 
-        $subtotal = $view['subtotal_cents'] + array_sum(array_map(fn ($c) => $c['unit'] * $c['qty'], $custom));
+        $subtotal = $view['subtotal_cents'] + array_sum(array_map(fn ($c) => $c['unit'] * $c['qty'], $custom))
+            + array_sum(array_map(fn (TabItem $i) => Money::toCents((string) $i->unit_price) * $i->quantity, $tabItems));
         if ($subtotal <= 0) {
             throw new ApiException(422, 'sale_empty', 'A venda precisa de ao menos um item com valor.');
         }
@@ -145,7 +172,7 @@ final class PosSaleService
         if (! empty($data['customer']['phone']) && $phone === null) {
             throw new ApiException(422, 'validation_failed', 'Celular inválido.', ['fields' => ['customer.phone' => ['Informe um celular com DDD.']]]);
         }
-        $name = trim((string) ($data['customer']['name'] ?? '')) ?: 'Cliente balcão';
+        $typedName = trim((string) ($data['customer']['name'] ?? ''));
 
         // 4. Desconto do caixa (R$ ou %), sobre os itens já com promoção.
         $discount = 0;
@@ -156,6 +183,10 @@ final class PosSaleService
                 : Money::toCents(str_replace(',', '.', $value));
             if ($discount < 0 || $discount > $net) {
                 throw new ApiException(422, 'sale_discount_invalid', 'Desconto maior que o valor dos itens.');
+            }
+            // Operador sem gerência: desconto limitado (protege contra erro e abuso).
+            if (empty($data['_manager']) && $discount * 100 > $net * self::OPERATOR_MAX_DISCOUNT_PERCENT) {
+                throw new ApiException(403, 'sale_discount_not_allowed', 'Desconto acima de '.self::OPERATOR_MAX_DISCOUNT_PERCENT.'% precisa de um gerente.');
             }
         }
 
@@ -187,7 +218,7 @@ final class PosSaleService
             }
         }
         $paid = array_sum(array_column($parts, 'cents'));
-        if ($total > 0 && $paid !== $total) {
+        if ($paid !== $total) {
             throw new ApiException(422, 'sale_payment_mismatch', 'As formas de pagamento somam '.Money::br($paid).', mas o total é '.Money::br($total).'.', [
                 'total' => Money::format($total), 'paid' => Money::format($paid),
             ]);
@@ -207,12 +238,16 @@ final class PosSaleService
         $customer = null;
         if ($phone !== null) {
             $customer = Customer::query()->firstOrNew(['phone' => $phone]);
-            $customer->fill(['name' => $name, 'last_order_at' => $now])->save();
+            // Sem nome digitado, mantém o nome que o cliente já tem.
+            $customer->fill(['name' => $typedName !== '' ? $typedName : ($customer->name ?: 'Cliente balcão'), 'last_order_at' => $now])->save();
         }
-        $kitchen = ! empty($data['send_to_kitchen']);
+        $name = $typedName !== '' ? $typedName : ($customer->name ?? 'Cliente balcão');
+        // Comanda: a cozinha já recebeu os itens pelos envios.
+        $kitchen = $tab === null && ! empty($data['send_to_kitchen']);
         $order = Order::query()->create([
             'branch_id' => $branch->id,
             'channel' => Order::CHANNEL_POS,
+            'table_label' => $tab?->label,
             'created_by' => $user->id,
             'customer_id' => $customer?->id,
             'order_number' => CheckoutService::nextNumber($branch->id),
@@ -223,7 +258,7 @@ final class PosSaleService
             'payment_method' => PaymentMethod::Pos,
             'change_given' => $change !== null ? Money::format($change) : null,
             'fulfillment_type' => FulfillmentType::Counter,
-            'customer_name' => $name,
+            'customer_name' => $typedName === '' && $customer === null && $tab?->customer_name ? $tab->customer_name : $name,
             'customer_phone' => $phone ?? '',
             'notes' => $data['notes'] ?? null,
             'subtotal' => Money::format($subtotal),
@@ -239,7 +274,31 @@ final class PosSaleService
             foreach ($cart->items as $item) {
                 CheckoutService::snapshotItem($order, $item, $view['quotes'][$item->id]);
             }
+            // Estoque: sem saldo, a venda não acontece (a transação desfaz tudo).
+            $this->stock->consume($branch->id, StockService::demandForCart($cart), $user, $order);
             $cart->forceFill(['converted_at' => $now, 'order_public_id' => $order->public_id])->save();
+        }
+        foreach ($tabItems as $ti) {
+            $orderItem = OrderItem::query()->create([
+                'order_id' => $order->id, 'product_id' => $ti->product_id, 'product_name_snapshot' => $ti->name,
+                'variant_name_snapshot' => (string) ($ti->options_json['variant_name'] ?? ''),
+                'unit_price' => $ti->unit_price, 'quantity' => $ti->quantity,
+                'line_total' => Money::format(Money::toCents((string) $ti->unit_price) * $ti->quantity), 'notes' => $ti->notes,
+            ]);
+            foreach ($ti->options_json['lines'] ?? [] as $l) {
+                OrderItemOption::query()->create([
+                    'order_item_id' => $orderItem->id, 'group_name_snapshot' => $l['group_name'], 'option_name_snapshot' => $l['option_name'],
+                    'quantity' => $l['quantity'], 'charged_quantity' => $l['charged_quantity'],
+                    'unit_price' => Money::format($l['unit_price_cents']), 'total' => Money::format($l['total_cents']),
+                ]);
+            }
+        }
+        if ($tab !== null) {
+            // A baixa do estoque foi no lançamento: agora fica ligada ao pedido
+            // (se o pedido for cancelado, o estoque volta).
+            StockMovement::query()->whereIn('tab_item_id', array_map(fn (TabItem $i) => $i->id, $tabItems))
+                ->whereNull('order_id')->update(['order_id' => $order->id]);
+            $tab->forceFill(['status' => Tab::CLOSED, 'open_key' => null, 'closed_by' => $user->id, 'closed_at' => $now, 'order_id' => $order->id])->save();
         }
         foreach ($custom as $c) {
             OrderItem::query()->create([
@@ -276,7 +335,7 @@ final class PosSaleService
         }
         $this->audit->record('pos.sale', $order, [
             'total' => $order->total, 'discount' => Money::format($discount), 'service' => Money::format($service),
-            'payments' => array_map(fn ($p) => $p['method']->value, $parts), 'kitchen' => $kitchen,
+            'payments' => array_map(fn ($p) => $p['method']->value, $parts), 'kitchen' => $kitchen, 'tab' => $tab?->label,
         ]);
 
         $body = ['data' => [

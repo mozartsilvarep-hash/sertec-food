@@ -521,3 +521,23 @@ Operação, Cardápio, Loja e Conta, com ícone e descrição ao passar o mouse.
 
 ### D96 — Deploy em um comando
 `ops/deploy.sh`: backup → `git merge --ff-only` → `build --pull` → `up -d` → migrations → `ops:status` e `/up` pela borda. Para no primeiro erro; `VERSAO=<commit>` volta para uma versão anterior.
+
+## Decisões da Sprint 16 — Operação do salão
+
+### D97 — Estoque por produto e unidade, opcional
+- Existir linha em `product_stocks` (unidade + produto) = produto controlado. Sem linha, nada muda. Combo não tem saldo próprio: conta o produto escolhido em cada espaço (opção com `product_id`).
+- **Baixa na criação do pedido**, dentro da mesma transação do checkout (site) ou da venda (PDV), com `lockForUpdate` no saldo: sem saldo, 422 `out_of_stock` ("Só restam N de X") e o pedido não nasce. Pedido aguardando Pix já reserva; se expirar/cancelar, devolve.
+- **Devolução** no cancelamento/recusa (`OrderTransitions`), uma vez só: um movimento `cancel` para o pedido encerra a conta.
+- **Esgotado automático:** saldo ≤ 0 marca `branch_product_availability.available=false` e `auto_paused=true`; repor libera só se foi o estoque que esgotou (pausa manual do atendente é respeitada).
+- Histórico em `stock_movements` (sale, cancel, entry, loss, count) com saldo depois, pedido e usuário. Consultar: `catalog.view`; ligar/ajustar: `catalog.manage`.
+
+### D98 — Comanda: preço no lançamento, pedido no fechamento
+- `tabs` (mesa/comanda) com `open_key` único por unidade enquanto aberta: não existem duas "Mesa 4" abertas; fechada, o nome fica livre.
+- **Lançar** passa os itens pela calculadora do cardápio (carrinho temporário) e grava o preço do servidor no `tab_item`. Promoções "leve 2" entre itens da conta não se aplicam (preço do item na hora em que foi pedido). Avulso usa o valor do caixa.
+- **Estoque baixa no lançamento** (o cliente já pediu), ligado ao `tab_item`; remover o item devolve; no fechamento os movimentos passam a apontar para o pedido, então cancelar a venda depois também devolve.
+- **Cozinha:** "Enviar" carimba os itens novos com um número de lote; a página `/mesas/:id/cozinha` imprime só aquele lote, sem preços. Item já enviado só sai riscado e com motivo (auditoria `tab.item_voided`); antes do envio, some.
+- **Fechar** = `PosSaleService::sell` com a comanda: mesma regra de desconto, taxa (máx. 20%), fidelidade, pagamento dividido, idempotência e caixa aberto. O pedido sai `completed`, com `orders.table_label`, e não volta para a cozinha.
+- Cancelar a conta inteira com itens já enviados exige `cash.manage`.
+
+### D99 — Desconto do operador limitado
+No PDV e no fechamento da mesa, desconto do caixa acima de 10% dos itens exige `cash.manage` (403 `sale_discount_not_allowed`). Promoções do cardápio e prêmio da fidelidade não contam nesse limite.

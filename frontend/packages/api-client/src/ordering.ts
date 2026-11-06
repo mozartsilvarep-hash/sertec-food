@@ -219,6 +219,7 @@ export interface MerchantOrder {
   online_payment?: MerchantOnlinePayment | null
   /** online = cardápio; pos = PDV. */
   channel?: 'online' | 'pos'
+  table_label?: string | null
   change_given?: string | null
   pos_payments?: { method: string; label: string; amount: string }[]
   seller?: string | null

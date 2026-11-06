@@ -3,6 +3,7 @@
 namespace App\Modules\Ordering\Services;
 
 use App\Modules\Cash\Services\CashBook;
+use App\Modules\Catalog\Stock\StockService;
 use App\Modules\Identity\Models\User;
 use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\CancellationReason;
@@ -107,6 +108,7 @@ final class OrderTransitions
         if ($isCancel) {
             CouponService::voidFor($locked);
             LoyaltyService::restoreFor($locked);
+            app(StockService::class)->restoreFor($locked, $actor);
             $locked->cancelled_at = $now;
             $locked->cancellation_reason = $reason?->value;
             $locked->cancellation_note = $actor !== null ? $note : null;

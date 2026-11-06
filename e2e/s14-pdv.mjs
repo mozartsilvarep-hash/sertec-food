@@ -61,7 +61,7 @@ check('pizza com sabor entra na venda', (await ticket.textContent()).includes('C
 await m.getByRole('button', { name: 'Avulso' }).click()
 await m.getByRole('form', { name: 'Item avulso' }).getByLabel('Descrição').fill('Vela')
 await m.getByRole('form', { name: 'Item avulso' }).getByLabel('Valor (R$)').fill('3,00')
-await m.getByRole('button', { name: 'Lançar' }).click()
+await m.getByRole('button', { name: 'Lançar', exact: true }).click()
 await m.getByText('Cliente (opcional)').click()
 await m.getByLabel('Celular do cliente').fill('(79) 98888-1212')
 await m.getByLabel('Nome do cliente').fill('Bruna')

@@ -226,3 +226,102 @@ export const financeApi = {
   removeFixedCost: (id: string) =>
     request<Data<FixedCost> | null>(`/merchant/cash/finance/fixed-costs/${enc(id)}`, { method: 'DELETE' }).then((r) => r?.data ?? null),
 }
+
+/* ---------- Mesas e comandas (Sprint 16) ---------- */
+
+export interface TabItem {
+  id: string
+  name: string
+  detail: string | null
+  unit_price: string
+  quantity: number
+  line_total: string
+  notes: string | null
+  custom: boolean
+  kitchen_batch: number | null
+  sent_at: string | null
+  voided_at: string | null
+  void_reason: string | null
+  added_by: string | null
+  added_at: string | null
+}
+
+export interface TabSummary {
+  id: string
+  label: string
+  people: number
+  customer_name: string | null
+  status: 'open' | 'closed' | 'cancelled'
+  branch: { id: string; name: string } | null
+  opened_at: string
+  items_count: number
+  pending_kitchen: number
+  subtotal: string
+}
+
+export interface TabDetail extends TabSummary {
+  notes: string | null
+  kitchen_batches: number
+  closed_at: string | null
+  order_id: string | null
+  items: TabItem[]
+}
+
+export type TabClosePayload = Omit<PosSalePayload, 'items' | 'send_to_kitchen' | 'branch'>
+
+export const tabsApi = {
+  list: (branch?: string | null) => request<Data<TabSummary[]>>(`/merchant/cash/tabs${filterQuery({ branch })}`).then((r) => r.data),
+  open: (body: { branch?: string | null; label: string; people?: number; customer_name?: string | null }) =>
+    request<Data<TabDetail>>('/merchant/cash/tabs', { method: 'POST', body }).then((r) => r.data),
+  get: (id: string) => request<Data<TabDetail>>(`/merchant/cash/tabs/${enc(id)}`).then((r) => r.data),
+  update: (id: string, body: { label?: string; people?: number; customer_name?: string | null; notes?: string | null }) =>
+    request<Data<TabDetail>>(`/merchant/cash/tabs/${enc(id)}`, { method: 'PATCH', body }).then((r) => r.data),
+  addItems: (id: string, items: PosLine[]) =>
+    request<Data<TabDetail>>(`/merchant/cash/tabs/${enc(id)}/items`, { method: 'POST', body: { items } }).then((r) => r.data),
+  voidItem: (id: string, item: string, reason?: string | null) =>
+    request<Data<TabDetail>>(`/merchant/cash/tabs/${enc(id)}/items/${enc(item)}/void`, { method: 'POST', body: { reason: reason ?? null } }).then((r) => r.data),
+  send: (id: string) =>
+    request<Data<{ batch: number | null; count: number; tab: TabDetail }>>(`/merchant/cash/tabs/${enc(id)}/send`, { method: 'POST' }).then((r) => r.data),
+  close: (id: string, payload: TabClosePayload, idempotencyKey: string) =>
+    request<Data<PosSaleResult>>(`/merchant/cash/tabs/${enc(id)}/close`, { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
+  cancel: (id: string, reason: string) =>
+    request<void>(`/merchant/cash/tabs/${enc(id)}/cancel`, { method: 'POST', body: { reason } }),
+}
+
+/* ---------- Estoque simples (Sprint 16) ---------- */
+
+export interface StockRow {
+  id: string
+  name: string
+  code: string | null
+  active: boolean
+  tracked: boolean
+  quantity: number | null
+  min_quantity: number | null
+  low: boolean
+  sold_out: boolean
+}
+
+export type StockMoveType = 'sale' | 'cancel' | 'entry' | 'loss' | 'count'
+
+export interface StockMove {
+  type: StockMoveType
+  label: string
+  quantity: number
+  balance_after: number
+  reason: string | null
+  user: string | null
+  order_number: number | null
+  occurred_at: string
+}
+
+export const stockApi = {
+  list: (branch?: string | null) =>
+    request<Data<{ branch: { id: string; name: string }; products: StockRow[] }>>(`/merchant/stock${filterQuery({ branch })}`).then((r) => r.data),
+  configure: (product: string, body: { branch?: string | null; tracked: boolean; quantity?: number | null; min_quantity?: number | null }) =>
+    request<Data<{ branch: { id: string; name: string }; products: StockRow[] }>>(`/merchant/stock/${enc(product)}`, { method: 'PUT', body }).then((r) => r.data),
+  adjust: (product: string, body: { branch?: string | null; type: 'entry' | 'loss' | 'count'; quantity: number; reason?: string | null }) =>
+    request<Data<{ quantity: number; low: boolean; sold_out: boolean }>>(`/merchant/stock/${enc(product)}/adjust`, { method: 'POST', body }).then((r) => r.data),
+  movements: (product: string, branch?: string | null) =>
+    request<Data<StockMove[]>>(`/merchant/stock/${enc(product)}/movements${filterQuery({ branch })}`).then((r) => r.data),
+}
