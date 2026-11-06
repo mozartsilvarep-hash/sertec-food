@@ -6,6 +6,7 @@ use App\Modules\Identity\Enums\PlatformRole;
 use App\Modules\Identity\Models\Role;
 use App\Modules\Identity\Models\TenantUser;
 use App\Modules\Identity\Models\User;
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Platform\Tenants\TenantProvisioner;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Models\Tenant;
@@ -61,7 +62,8 @@ class DemoSeeder extends Seeder
 
     private function tenant(TenantProvisioner $provisioner, string $slug, string $name, string $ownerEmail, string $plan): Tenant
     {
-        $result = $provisioner->provision($name, $slug, $ownerEmail, 'Proprietário '.$name, $plan, activate: true);
+        // Demonstração com todos os módulos.
+        $result = $provisioner->provision($name, $slug, $ownerEmail, 'Proprietário '.$name, $plan, activate: true, modules: ModuleKey::values());
         $this->credentials[] = [$ownerEmail, (string) $result['owner_password'], $slug.'.'.config('tenancy.base_domain').'/painel'];
 
         return $result['tenant'];

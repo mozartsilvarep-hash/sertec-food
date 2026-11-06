@@ -12,6 +12,8 @@ export interface Invoice {
   plan_name: string
   months: number
   amount: string
+  /** Composição: um item por módulo (ou o valor próprio). */
+  lines: { label: string; amount: string }[]
   period_start: string
   period_end: string
   due_date: string
@@ -28,10 +30,35 @@ export interface BillingSubscription {
   status: 'trialing' | 'active' | 'past_due' | 'cancelled'
   billing_months: number
   period_label: string
+  modules: ModuleKey[]
+  /** Plano (se tiver preço) + cada módulo; amount null = sem preço no período. */
+  lines: { label: string; amount: string | null; module: ModuleKey | null }[]
+  /** Soma do catálogo (sem o valor próprio). */
+  catalog_price: string | null
   custom_price: string | null
   /** null = plano sem preço para o período; "0.00" = cortesia. */
   price: string | null
   paid_until: string | null
+}
+
+/** Módulos vendidos separadamente. */
+export type ModuleKey = 'menu' | 'pos' | 'tabs' | 'stock'
+
+export const MODULES: { key: ModuleKey; label: string; requires?: ModuleKey }[] = [
+  { key: 'menu', label: 'Cardápio digital' },
+  { key: 'pos', label: 'PDV e caixa' },
+  { key: 'tabs', label: 'Mesas e comandas', requires: 'pos' },
+  { key: 'stock', label: 'Estoque' },
+]
+
+export interface AdminModule {
+  key: ModuleKey
+  name: string
+  description: string | null
+  active: boolean
+  requires: ModuleKey | null
+  prices: Record<string, string | null>
+  tenants: number
 }
 
 export interface AdminPlan {
@@ -74,6 +101,9 @@ export const PERIOD_LABELS: Record<number, string> = { 1: 'Mensal', 3: 'Trimestr
 
 export const adminBillingApi = {
   plans: () => request<{ data: AdminPlan[]; meta: PlanMeta }>('/admin/billing/plans'),
+  modules: () => request<{ data: AdminModule[]; meta: { periods: { months: number; label: string }[] } }>('/admin/billing/modules'),
+  updateModule: (key: ModuleKey, body: Partial<Pick<AdminModule, 'name' | 'description' | 'active' | 'prices'>>) =>
+    request<Data<AdminModule>>(`/admin/billing/modules/${enc(key)}`, { method: 'PATCH', body }).then((r) => r.data),
   createPlan: (body: Partial<Omit<AdminPlan, 'tenants' | 'monthly_price'>>) =>
     request<Data<AdminPlan>>('/admin/billing/plans', { method: 'POST', body }).then((r) => r.data),
   updatePlan: (slug: string, body: Partial<Omit<AdminPlan, 'slug' | 'tenants' | 'monthly_price'>>) =>
@@ -89,7 +119,7 @@ export const adminBillingApi = {
   cancelInvoice: (id: string, note?: string | null) =>
     request<Data<TenantBilling>>(`/admin/billing/invoices/${enc(id)}/cancel`, { method: 'POST', body: { note: note ?? null } }).then((r) => r.data),
   tenant: (id: string) => request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing`).then((r) => r.data),
-  updateTenant: (id: string, body: { plan: string; billing_months: number; price?: string | null; paid_until?: string | null }) =>
+  updateTenant: (id: string, body: { plan: string; billing_months: number; price?: string | null; paid_until?: string | null; modules?: ModuleKey[] }) =>
     request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing`, { method: 'PUT', body }).then((r) => r.data),
   createInvoice: (id: string) =>
     request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing/invoices`, { method: 'POST' }).then((r) => r.data),

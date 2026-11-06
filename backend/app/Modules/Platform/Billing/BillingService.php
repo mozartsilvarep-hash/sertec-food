@@ -64,14 +64,31 @@ final class BillingService
         return Invoice::query()->firstOrCreate(
             ['subscription_id' => $subscription->id, 'period_start' => $start->toDateString()],
             [
-                'plan_name' => $subscription->plan->name,
+                'plan_name' => $subscription->billingLabel(),
                 'months' => $months,
                 'amount' => $price,
+                'lines_json' => self::lines($subscription, $price),
                 'period_end' => $start->addMonthsNoOverflow($months)->subDay()->toDateString(),
                 'due_date' => ($paidUntil === null ? $today->addDays(self::FIRST_DUE_DAYS) : $start)->toDateString(),
                 'status' => Invoice::OPEN,
             ],
         );
+    }
+
+    /**
+     * Composição que aparece na fatura. Com valor próprio, uma linha só.
+     *
+     * @return list<array{label: string, amount: string}>
+     */
+    public static function lines(Subscription $subscription, string $price): array
+    {
+        $lines = array_values(array_filter($subscription->priceLines(), fn (array $l) => $l['amount'] !== null));
+        $sum = array_sum(array_map(fn (array $l) => Money::toCents((string) $l['amount']), $lines));
+        if ($subscription->price !== null || $sum !== Money::toCents($price)) {
+            return [['label' => $subscription->billingLabel(), 'amount' => $price]];
+        }
+
+        return array_map(fn (array $l) => ['label' => $l['label'], 'amount' => (string) $l['amount']], $lines);
     }
 
     /**

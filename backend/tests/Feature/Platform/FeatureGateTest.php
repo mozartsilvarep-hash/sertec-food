@@ -37,7 +37,7 @@ it('libera apenas as funcionalidades do plano do tenant do contexto', function (
     });
 });
 
-it('assinatura vencida, cancelada ou plano inativo não libera nada', function () {
+it('assinatura vencida, cancelada ou plano inativo não libera recursos do plano', function () {
     subscribe($this->a, $this->site, ['period_end' => now()->subDay()]);
     subscribe($this->b, $this->site, ['status' => Subscription::STATUS_CANCELLED]);
 
@@ -47,7 +47,8 @@ it('assinatura vencida, cancelada ou plano inativo não libera nada', function (
     $c = makeTenant('tenant-c');
     $this->site->update(['active' => false]);
     subscribe($c, $this->site);
-    expect(inTenant($c, fn () => (new FeatureGate(ctx()))->features()))->toBe([]);
+    // Plano fora de venda: recursos do plano somem; o módulo contratado continua.
+    expect(array_keys(array_filter(inTenant($c, fn () => (new FeatureGate(ctx()))->features()))))->toBe([Feature::ONLINE_ORDERING]);
 });
 
 it('sem contexto de tenant, a checagem falha fechada', function () {

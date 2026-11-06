@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string $plan_name
  * @property int $months
  * @property string $amount
+ * @property list<array{label: string, amount: string}>|null $lines_json
  * @property Carbon $period_start
  * @property Carbon $period_end
  * @property Carbon $due_date
@@ -66,6 +67,7 @@ class Invoice extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'lines_json' => 'array',
             'months' => 'integer',
             'period_start' => 'date',
             'period_end' => 'date',

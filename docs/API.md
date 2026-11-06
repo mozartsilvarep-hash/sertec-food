@@ -346,3 +346,16 @@ Rotas com `cash.operate` e o recurso `cashbook`.
 - `GET merchant/stock/{product}/movements?branch=` → últimos 100 movimentos.
 
 **Mudanças:** pedidos do painel trazem `table_label`; checkout do site e venda do PDV podem responder 422 `out_of_stock`; venda do PDV responde 403 `sale_discount_not_allowed` para desconto acima de 10% sem `cash.manage`.
+
+## Módulos (06/11/2026)
+
+**Painel SerTec:**
+- `GET admin/billing/modules` → `[{key: menu|pos|tabs|stock, name, description, active, requires, prices{"1","3","6","12"}, tenants}]`.
+- `PATCH admin/billing/modules/{key}` (superadmin) `{name?, description?, active?, prices?}`.
+- `PUT admin/tenants/{id}/billing` aceita `modules: [...]` (Mesas exige `pos`; ao menos um). Sem `price`, o valor é plano + soma dos módulos no `billing_months`.
+- `POST admin/tenants` aceita `modules` (padrão: `["menu"]`). Listas de estabelecimentos trazem `modules`.
+- Assinatura (`subscription`) traz `modules`, `lines[{label, amount|null, module}]` e `catalog_price`; faturas trazem `lines[{label, amount}]`.
+
+**Restaurante:** `merchant/me` traz `modules` e `features`. Novo `GET merchant/cash/pos/products/{id}?branch=` (mesmo formato de `products/{id}`). `pos/catalog` traz `loyalty`.
+
+**Público:** sem o módulo Cardápio digital, `storefront`, `menus`, `products/*`, `carts*`, `checkout`, `customers/lookup`, `orders/lookup` e a vitrine respondem 403 `feature_unavailable`. `orders/track/{token}` continua.

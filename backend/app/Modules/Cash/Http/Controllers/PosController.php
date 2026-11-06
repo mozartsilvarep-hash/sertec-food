@@ -15,6 +15,7 @@ use App\Modules\Ordering\Enums\OrderStatus;
 use App\Modules\Ordering\Models\Customer;
 use App\Modules\Ordering\Models\OrderItem;
 use App\Modules\Ordering\Support\Phone;
+use App\Modules\Tenancy\Http\Controllers\StorefrontController;
 use App\Modules\Tenancy\Models\Branch;
 use App\Modules\Tenancy\Support\PublicIds;
 use Illuminate\Http\JsonResponse;
@@ -51,6 +52,8 @@ class PosController
             ])->all(),
             'top' => $top->map(fn ($id) => $idToPublic[$id] ?? null)->filter()->values(),
             'methods' => array_map(fn (CashMethod $m) => ['method' => $m->value, 'label' => $m->label()], CashMethod::posCases()),
+            // Regra do fidelidade (o PDV não depende do cardápio online).
+            'loyalty' => StorefrontController::loyaltyRule(),
         ]]);
     }
 

@@ -3,11 +3,13 @@
 namespace App\Modules\Platform\Features;
 
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Tenancy\TenantContext;
 
 /**
  * Responde se o tenant do contexto tem uma funcionalidade liberada pela
- * assinatura vigente (trialing/active e não expirada).
+ * assinatura vigente (trialing/active e não expirada): recursos do plano +
+ * módulos contratados (D100).
  */
 final class FeatureGate
 {
@@ -15,6 +17,12 @@ final class FeatureGate
     private array $cache = [];
 
     public function __construct(private readonly TenantContext $context) {}
+
+    /** Esquece o que foi lido (após mudar a assinatura na mesma requisição). */
+    public function forget(): void
+    {
+        $this->cache = [];
+    }
 
     public function enabled(string $feature): bool
     {
@@ -38,10 +46,30 @@ final class FeatureGate
     {
         $subscription = Subscription::query()->current()->with('plan')->first();
 
-        if ($subscription === null || ! $subscription->plan->active) {
-            return [];
+        // Plano: recursos extras. As funcionalidades dos módulos (cardápio
+        // online, caixa, mesas, estoque) vêm só dos módulos contratados.
+        $features = $subscription !== null && $subscription->plan->active
+            ? array_map(fn ($v) => $v === true, $subscription->plan->features_json)
+            : [];
+        foreach (ModuleKey::features() as $f) {
+            $features[$f] = false;
+        }
+        // Sem assinatura: só o Cardápio digital (como sempre foi).
+        $modules = $subscription?->modules() ?? [ModuleKey::Menu];
+        foreach ($modules as $m) {
+            $features[$m->feature()] = true;
         }
 
-        return array_map(fn ($v) => $v === true, $subscription->plan->features_json);
+        return $features;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function modules(): array
+    {
+        $subscription = Subscription::query()->current()->first();
+
+        return array_map(fn (ModuleKey $m) => $m->value, $subscription?->modules() ?? [ModuleKey::Menu]);
     }
 }

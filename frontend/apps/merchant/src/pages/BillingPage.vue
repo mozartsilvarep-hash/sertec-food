@@ -95,9 +95,11 @@ onBeforeUnmount(stop)
       <h2 id="plano" class="sr-only">Seu plano</h2>
       <template v-if="sub">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p class="text-sm text-muted">Plano</p>
-            <p class="font-display text-2xl font-bold">{{ sub.plan.name }}</p>
+          <div class="min-w-0">
+            <p class="text-sm text-muted">Módulos contratados</p>
+            <ul class="mt-1 flex flex-wrap gap-2" aria-label="Módulos contratados">
+              <li v-for="l in sub.lines" :key="l.label" class="rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-700">{{ l.label }}</li>
+            </ul>
             <p class="mt-1 text-sm text-muted">
               {{ sub.period_label }}
               <template v-if="sub.price && Number(sub.price) > 0"> · {{ formatMoney(sub.price) }} {{ PER[sub.billing_months] ?? 'por período' }}</template>
@@ -112,6 +114,7 @@ onBeforeUnmount(stop)
           </p>
         </div>
         <p v-if="sub.paid_until" class="mt-4 text-sm">Pago até <strong>{{ formatDay(sub.paid_until) }}</strong>.</p>
+        <p class="mt-2 text-xs text-muted">Quer outro módulo (PDV, mesas, estoque, cardápio online)? Fale com a equipe SerTec.</p>
       </template>
       <p v-else class="text-sm text-muted">Nenhum plano ativo. Fale com a equipe SerTec.</p>
     </section>

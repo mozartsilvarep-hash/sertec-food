@@ -5,6 +5,7 @@ namespace App\Modules\Platform\Billing;
 use App\Modules\Platform\Models\Invoice;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 
 final class InvoicePresenter
 {
@@ -18,6 +19,7 @@ final class InvoicePresenter
             'plan_name' => $i->plan_name,
             'months' => $i->months,
             'amount' => $i->amount,
+            'lines' => $i->lines_json ?? [['label' => $i->plan_name, 'amount' => $i->amount]],
             'period_start' => $i->period_start->toDateString(),
             'period_end' => $i->period_end->toDateString(),
             'due_date' => $i->due_date->toDateString(),
@@ -48,6 +50,9 @@ final class InvoicePresenter
             'status' => $s->status,
             'billing_months' => $s->billing_months,
             'period_label' => Plan::PERIODS[$s->billing_months] ?? "{$s->billing_months} meses",
+            'modules' => array_map(fn (ModuleKey $m) => $m->value, $s->modules()),
+            'lines' => $s->priceLines(),
+            'catalog_price' => $s->catalogPrice(),
             'custom_price' => $s->price,
             'price' => $s->effectivePrice(),
             'paid_until' => $s->paid_until?->toDateString(),

@@ -62,20 +62,32 @@ class StorefrontController
             'branches' => $branches,
             'announcement' => $tenant->activeAnnouncement(),
             // Cartão fidelidade ativo: regra para mostrar no cardápio e no checkout.
-            'loyalty' => ($program = app(LoyaltyService::class)->program()) === null ? null : [
-                'stamps_required' => $program->stamps_required,
-                'reward_label' => $program->rewardLabel(),
-                'min_order' => $program->min_order,
-                // Para a prévia do desconto no checkout (o servidor recalcula).
-                'reward_type' => $program->reward_type,
-                'reward_amount' => $program->reward_amount,
-                'reward_percent_bp' => $program->reward_percent_bp,
-                'reward_max' => $program->reward_max,
-            ],
+            'loyalty' => self::loyaltyRule(),
             'payment_methods' => array_map(fn (PaymentMethod $m) => ['method' => $m->value, 'label' => $m->label(), 'online' => $m->isOnline()], array_values(array_filter(
                 PaymentMethod::cases(),
                 fn (PaymentMethod $m) => $m->isOnDelivery() || ($m->isOnline() && $online),
             ))),
         ]]);
+    }
+
+    /**
+     * Regra do cartão fidelidade ativo (cardápio, checkout e PDV).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function loyaltyRule(): ?array
+    {
+        $program = app(LoyaltyService::class)->program();
+
+        return $program === null ? null : [
+            'stamps_required' => $program->stamps_required,
+            'reward_label' => $program->rewardLabel(),
+            'min_order' => $program->min_order,
+            // Para a prévia do desconto (o servidor recalcula).
+            'reward_type' => $program->reward_type,
+            'reward_amount' => $program->reward_amount,
+            'reward_percent_bp' => $program->reward_percent_bp,
+            'reward_max' => $program->reward_max,
+        ];
     }
 }

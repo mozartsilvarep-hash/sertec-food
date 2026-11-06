@@ -9,6 +9,7 @@ use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Features\Feature;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,6 @@ class AdminPlanController
         Feature::REPORTS => 'Relatórios',
         Feature::THERMAL_PRINT => 'Comanda impressa',
         Feature::WHATSAPP_NOTIFICATIONS => 'Avisos por WhatsApp',
-        Feature::CASHBOOK => 'Caixa (mini PDV)',
         Feature::LOYALTY => 'Cartão fidelidade',
     ];
 
@@ -41,7 +41,9 @@ class AdminPlanController
             'data' => Plan::query()->orderBy('id')->get()->map(fn (Plan $p) => self::present($p, (int) ($counts[$p->id] ?? 0)))->values(),
             'meta' => [
                 'periods' => collect(Plan::PERIODS)->map(fn ($label, $months) => ['months' => $months, 'label' => $label])->values(),
-                'features' => collect(Feature::all())->map(fn ($f) => ['key' => $f, 'label' => self::FEATURE_LABELS[$f] ?? $f])->values(),
+                // Caixa, mesas, estoque e pedidos online são módulos (D100), não recursos do plano.
+                'features' => collect(Feature::all())->reject(fn ($f) => in_array($f, ModuleKey::features(), true))
+                    ->map(fn ($f) => ['key' => $f, 'label' => self::FEATURE_LABELS[$f] ?? $f])->values(),
             ],
         ]);
     }

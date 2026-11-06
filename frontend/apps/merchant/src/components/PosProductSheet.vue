@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ApiError, flavorAvailable, formatMoney, previewPrice, publicCatalogApi, type PublicOptionGroup, type PublicProduct } from '@sertec/api-client'
+import { ApiError, flavorAvailable, formatMoney, posApi, previewPrice, type PublicOptionGroup, type PublicProduct } from '@sertec/api-client'
 import { SButton, SPageState, SSheet, SStepper } from '@sertec/ui'
 
 /** Tamanho, sabores e adicionais no PDV — mesmas regras do cardápio (o servidor confere). */
@@ -32,7 +32,7 @@ async function load(id: string) {
   quantity.value = 1
   notes.value = ''
   try {
-    product.value = await publicCatalogApi.product(id, props.branchId ?? undefined)
+    product.value = await posApi.product(id, props.branchId ?? undefined)
     variantId.value = product.value.variants[0]?.id ?? ''
     state.value = 'ready'
   } catch (e) {

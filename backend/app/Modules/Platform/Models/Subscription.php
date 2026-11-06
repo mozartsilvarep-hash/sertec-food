@@ -2,7 +2,9 @@
 
 namespace App\Modules\Platform\Models;
 
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Tenancy\Concerns\BelongsToTenant;
+use App\Support\Money;
 use Database\Factories\SubscriptionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $tenant_id
  * @property int $plan_id
+ * @property list<string>|null $modules_json
  * @property string $status
  * @property int $billing_months
  * @property string|null $price
@@ -34,11 +37,11 @@ class Subscription extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
-    protected $fillable = ['tenant_id', 'plan_id', 'status', 'period_end', 'billing_months', 'price', 'paid_until'];
+    protected $fillable = ['tenant_id', 'plan_id', 'modules_json', 'status', 'period_end', 'billing_months', 'price', 'paid_until'];
 
     protected function casts(): array
     {
-        return ['period_end' => 'datetime', 'paid_until' => 'date', 'price' => 'decimal:2', 'billing_months' => 'integer'];
+        return ['period_end' => 'datetime', 'paid_until' => 'date', 'price' => 'decimal:2', 'billing_months' => 'integer', 'modules_json' => 'array'];
     }
 
     /**
@@ -49,6 +52,61 @@ class Subscription extends Model
         return $this->belongsTo(Plan::class);
     }
 
+    /**
+     * Módulos contratados (sem lista = só o Cardápio digital). Mesas e
+     * comandas sem o PDV não vale.
+     *
+     * @return list<ModuleKey>
+     */
+    public function modules(): array
+    {
+        $list = $this->modules_json === null ? [ModuleKey::Menu] : ModuleKey::list($this->modules_json);
+
+        return array_values(array_filter($list, fn (ModuleKey $m) => $m->requires() === null || in_array($m->requires(), $list, true)));
+    }
+
+    public function hasModule(ModuleKey $module): bool
+    {
+        return in_array($module, $this->modules(), true);
+    }
+
+    /**
+     * Composição do valor do período: plano (se tiver preço) + cada módulo.
+     *
+     * @param  array<string, BillingModule>|null  $catalog
+     * @return list<array{label: string, amount: string|null, module: string|null}>
+     */
+    public function priceLines(?array $catalog = null): array
+    {
+        $catalog ??= BillingModule::catalog();
+        $lines = [];
+        $planPrice = $this->plan->priceFor($this->billing_months);
+        if ($planPrice !== null && Money::toCents($planPrice) > 0) {
+            $lines[] = ['label' => $this->plan->name, 'amount' => $planPrice, 'module' => null];
+        }
+        foreach ($this->modules() as $m) {
+            $row = $catalog[$m->value] ?? null;
+            $lines[] = ['label' => $row->name ?? $m->label(), 'amount' => $row?->priceFor($this->billing_months), 'module' => $m->value];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Soma do catálogo (null = nada com preço neste período).
+     *
+     * @param  array<string, BillingModule>|null  $catalog
+     */
+    public function catalogPrice(?array $catalog = null): ?string
+    {
+        $priced = array_filter($this->priceLines($catalog), fn (array $l) => $l['amount'] !== null);
+        if ($priced === []) {
+            return null;
+        }
+
+        return Money::format(array_sum(array_map(fn (array $l) => Money::toCents((string) $l['amount']), $priced)));
+    }
+
     /** Valor a cobrar por período; null = sem preço definido; "0.00" = cortesia. */
     public function effectivePrice(): ?string
     {
@@ -56,7 +114,15 @@ class Subscription extends Model
             return number_format((float) $this->price, 2, '.', '');
         }
 
-        return $this->plan->priceFor($this->billing_months);
+        return $this->catalogPrice();
+    }
+
+    /** Nome na fatura: "Cardápio digital + PDV e caixa". */
+    public function billingLabel(): string
+    {
+        $names = array_map(fn (array $l) => $l['label'], $this->priceLines());
+
+        return mb_substr($names === [] ? $this->plan->name : implode(' + ', $names), 0, 120);
     }
 
     /**

@@ -6,6 +6,10 @@ export interface MerchantMe {
   roles: string[]
   permissions: string[]
   all_branches: boolean
+  /** Módulos contratados (menu, pos, tabs, stock). */
+  modules?: import('./billing').ModuleKey[]
+  /** Funcionalidades liberadas (plano + módulos). */
+  features?: string[]
   /** Mensalidade SerTec perto do vencimento ou atrasada (só para o proprietário). */
   billing?: { invoice_id: string; due_date: string; amount: string; overdue: boolean } | null
 }

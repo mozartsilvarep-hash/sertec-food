@@ -8,6 +8,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Tenancy\Enums\DomainType;
 use App\Modules\Tenancy\Enums\TenantStatus;
 use App\Modules\Tenancy\Models\Branch;
@@ -31,6 +32,7 @@ final class TenantProvisioner
     ) {}
 
     /**
+     * @param  list<string>|null  $modules  ModuleKey contratados (null = só o Cardápio digital)
      * @return array{tenant: Tenant, owner: User, owner_password: string|null}
      */
     public function provision(
@@ -41,12 +43,13 @@ final class TenantProvisioner
         ?string $planSlug = null,
         bool $activate = false,
         ?string $timezone = null,
+        ?array $modules = null,
     ): array {
         $slug = strtolower(trim($slug));
         $this->assertValidSlug($slug);
 
         return $this->context->runAsPlatform(fn () => DB::transaction(function () use (
-            $name, $slug, $ownerEmail, $ownerName, $planSlug, $activate, $timezone
+            $name, $slug, $ownerEmail, $ownerName, $planSlug, $activate, $timezone, $modules
         ) {
             $tenant = Tenant::query()->create([
                 'name' => $name,
@@ -92,6 +95,8 @@ final class TenantProvisioner
                 Subscription::query()->create([
                     'tenant_id' => $tenant->id,
                     'plan_id' => $plan->id,
+                    // Sem escolha: só o Cardápio digital.
+                    'modules_json' => $modules ?? [ModuleKey::Menu->value],
                     'status' => Subscription::STATUS_ACTIVE,
                 ]);
             }
@@ -100,6 +105,7 @@ final class TenantProvisioner
                 'slug' => $slug,
                 'status' => $tenant->status->value,
                 'plan' => $planSlug,
+                'modules' => $planSlug !== null ? ($modules ?? [ModuleKey::Menu->value]) : null,
             ], tenant: $tenant);
 
             return ['tenant' => $tenant, 'owner' => $owner, 'owner_password' => $ownerPassword];

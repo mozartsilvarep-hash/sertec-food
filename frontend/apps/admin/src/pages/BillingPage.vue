@@ -2,13 +2,13 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   adminBillingApi, describeError, formatDay, formatMoney,
-  type AdminInvoice, type AdminPlan, type BillingProviderSettings, type PlanMeta,
+  type AdminInvoice, type AdminModule, type AdminPlan, type BillingProviderSettings, type ModuleKey, type PlanMeta,
 } from '@sertec/api-client'
 import { SAlert, SButton, SPageState, STextField } from '@sertec/ui'
 import { me } from '../session'
 
 const superadmin = computed(() => me.value?.user.platform_role === 'superadmin')
-const tab = ref<'invoices' | 'plans' | 'provider'>('invoices')
+const tab = ref<'invoices' | 'modules' | 'plans' | 'provider'>('invoices')
 const message = ref<{ ok: boolean; text: string } | null>(null)
 
 function say(ok: boolean, text: string) {
@@ -54,6 +54,50 @@ async function confirmPending() {
     say(false, describeError(e).message)
   }
 }
+
+/* ---------- Módulos ---------- */
+const modules = ref<AdminModule[]>([])
+const modulePeriods = ref<{ months: number; label: string }[]>([])
+const modEdit = ref<ModuleKey | null>(null)
+const modForm = reactive<{ name: string; description: string; active: boolean; prices: Record<string, string> }>({ name: '', description: '', active: true, prices: {} })
+const modErrors = ref<Record<string, string[]>>({})
+const modSaving = ref(false)
+
+async function loadModules() {
+  const r = await adminBillingApi.modules()
+  modules.value = r.data
+  modulePeriods.value = r.meta.periods
+}
+function editModule(m: AdminModule) {
+  modErrors.value = {}
+  modEdit.value = m.key
+  Object.assign(modForm, {
+    name: m.name, description: m.description ?? '', active: m.active,
+    prices: Object.fromEntries(modulePeriods.value.map((x) => [String(x.months), m.prices[String(x.months)]?.replace('.', ',') ?? ''])),
+  })
+}
+async function saveModule() {
+  if (!modEdit.value) return
+  modSaving.value = true
+  modErrors.value = {}
+  try {
+    await adminBillingApi.updateModule(modEdit.value, {
+      name: modForm.name, description: modForm.description || null, active: modForm.active,
+      prices: Object.fromEntries(Object.entries(modForm.prices).map(([k, v]) => [k, v.trim() || null])),
+    })
+    say(true, 'Módulo salvo. O preço novo vale para as próximas faturas (quem tem valor próprio não muda).')
+    modEdit.value = null
+    await loadModules()
+  } catch (e) {
+    const d = describeError(e)
+    modErrors.value = d.fields ?? {}
+    say(false, d.message)
+  } finally {
+    modSaving.value = false
+  }
+}
+const mainPeriods = computed(() => modulePeriods.value.filter((p) => p.months === 1 || p.months === 12))
+const otherPeriods = computed(() => modulePeriods.value.filter((p) => p.months !== 1 && p.months !== 12))
 
 /* ---------- Planos ---------- */
 const plans = ref<AdminPlan[]>([])
@@ -135,7 +179,7 @@ async function disconnect() {
 const state = ref<'loading' | 'ready' | 'error'>('loading')
 onMounted(async () => {
   try {
-    await Promise.all([loadInvoices(), loadPlans(), adminBillingApi.settings().then((s) => (provider.value = s))])
+    await Promise.all([loadInvoices(), loadModules(), loadPlans(), adminBillingApi.settings().then((s) => (provider.value = s))])
     state.value = 'ready'
   } catch {
     state.value = 'error'
@@ -154,10 +198,10 @@ const FILTERS = [
   <h1 class="mb-2 text-2xl font-bold">Cobrança</h1>
   <p class="mb-6 max-w-[65ch] text-muted">Mensalidades dos restaurantes, pagas por Pix na conta Mercado Pago da SerTec.</p>
 
-  <div role="tablist" aria-label="Cobrança" class="mb-6 flex gap-1 border-b border-line">
+  <div role="tablist" aria-label="Cobrança" class="relative mb-6 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
     <button
-      v-for="t in [{ k: 'invoices', l: 'Faturas' }, { k: 'plans', l: 'Planos' }, { k: 'provider', l: 'Mercado Pago' }] as const" :key="t.k" type="button" role="tab" :aria-selected="tab === t.k"
-      class="-mb-px border-b-2 px-4 py-2 text-sm font-semibold" :class="tab === t.k ? 'border-brand-600 text-brand-700' : 'border-transparent text-muted hover:text-ink'" @click="tab = t.k; message = null"
+      v-for="t in [{ k: 'invoices', l: 'Faturas' }, { k: 'modules', l: 'Módulos e preços' }, { k: 'plans', l: 'Planos' }, { k: 'provider', l: 'Mercado Pago' }] as const" :key="t.k" type="button" role="tab" :aria-selected="tab === t.k"
+      class="-mb-px shrink-0 border-b-2 px-4 py-2 text-sm font-semibold whitespace-nowrap" :class="tab === t.k ? 'border-brand-600 text-brand-700' : 'border-transparent text-muted hover:text-ink'" @click="tab = t.k; message = null"
     >
       {{ t.l }}
     </button>
@@ -220,8 +264,42 @@ const FILTERS = [
     </form>
   </section>
 
+  <!-- Módulos -->
+  <section v-else-if="tab === 'modules'" aria-label="Módulos e preços" class="grid max-w-4xl gap-4">
+    <p class="max-w-[65ch] text-sm text-muted">Cada cliente contrata só os módulos que quer. A mensalidade soma o preço dos módulos dele no ciclo escolhido (mensal ou anual). Dá para dar um valor próprio por cliente na página do estabelecimento.</p>
+    <div v-for="m in modules" :key="m.key" class="rounded-(--radius-card) border border-line bg-surface p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">{{ m.name }} <span v-if="!m.active" class="text-sm font-normal text-muted">(fora de venda)</span></h2>
+          <p class="text-sm text-muted">{{ m.description }}</p>
+          <p class="mt-1 text-xs text-muted">{{ m.tenants }} estabelecimento(s)<template v-if="m.requires"> · precisa do {{ modules.find((x) => x.key === m.requires)?.name }}</template></p>
+          <p class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <span v-for="per in mainPeriods" :key="per.months">{{ per.label }}: <strong :class="!m.prices[String(per.months)] && 'text-danger'">{{ m.prices[String(per.months)] ? formatMoney(m.prices[String(per.months)]!) : 'sem preço' }}</strong></span>
+            <template v-for="per in otherPeriods" :key="per.months"><span v-if="m.prices[String(per.months)]">{{ per.label }}: <strong>{{ formatMoney(m.prices[String(per.months)]!) }}</strong></span></template>
+          </p>
+        </div>
+        <SButton v-if="superadmin" variant="secondary" @click="editModule(m)">Editar preço</SButton>
+      </div>
+      <form v-if="modEdit === m.key" class="mt-4 grid gap-4 border-t border-line pt-4" :aria-label="`Editar ${m.name}`" @submit.prevent="saveModule">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <STextField v-model="modForm.name" label="Nome do módulo" :error="modErrors.name?.[0]" />
+          <STextField v-model="modForm.description" label="Descrição" :error="modErrors.description?.[0]" />
+        </div>
+        <fieldset class="min-w-0">
+          <legend class="mb-2 text-sm font-medium">Preço (deixe vazio se não oferece o período)</legend>
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <STextField v-for="per in [...mainPeriods, ...otherPeriods]" :key="per.months" v-model="modForm.prices[String(per.months)]!" :label="`${per.label} (R$)`" inputmode="decimal" placeholder="0,00" :error="modErrors[`prices.${per.months}`]?.[0]" />
+          </div>
+        </fieldset>
+        <label class="flex items-center gap-2 text-sm"><input v-model="modForm.active" type="checkbox" class="size-4"> À venda (aparece para escolher)</label>
+        <div class="flex gap-3"><SButton type="submit" :loading="modSaving">Salvar módulo</SButton><SButton variant="ghost" @click="modEdit = null">Cancelar</SButton></div>
+      </form>
+    </div>
+  </section>
+
   <!-- Planos -->
   <section v-else-if="tab === 'plans'" aria-label="Planos" class="grid max-w-4xl gap-4">
+    <p class="max-w-[65ch] text-sm text-muted">O plano define os recursos extras (site profissional, domínio próprio, várias unidades, relatórios…). Se tiver preço, ele soma com os módulos; deixe sem preço para cobrar só pelos módulos.</p>
     <div v-for="p in plans" :key="p.slug" class="rounded-(--radius-card) border border-line bg-surface p-5">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>

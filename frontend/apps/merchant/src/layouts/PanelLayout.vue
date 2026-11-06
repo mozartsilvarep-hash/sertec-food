@@ -6,7 +6,7 @@ import { SButton, SSignature } from '@sertec/ui'
 import LiveBar from '../components/LiveBar.vue'
 import { startLive, stopLive } from '../live'
 import { notice } from '../notify'
-import { can, me } from '../session'
+import { can, has, me } from '../session'
 
 const router = useRouter()
 const route = useRoute()
@@ -44,25 +44,25 @@ const groups = computed(() => ([
   { title: 'Operação', links: [
     { to: '/pedidos', label: 'Pedidos', icon: 'orders', show: can('orders.view'), hint: 'Pedidos em andamento, ao vivo' },
     { to: '/historico', label: 'Histórico', icon: 'history', show: can('orders.view'), hint: 'Pedidos anteriores, busca e exportação' },
-    { to: '/pdv', label: 'PDV', icon: 'pos', show: can('cash.operate'), hint: 'Venda rápida no balcão' },
-    { to: '/mesas', label: 'Mesas e comandas', icon: 'tabs', show: can('cash.operate'), hint: 'Contas abertas, cozinha e fechamento' },
-    { to: '/caixa', label: 'Caixa', icon: 'cash', show: can('cash.operate'), hint: 'Abrir, movimentar e fechar o caixa' },
-    { to: '/financeiro', label: 'Financeiro', icon: 'finance', show: can('cash.manage'), hint: 'Taxas, custos fixos e resultado' },
+    { to: '/pdv', label: 'PDV', icon: 'pos', show: can('cash.operate') && has('cashbook'), hint: 'Venda rápida no balcão' },
+    { to: '/mesas', label: 'Mesas e comandas', icon: 'tabs', show: can('cash.operate') && has('tabs'), hint: 'Contas abertas, cozinha e fechamento' },
+    { to: '/caixa', label: 'Caixa', icon: 'cash', show: can('cash.operate') && has('cashbook'), hint: 'Abrir, movimentar e fechar o caixa' },
+    { to: '/financeiro', label: 'Financeiro', icon: 'finance', show: can('cash.manage') && has('cashbook'), hint: 'Taxas, custos fixos e resultado' },
     { to: '/relatorios', label: 'Relatórios', icon: 'reports', show: can('reports.view'), hint: 'Vendas por período, forma e produto' },
   ] },
   { title: 'Cardápio', links: [
     { to: '/cardapio', label: 'Cardápio', icon: 'catalog', show: can('catalog.view'), hint: 'Categorias, produtos e preços' },
     { to: '/opcoes', label: 'Opções e sabores', icon: 'options', show: can('catalog.view'), hint: 'Adicionais, bordas e sabores de pizza' },
-    { to: '/estoque', label: 'Estoque', icon: 'stock', show: can('catalog.view'), hint: 'Saldo por unidade, entradas e perdas' },
+    { to: '/estoque', label: 'Estoque', icon: 'stock', show: can('catalog.view') && has('stock'), hint: 'Saldo por unidade, entradas e perdas' },
     { to: '/esgotados', label: 'Esgotados', icon: 'soldout', show: can('catalog.availability'), hint: 'Marcar o que acabou hoje' },
     { to: '/promocoes', label: 'Promoções', icon: 'marketing', show: can('marketing.manage'), hint: 'Promoções, cupons, fidelidade e vitrine' },
   ] },
   { title: 'Loja', links: [
     { to: '/', label: 'Unidades', icon: 'branches', show: can('branches.view'), hint: 'Endereços e contatos das unidades' },
-    { to: '/horarios', label: 'Horários', icon: 'hours', show: can('branches.view'), hint: 'Dias e horários de funcionamento' },
-    { to: '/entrega', label: 'Entrega', icon: 'delivery', show: can('branches.view'), hint: 'Retirada, bairros e taxas de entrega' },
+    { to: '/horarios', label: 'Horários', icon: 'hours', show: can('branches.view') && has('online_ordering'), hint: 'Dias e horários de funcionamento' },
+    { to: '/entrega', label: 'Entrega', icon: 'delivery', show: can('branches.view') && has('online_ordering'), hint: 'Retirada, bairros e taxas de entrega' },
     { to: '/marca', label: 'Marca', icon: 'brand', show: can('settings.view'), hint: 'Logo, capa, cores e tema da loja' },
-    { to: '/pagamentos', label: 'Pagamentos', icon: 'payments', show: can('payments.manage'), hint: 'Mercado Pago e formas de pagamento' },
+    { to: '/pagamentos', label: 'Pagamentos', icon: 'payments', show: can('payments.manage') && has('online_ordering'), hint: 'Mercado Pago e formas de pagamento' },
   ] },
   { title: 'Conta', links: [
     { to: '/equipe', label: 'Equipe', icon: 'team', show: can('staff.manage'), hint: 'Pessoas com acesso ao painel' },

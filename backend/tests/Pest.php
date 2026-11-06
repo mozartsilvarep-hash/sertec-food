@@ -156,7 +156,7 @@ function withSession(string $sessionId): TestCase
     return $test->withCredentials()->withCookie((string) config('session.cookie'), $sessionId);
 }
 
-/** Assinatura com o caixa (PDV) liberado — ou num plano sem ele. */
+/** Assinatura com o PDV (e mesas/estoque) liberado — ou só com o Cardápio. */
 function withCashbook($tenant, bool $enabled = true): void
 {
     if (! Plan::query()->where('slug', 'cardapio')->exists()) {
@@ -166,5 +166,7 @@ function withCashbook($tenant, bool $enabled = true): void
     if (! $enabled) {
         $plan = Plan::query()->create(['slug' => 'sem-caixa', 'name' => 'Sem caixa', 'monthly_price' => '0.00', 'features_json' => ['cashbook' => false], 'active' => true]);
     }
-    inTenant($tenant, fn () => Subscription::query()->create(['plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE]));
+    // Módulos: com o caixa, todos; sem, só o Cardápio digital.
+    $modules = $enabled ? ['menu', 'pos', 'tabs', 'stock'] : ['menu'];
+    inTenant($tenant, fn () => Subscription::query()->create(['plan_id' => $plan->id, 'modules_json' => $modules, 'status' => Subscription::STATUS_ACTIVE]));
 }

@@ -54,6 +54,9 @@ Taxas de cartão (crédito/débito), Pix e site por forma; custos fixos mensais 
 ## Sprint 16 — Operação do salão ✅ concluída (05/11/2026)
 Mesas e comandas: conta aberta por mesa, itens lançados pelo PDV, envios à cozinha em lotes impressos, cancelamento de item com motivo, fechamento como venda do PDV com taxa de serviço (10% sugerido), divisão por pessoa e várias formas. Estoque simples: saldo por produto e unidade, baixa no site, no PDV e na mesa, devolução no cancelamento, estoque baixo, esgotado e liberado sozinho, entradas/perdas/contagem com histórico. Revisão: desconto do atendente limitado a 10%, nome do cliente preservado no PDV, índices de relatório e tela Marca sem rolagem lateral.
 
+## Módulos por cliente ✅ concluída (06/11/2026)
+Cardápio digital, PDV e caixa, Mesas e comandas e Estoque vendidos separadamente, cada um com preço mensal e anual; mensalidade soma os módulos no ciclo do cliente; painel e cardápio mostram só o contratado.
+
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.
 
