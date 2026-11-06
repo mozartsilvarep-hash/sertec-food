@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $people
  * @property string $status
  * @property int $kitchen_batches
+ * @property CarbonImmutable|null $bill_requested_at
  * @property string|null $notes
  * @property int|null $opened_by
  * @property int|null $closed_by
@@ -66,7 +67,7 @@ class Tab extends Model
 
     protected function casts(): array
     {
-        return ['people' => 'integer', 'kitchen_batches' => 'integer', 'opened_at' => 'immutable_datetime', 'closed_at' => 'immutable_datetime'];
+        return ['people' => 'integer', 'kitchen_batches' => 'integer', 'opened_at' => 'immutable_datetime', 'closed_at' => 'immutable_datetime', 'bill_requested_at' => 'immutable_datetime'];
     }
 
     public function isOpen(): bool

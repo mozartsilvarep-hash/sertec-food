@@ -564,3 +564,17 @@ No PDV e no fechamento da mesa, desconto do caixa acima de 10% dos itens exige `
 ### D102 — Monitor externo e e-mail no DNS
 - `GET /api/v1/status`: público, responde só `{"ok": bool}` (200/503) a partir do `HealthCheck`, que verifica banco, cache, fila e agendador. Limite de 30 por minuto. O monitor fica fora da VPS (UptimeRobot), passo a passo em OPERATIONS.
 - `ops:mail-dns`: confere SPF (um registro, com o IP do servidor), DKIM (seletores comuns, `default` do aaPanel primeiro) e DMARC, e diz o registro que falta.
+
+### D103 — Garçom no celular e QR Code na mesa
+- **Mesas cadastradas** (`dining_tables`): nome por unidade e um `qr_token` aleatório de 24 caracteres. O QR aponta para `https://<loja>/mesa/<token>`. "Novo QR" invalida o impresso. A conta da mesa é a `Tab` aberta com o mesmo nome (`Tab::keyFor`).
+- **Cliente:** escaneia, monta o carrinho normal do cardápio e envia. Isso cria um `tab_request` `pending` e nada vai para a cozinha. Também há "Chamar garçom" e "Pedir a conta"; chamados repetidos reaproveitam o mesmo. O cliente acompanha com um `view_token`, guardado só no aparelho e em hash no banco.
+- **Proteções:**
+  - token impossível de adivinhar;
+  - no máximo 5 pedidos aguardando por mesa;
+  - limite `table-order` (6 por minuto por IP, 60 por hora por mesa);
+  - pedido não confirmado expira em 30 minutos;
+  - carrinho enviado não vai de novo;
+  - só com os módulos Cardápio digital e Mesas.
+- **Garçom confirma** (`tabs.operate`): o pedido vira item da conta pelo `TabService::add`, com o preço recalculado pelo servidor e baixa de estoque. A conta abre sozinha se a mesa estiver livre, e pode ir direto para a cozinha. Ao recusar, o garçom informa um motivo, que o cliente vê.
+- **Papel Garçom** (`waiter`): catálogo, esgotados e `tabs.operate` (lançar, mandar à cozinha, pedir a conta, confirmar o QR). Não fecha conta nem mexe no caixa. O atendente também ganhou `tabs.operate`. A tela `/garcom` fica fora do layout, pensada para o celular, e se atualiza a cada 8 segundos, vibrando quando chega pedido.
+- `tabs.bill_requested_at` marca "conta pedida", que aparece no caixa e no garçom. O middleware `permission` aceita `a|b` (qualquer uma das permissões).

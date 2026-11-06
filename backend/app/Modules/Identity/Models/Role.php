@@ -35,6 +35,8 @@ class Role extends Model
 
     public const KITCHEN = 'kitchen';
 
+    public const WAITER = 'waiter';
+
     protected $fillable = ['tenant_id', 'key', 'name'];
 
     protected $hidden = ['tenant_scope'];

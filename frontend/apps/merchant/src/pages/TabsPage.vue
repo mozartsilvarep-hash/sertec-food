@@ -7,6 +7,7 @@ import {
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet, SStepper } from '@sertec/ui'
 import BranchPicker from '../components/BranchPicker.vue'
+import DiningTablesPanel from '../components/DiningTablesPanel.vue'
 import { notify } from '../notify'
 import { can, me } from '../session'
 
@@ -143,7 +144,10 @@ const since = (iso: string) => {
       <h1 class="font-display text-2xl font-bold">Mesas e comandas</h1>
       <p class="mt-1 max-w-[65ch] text-sm text-muted">Abra a conta, lance os itens pelo PDV, mande para a cozinha e feche com taxa de serviço e divisão.</p>
     </div>
-    <RouterLink :to="{ name: 'pos', query: { branch: branchId || undefined } }" class="min-h-11 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Abrir o PDV</RouterLink>
+    <div class="flex flex-wrap gap-2">
+      <RouterLink :to="{ name: 'waiter' }" class="min-h-11 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Modo garçom</RouterLink>
+      <RouterLink :to="{ name: 'pos', query: { branch: branchId || undefined } }" class="min-h-11 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Abrir o PDV</RouterLink>
+    </div>
   </div>
 
   <SPageState v-if="state === 'loading'" state="loading" />
@@ -176,7 +180,8 @@ const since = (iso: string) => {
         <button type="button" class="flex h-full w-full flex-col gap-1 rounded-(--radius-card) border border-line bg-surface p-4 text-left hover:border-ink focus-visible:border-ink" @click="openDetail(t)">
           <span class="flex items-start justify-between gap-2">
             <span class="min-w-0 truncate text-lg font-bold">{{ t.label }}</span>
-            <span v-if="t.pending_kitchen" class="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning" :title="`${t.pending_kitchen} item(ns) ainda não foram para a cozinha`">{{ t.pending_kitchen }} novo{{ t.pending_kitchen > 1 ? 's' : '' }}</span>
+            <span v-if="t.bill_requested_at" class="shrink-0 rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">Conta pedida</span>
+            <span v-else-if="t.pending_kitchen" class="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning" :title="`${t.pending_kitchen} item(ns) ainda não foram para a cozinha`">{{ t.pending_kitchen }} novo{{ t.pending_kitchen > 1 ? 's' : '' }}</span>
           </span>
           <span v-if="t.customer_name" class="truncate text-sm text-muted">{{ t.customer_name }}</span>
           <span class="text-xl font-bold tabular-nums">{{ formatMoney(t.subtotal) }}</span>
@@ -184,6 +189,7 @@ const since = (iso: string) => {
         </button>
       </li>
     </ul>
+    <DiningTablesPanel v-if="can('cash.manage')" :branch-id="branchId" />
   </template>
 
   <SSheet :open="detail.open" :label="detail.tab?.label ?? 'Conta'" @close="detail.open = false">

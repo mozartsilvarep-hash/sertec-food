@@ -364,3 +364,15 @@ Rotas com `cash.operate` e o recurso `cashbook`.
 - Painel bloqueado por atraso: 403 `account_blocked` em todas as rotas `merchant/*`, menos `me`, `me/password`, `auth/logout` e `billing/*`. `merchant/me` traz `blocked`; `billing` (aviso) traz `block_date`.
 - `subscription` traz `auto_block`, `blocked_at` e `block_date`. `PUT admin/tenants/{id}/billing` aceita `auto_block`. A lista de estabelecimentos traz `blocked`.
 - `GET /api/v1/status` → `{"ok": true}` (200) ou `{"ok": false}` (503).
+
+## Garçom e QR Code (06/11/2026)
+
+**Público (host da loja):**
+- `GET tables/{token}` → `{label, branch}`.
+- `POST tables/{token}/requests` `{type: order|waiter|bill, cart_token?, customer_name?, notes?}` → 201 `{id, status, summary, view_token}`. Chamado repetido responde 200 com o mesmo e `view_token: null`. 429 `too_many_requests` com 5 aguardando.
+- `GET table-requests/{id}?t=<view_token>` → `{status: pending|accepted|rejected|expired, summary, reason}`.
+
+**Painel:**
+- `tabs.operate | cash.operate`: `GET cash/floor?branch=` → `{tables[{id, label, qr_url, tab{…, bill_requested_at}, pending}], requests[…]}`; `POST cash/tab-requests/{id}/accept {send_to_kitchen?}`; `POST cash/tab-requests/{id}/reject {reason?}`; `POST cash/tabs/{id}/bill {cancel?}`. As rotas de lançar, enviar e ver contas, além de `pos/catalog` e `pos/products`, aceitam `tabs.operate`.
+- `cash.manage`: `GET|POST cash/dining-tables` (`{label}` ou `{prefix, from, to}`) e `PATCH|DELETE cash/dining-tables/{id}` (`label`, `active`, `new_qr`).
+- Novo papel de equipe `waiter` (Garçom).

@@ -1,8 +1,10 @@
 <?php
 
 use App\Modules\Cash\Http\Controllers\CashController;
+use App\Modules\Cash\Http\Controllers\DiningTableController;
 use App\Modules\Cash\Http\Controllers\FinanceController;
 use App\Modules\Cash\Http\Controllers\PosController;
+use App\Modules\Cash\Http\Controllers\PublicTableController;
 use App\Modules\Cash\Http\Controllers\TabController;
 use App\Modules\Catalog\Http\Controllers\AvailabilityController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
@@ -80,6 +82,13 @@ Route::middleware(['tenant', 'feature:'.Feature::ONLINE_ORDERING, SubstituteBind
     // Feed público de promoções (contrato v1, lido pelo site do restaurante).
     Route::get('vitrine/promocoes.json', StorefrontFeedController::class)->name('vitrine.promocoes');
 });
+
+// QR Code da mesa: o cliente pede e o garçom confirma (D103).
+Route::middleware(['tenant', 'throttle:public'])->group(function () {
+    Route::get('tables/{token}', [PublicTableController::class, 'show'])->name('tables.show');
+    Route::get('table-requests/{id}', [PublicTableController::class, 'status'])->name('table-requests.show');
+});
+Route::middleware(['tenant', 'throttle:table-order'])->post('tables/{token}/requests', [PublicTableController::class, 'store'])->name('tables.requests.store');
 
 // Gerar de novo / consultar a cobrança online do pedido (chama o provedor).
 Route::middleware(['tenant', 'throttle:payment-actions'])
@@ -256,15 +265,17 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::post('sales', [CashController::class, 'sale'])->name('sales.store');
                 Route::get('entries', [CashController::class, 'entries'])->name('entries.index');
                 // PDV (Sprint 14).
-                Route::get('pos/catalog', [PosController::class, 'catalog'])->name('pos.catalog');
                 Route::get('pos/customer', [PosController::class, 'customer'])->middleware('throttle:phone-lookup')->name('pos.customer');
                 Route::post('pos/sales', [PosController::class, 'sale'])->name('pos.sales.store');
                 Route::get('sessions/{session}/report', [CashController::class, 'sessionReport'])->name('sessions.report');
-                // Produto com opções para o PDV (não depende do cardápio online).
+            });
+            // Catálogo do PDV/garçom (não depende do cardápio online).
+            Route::middleware('permission:'.P::CASH_OPERATE.'|'.P::TABS_OPERATE)->group(function () {
+                Route::get('pos/catalog', [PosController::class, 'catalog'])->name('pos.catalog');
                 Route::get('pos/products/{product}', [PublicCatalogController::class, 'product'])->name('pos.products.show');
             });
-            // Mesas e comandas (Sprint 16) — módulo próprio.
-            Route::middleware(['permission:'.P::CASH_OPERATE, 'feature:'.Feature::TABS])->group(function () {
+            // Mesas e comandas (Sprint 16) — módulo próprio; garçom lança, caixa fecha.
+            Route::middleware(['permission:'.P::CASH_OPERATE.'|'.P::TABS_OPERATE, 'feature:'.Feature::TABS])->group(function () {
                 Route::get('tabs', [TabController::class, 'index'])->name('tabs.index');
                 Route::post('tabs', [TabController::class, 'store'])->name('tabs.store');
                 Route::get('tabs/{tab}', [TabController::class, 'show'])->name('tabs.show');
@@ -272,8 +283,21 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::post('tabs/{tab}/items', [TabController::class, 'addItems'])->name('tabs.items.store');
                 Route::post('tabs/{tab}/items/{item}/void', [TabController::class, 'voidItem'])->name('tabs.items.void');
                 Route::post('tabs/{tab}/send', [TabController::class, 'send'])->name('tabs.send');
+                Route::post('tabs/{tab}/bill', [DiningTableController::class, 'bill'])->name('tabs.bill');
+                // Salão do garçom: mesas, pedidos do QR aguardando (D103).
+                Route::get('floor', [DiningTableController::class, 'floor'])->name('floor');
+                Route::post('tab-requests/{tabRequest}/accept', [DiningTableController::class, 'accept'])->name('tab-requests.accept');
+                Route::post('tab-requests/{tabRequest}/reject', [DiningTableController::class, 'reject'])->name('tab-requests.reject');
+            });
+            Route::middleware(['permission:'.P::CASH_OPERATE, 'feature:'.Feature::TABS])->group(function () {
                 Route::post('tabs/{tab}/close', [TabController::class, 'close'])->name('tabs.close');
                 Route::post('tabs/{tab}/cancel', [TabController::class, 'cancel'])->name('tabs.cancel');
+            });
+            Route::middleware(['permission:'.P::CASH_MANAGE, 'feature:'.Feature::TABS])->group(function () {
+                Route::get('dining-tables', [DiningTableController::class, 'index'])->name('dining-tables.index');
+                Route::post('dining-tables', [DiningTableController::class, 'store'])->name('dining-tables.store');
+                Route::patch('dining-tables/{diningTable}', [DiningTableController::class, 'update'])->name('dining-tables.update');
+                Route::delete('dining-tables/{diningTable}', [DiningTableController::class, 'destroy'])->name('dining-tables.destroy');
             });
             Route::middleware('permission:'.P::CASH_MANAGE)->group(function () {
                 Route::post('entries/{entry}/void', [CashController::class, 'void'])->name('entries.void');

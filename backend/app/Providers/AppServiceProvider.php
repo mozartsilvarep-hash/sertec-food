@@ -59,6 +59,12 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(60)->by('checkout-host:'.$request->getHost()),
         ]);
 
+        // QR da mesa: poucos envios por aparelho e por mesa (D103).
+        RateLimiter::for('table-order', fn (Request $request) => [
+            Limit::perMinute(6)->by('table-order:'.$request->getHost().'|'.$request->ip()),
+            Limit::perHour(60)->by('table-order-table:'.$request->getHost().'|'.(string) $request->route('token')),
+        ]);
+
         // Painéis (restaurante e SerTec): folga para uso normal, corta automação abusiva.
         RateLimiter::for('panel', fn (Request $request) => Limit::perMinute(600)->by('panel:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 

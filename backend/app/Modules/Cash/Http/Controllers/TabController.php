@@ -158,6 +158,7 @@ class TabController
             'items_count' => (int) $active->sum('quantity'),
             'pending_kitchen' => (int) $active->whereNull('sent_at')->count(),
             'subtotal' => Money::format(TabService::subtotalCents($t)),
+            'bill_requested_at' => $t->bill_requested_at?->toIso8601String(),
         ];
     }
 
