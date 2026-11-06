@@ -12,6 +12,7 @@ export const router = createRouter({
     { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
     { path: '/caixa/:id/fechamento', name: 'cash-print', component: () => import('./pages/CashPrintPage.vue'), props: true },
     { path: '/pedidos/:id/recibo', name: 'order-receipt', component: () => import('./pages/PrintPage.vue'), props: (r) => ({ id: String(r.params.id), kind: 'receipt' }) },
+    { path: '/mesas/:id/cozinha', name: 'tab-kitchen', component: () => import('./pages/TabKitchenPrintPage.vue'), props: true },
     // PDV em tela própria (sem o menu lateral), pensado para tela cheia.
     { path: '/pdv', name: 'pos', component: () => import('./pages/PosPage.vue') },
     {
@@ -22,6 +23,8 @@ export const router = createRouter({
         { path: 'pedidos', name: 'orders', component: () => import('./pages/OrdersPage.vue') },
         { path: 'historico', name: 'history', component: () => import('./pages/HistoryPage.vue') },
         { path: 'caixa', name: 'cash', component: () => import('./pages/CashPage.vue') },
+        { path: 'mesas', name: 'tabs', component: () => import('./pages/TabsPage.vue') },
+        { path: 'estoque', name: 'stock', component: () => import('./pages/catalog/StockPage.vue') },
         { path: 'financeiro', name: 'finance', component: () => import('./pages/FinancePage.vue') },
         { path: 'relatorios', name: 'reports', component: () => import('./pages/ReportsPage.vue') },
         { path: 'promocoes', name: 'marketing', component: () => import('./pages/MarketingPage.vue') },

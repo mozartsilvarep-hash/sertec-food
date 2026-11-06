@@ -2,16 +2,20 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ApiError, cashApi, centsToString, describeError, formatMoney, loyaltyRewardCents, merchantApi, posApi, publicCatalogApi, toCents,
-  type Branch, type CashSession, type LoyaltyRule, type PosCatalog, type PosCustomer, type PosMethod, type ProductSummary, type StorefrontInfo,
+  ApiError, cashApi, centsToString, describeError, formatMoney, loyaltyRewardCents, merchantApi, posApi, publicCatalogApi, tabsApi, toCents,
+  type Branch, type CashSession, type LoyaltyRule, type PosCatalog, type PosCustomer, type PosLine, type PosMethod, type ProductSummary, type StorefrontInfo,
+  type TabDetail, type TabSummary,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet, SStepper } from '@sertec/ui'
 import PosProductSheet, { type PosPick } from '../components/PosProductSheet.vue'
-import { me } from '../session'
+import { can, me } from '../session'
 
 /**
  * PDV: venda rápida no balcão. Teclado: F2 busca (código ou nome), Enter
  * lança, F4 cobra, Esc fecha. O servidor recalcula tudo na hora de vender.
+ *
+ * Com ?mesa=ID o PDV trabalha numa conta aberta: os itens novos são
+ * lançados na mesa e "Fechar conta" cobra tudo o que ela tem.
  */
 const route = useRoute()
 const router = useRouter()
@@ -36,12 +40,105 @@ async function load() {
     catalog.value = cat
     session.value = sess
     loyaltyRule.value = store?.loyalty ?? null
+    await loadTab()
     state.value = sess ? 'ready' : 'closed'
+    if (sess && tab.value && route.query.fechar === '1') {
+      void router.replace({ query: { ...route.query, fechar: undefined } })
+      startPay()
+    }
     await nextTick()
     searchEl.value?.focus()
   } catch {
     state.value = 'error'
   }
+}
+
+/* ---------- Mesa / comanda ---------- */
+const tab = ref<TabDetail | null>(null)
+const tabItems = computed(() => tab.value?.items.filter((i) => !i.voided_at) ?? [])
+const tabCents = computed(() => (tab.value ? toCents(tab.value.subtotal) : 0))
+async function loadTab() {
+  const id = typeof route.query.mesa === 'string' ? route.query.mesa : ''
+  if (!id) {
+    tab.value = null
+    return
+  }
+  try {
+    const t = await tabsApi.get(id)
+    tab.value = t.status === 'open' ? t : null
+    if (tab.value) {
+      adjust.service = true
+      if (tab.value.customer_name && !customer.name) customer.name = tab.value.customer_name
+    }
+  } catch {
+    tab.value = null
+  }
+}
+function lineToPayload(l: Line): PosLine {
+  return l.product_id
+    ? { product_id: l.product_id, variant_id: l.variant_id, options: l.options ?? [], quantity: l.quantity, notes: l.notes }
+    : { description: l.description, unit_price: centsToString(l.unitCents), quantity: l.quantity }
+}
+const launching = ref(false)
+/** Lança os itens da tela na conta aberta. Com cozinha, envia e imprime. */
+async function launchToTab(kitchenToo: boolean) {
+  if (!tab.value || launching.value) return
+  launching.value = true
+  error.value = null
+  try {
+    if (lines.value.length) {
+      tab.value = await tabsApi.addItems(tab.value.id, lines.value.map(lineToPayload))
+      lines.value = []
+    }
+    if (kitchenToo) {
+      const r = await tabsApi.send(tab.value.id)
+      tab.value = r.tab
+      if (r.batch) {
+        void router.push({ name: 'tab-kitchen', params: { id: r.tab.id }, query: { lote: String(r.batch), volta: 'pdv' } })
+        return
+      }
+    }
+    pulse(`Lançado em ${tab.value.label}`)
+  } catch (e) {
+    flashError(describeError(e).message)
+  } finally {
+    launching.value = false
+  }
+}
+function flashError(message: string) {
+  flash.value = message
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (flash.value = null), 5000)
+}
+/* Escolher a mesa a partir do PDV. */
+const picker = reactive({ open: false, tabs: [] as TabSummary[], label: '', loading: false, error: '' })
+async function openPicker() {
+  Object.assign(picker, { open: true, label: '', error: '', loading: true })
+  try {
+    picker.tabs = await tabsApi.list(branchId.value || null)
+  } catch (e) {
+    picker.error = describeError(e).message
+  } finally {
+    picker.loading = false
+  }
+}
+async function chooseTab(id: string | null) {
+  picker.error = ''
+  try {
+    const t = id ? await tabsApi.get(id) : await tabsApi.open({ branch: branchId.value || null, label: picker.label.trim() })
+    tab.value = t
+    adjust.service = true
+    picker.open = false
+    void router.replace({ query: { ...route.query, mesa: t.id } })
+    if (lines.value.length) await launchToTab(false)
+  } catch (e) {
+    picker.error = describeError(e).message
+  }
+}
+function leaveTab() {
+  tab.value = null
+  adjust.service = false
+  void router.replace({ query: { ...route.query, mesa: undefined, fechar: undefined } })
 }
 
 /* ---------- Catálogo ---------- */
@@ -162,7 +259,7 @@ async function lookupCustomer() {
   }
 }
 
-const subtotal = computed(() => lines.value.reduce((s, l) => s + l.unitCents * l.quantity, 0))
+const subtotal = computed(() => tabCents.value + lines.value.reduce((s, l) => s + l.unitCents * l.quantity, 0))
 const discountCents = computed(() => {
   if (!adjust.discount) return 0
   const d = adjust.discountType === 'percent' ? Math.round((subtotal.value * Math.min(100, Number(money(adjust.discount)))) / 100) : cents(adjust.discount)
@@ -188,8 +285,14 @@ const remaining = computed(() => total.value - paid.value)
 const cashPart = computed(() => payments.value.filter((p) => p.method === 'cash').reduce((s, p) => s + cents(p.amount), 0))
 const change = computed(() => (cashReceived.value ? cents(cashReceived.value) - cashPart.value : null))
 
-function startPay() {
-  if (!lines.value.length) return
+const perPerson = computed(() => (tab.value && tab.value.people > 1 ? Math.round(total.value / tab.value.people) : null))
+
+async function startPay() {
+  if (tab.value) {
+    // Itens ainda na tela entram na conta antes de cobrar.
+    if (lines.value.length) await launchToTab(false)
+    if (lines.value.length || !tabItems.value.length) return
+  } else if (!lines.value.length) return
   error.value = null
   payments.value = []
   cashReceived.value = ''
@@ -209,19 +312,18 @@ async function confirmSale() {
   sending.value = true
   error.value = null
   try {
-    const result = await posApi.sale({
-      branch: branchId.value || null,
-      items: lines.value.map((l) => (l.product_id
-        ? { product_id: l.product_id, variant_id: l.variant_id, options: l.options ?? [], quantity: l.quantity, notes: l.notes }
-        : { description: l.description, unit_price: centsToString(l.unitCents), quantity: l.quantity })),
+    const common = {
       customer: customer.phone.trim() ? { phone: customer.phone, name: customer.name.trim() || null } : (customer.name.trim() ? { name: customer.name.trim() } : null),
       use_loyalty: adjust.useLoyalty,
       discount: adjust.discount ? { type: adjust.discountType, value: money(adjust.discount) } : null,
       service_percent: adjust.service ? Number(money(adjust.servicePercent)) : null,
       payments: payments.value.map((p) => ({ method: p.method, amount: money(p.amount) })),
       cash_received: cashReceived.value ? money(cashReceived.value) : null,
-      send_to_kitchen: kitchen.value,
-    }, saleKey)
+    }
+    const result = tab.value
+      ? await tabsApi.close(tab.value.id, common, saleKey)
+      : await posApi.sale({ branch: branchId.value || null, items: lines.value.map(lineToPayload), ...common, send_to_kitchen: kitchen.value }, saleKey)
+    if (tab.value) doneTab.value = tab.value.label
     paying.value = false
     done.value = { id: result.order_id, number: result.order_number, total: result.total, change: result.change }
     session.value = await cashApi.current(branchId.value || null)
@@ -238,7 +340,10 @@ async function confirmSale() {
   }
 }
 
+const doneTab = ref<string | null>(null)
 function newSale() {
+  if (tab.value || doneTab.value) leaveTab()
+  doneTab.value = null
   lines.value = []
   done.value = null
   kitchen.value = false
@@ -255,7 +360,7 @@ function onKey(e: KeyboardEvent) {
   } else if (e.key === 'F4') {
     e.preventDefault()
     if (done.value) newSale()
-    else if (!paying.value) startPay()
+    else if (!paying.value) void startPay()
   } else if (e.key === 'Enter' && done.value) {
     e.preventDefault()
     newSale()
@@ -272,8 +377,12 @@ async function toggleFull() {
 }
 const onFull = () => (isFull.value = !!document.fullscreenElement)
 
+watch(() => route.query.mesa, (id, old) => {
+  if (id !== old && typeof id === 'string' && id !== tab.value?.id) void loadTab()
+})
 watch(branchId, (id, old) => {
   if (old && id !== old) {
+    tab.value = null
     void router.replace({ query: { branch: id } })
     lines.value = []
     void load()
@@ -358,7 +467,21 @@ const METHOD_KEYS: Record<PosMethod, string> = { cash: 'Dinheiro', pix: 'Pix', d
       <aside class="flex min-h-0 flex-col border-t border-line bg-surface lg:border-t-0 lg:border-l" aria-label="Venda atual">
         <div class="min-h-0 flex-1 overflow-y-auto p-4">
           <p v-if="flash" role="status" class="mb-2 rounded-lg bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">{{ flash }}</p>
-          <p v-if="!lines.length" class="py-6 text-center text-sm text-muted">Toque nos produtos ou digite o código.</p>
+          <div v-if="tab" class="mb-3 rounded-(--radius-control) border border-brand-600 bg-brand-50 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="min-w-0 truncate font-bold text-brand-700">{{ tab.label }}<span class="ml-1 text-sm font-normal text-muted">· {{ tab.people }} {{ tab.people === 1 ? 'pessoa' : 'pessoas' }}</span></p>
+              <button type="button" class="shrink-0 text-xs text-muted underline" @click="leaveTab">Sair da mesa</button>
+            </div>
+            <ul v-if="tabItems.length" class="mt-2 grid gap-1 text-sm" aria-label="Itens já na conta">
+              <li v-for="i in tabItems" :key="i.id" class="flex justify-between gap-2 text-muted">
+                <span class="min-w-0 truncate">{{ i.quantity }}× {{ i.name }}<template v-if="!i.sent_at"> · <em class="text-warning">não enviado</em></template></span>
+                <span class="shrink-0 tabular-nums">{{ formatMoney(i.line_total) }}</span>
+              </li>
+            </ul>
+            <p v-else class="mt-1 text-sm text-muted">Conta vazia.</p>
+          </div>
+          <p v-if="!lines.length && !tab" class="py-6 text-center text-sm text-muted">Toque nos produtos ou digite o código.</p>
+          <p v-else-if="lines.length && tab" class="mb-1 text-xs font-semibold uppercase text-muted">Novos itens</p>
           <ul class="grid gap-2" aria-label="Itens da venda">
             <li v-for="l in lines" :key="l.key" class="flex items-start gap-2 text-sm">
               <span class="min-w-0 flex-1">
@@ -390,6 +513,7 @@ const METHOD_KEYS: Record<PosMethod, string> = { cash: 'Dinheiro', pix: 'Pix', d
                 </select>
                 <input v-model="adjust.discount" inputmode="decimal" aria-label="Desconto" placeholder="Desconto" class="min-h-11 min-w-0 flex-1 rounded-lg border border-line px-3">
               </div>
+              <p v-if="!can('cash.manage')" class="text-xs text-muted">Desconto de até 10%. Acima disso, peça a um gerente.</p>
               <label class="flex items-center gap-2 text-sm"><input v-model="adjust.service" type="checkbox" class="size-4 accent-brand-600"> Taxa de serviço
                 <input v-model="adjust.servicePercent" inputmode="decimal" aria-label="Percentual da taxa" class="w-16 rounded-lg border border-line px-2 py-1" :disabled="!adjust.service">%</label>
             </div>
@@ -404,8 +528,18 @@ const METHOD_KEYS: Record<PosMethod, string> = { cash: 'Dinheiro', pix: 'Pix', d
             <div v-if="serviceCents" class="flex justify-between"><dt class="text-muted">Taxa de serviço</dt><dd class="tabular-nums">{{ formatMoney(centsToString(serviceCents)) }}</dd></div>
             <div class="mt-1 flex justify-between text-2xl font-bold"><dt>Total</dt><dd class="tabular-nums">{{ formatMoney(centsToString(total)) }}</dd></div>
           </dl>
-          <SButton block :disabled="!lines.length" @click="startPay">Cobrar (F4)</SButton>
-          <button v-if="lines.length" type="button" class="mt-2 w-full text-sm text-muted underline" @click="lines = []">Limpar venda</button>
+          <template v-if="tab">
+            <div class="mb-2 grid grid-cols-2 gap-2">
+              <SButton variant="secondary" :loading="launching" :disabled="!lines.length" @click="launchToTab(false)">Lançar</SButton>
+              <SButton variant="secondary" :loading="launching" :disabled="!lines.length && !tab.pending_kitchen" @click="launchToTab(true)">Lançar e cozinha</SButton>
+            </div>
+            <SButton block :disabled="!lines.length && !tabItems.length" @click="startPay">Fechar conta (F4)</SButton>
+          </template>
+          <template v-else>
+            <SButton block :disabled="!lines.length" @click="startPay">Cobrar (F4)</SButton>
+            <button type="button" class="mt-2 min-h-10 w-full rounded-(--radius-control) border border-line text-sm font-semibold hover:bg-canvas" @click="openPicker">{{ lines.length ? 'Lançar na mesa' : 'Abrir mesa ou comanda' }}</button>
+          </template>
+          <button v-if="lines.length" type="button" class="mt-2 w-full text-sm text-muted underline" @click="lines = []">{{ tab ? 'Descartar novos itens' : 'Limpar venda' }}</button>
         </footer>
       </aside>
     </div>
@@ -416,9 +550,10 @@ const METHOD_KEYS: Record<PosMethod, string> = { cash: 'Dinheiro', pix: 'Pix', d
     <SSheet :open="paying" label="Cobrar" @close="paying = false">
       <form class="grid gap-4 overflow-y-auto p-5" aria-label="Cobrança" @submit.prevent="confirmSale">
         <div class="flex items-baseline justify-between">
-          <h2 class="text-xl font-bold">Cobrar</h2>
+          <h2 class="text-xl font-bold">{{ tab ? `Fechar ${tab.label}` : 'Cobrar' }}</h2>
           <p class="text-3xl font-bold tabular-nums">{{ formatMoney(centsToString(total)) }}</p>
         </div>
+        <p v-if="perPerson" class="-mt-2 text-right text-sm text-muted">Dividido por {{ tab?.people }}: <strong class="text-ink tabular-nums">{{ formatMoney(centsToString(perPerson)) }}</strong> cada</p>
         <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
           <button v-for="m in catalog?.methods ?? []" :key="m.method" type="button" class="min-h-14 rounded-(--radius-control) border border-line text-sm font-semibold hover:border-brand-600 hover:bg-brand-50" @click="addPayment(m.method)">{{ METHOD_KEYS[m.method] }}</button>
         </div>
@@ -437,21 +572,43 @@ const METHOD_KEYS: Record<PosMethod, string> = { cash: 'Dinheiro', pix: 'Pix', d
           <label class="grid gap-1 text-sm font-medium">Dinheiro recebido (R$)<input v-model="cashReceived" inputmode="decimal" class="min-h-11 rounded-lg border border-line px-3"></label>
           <p v-if="change !== null" class="text-lg font-bold" :class="change < 0 ? 'text-danger' : ''">{{ change < 0 ? 'Valor menor que a parte em dinheiro' : `Troco: ${formatMoney(centsToString(change))}` }}</p>
         </div>
-        <label class="flex items-center gap-2 text-sm font-semibold"><input v-model="kitchen" type="checkbox" class="size-5 accent-brand-600"> Mandar para a cozinha (cliente aguarda)</label>
+        <label v-if="!tab" class="flex items-center gap-2 text-sm font-semibold"><input v-model="kitchen" type="checkbox" class="size-5 accent-brand-600"> Mandar para a cozinha (cliente aguarda)</label>
         <p v-if="error" role="alert" class="rounded-lg bg-danger-soft p-3 text-sm text-danger">{{ error }}</p>
-        <SButton type="submit" block :loading="sending" :disabled="remaining !== 0 || (change !== null && change < 0)">Confirmar venda</SButton>
+        <SButton type="submit" block :loading="sending" :disabled="remaining !== 0 || (change !== null && change < 0)">{{ tab ? 'Confirmar e fechar a conta' : 'Confirmar venda' }}</SButton>
       </form>
+    </SSheet>
+
+    <!-- Escolher mesa -->
+    <SSheet :open="picker.open" label="Lançar na mesa" @close="picker.open = false">
+      <div class="grid gap-4 overflow-y-auto p-5">
+        <h2 class="text-xl font-bold">{{ lines.length ? 'Lançar na mesa' : 'Abrir mesa ou comanda' }}</h2>
+        <SPageState v-if="picker.loading" state="loading" />
+        <ul v-else-if="picker.tabs.length" class="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Contas abertas">
+          <li v-for="t in picker.tabs" :key="t.id">
+            <button type="button" class="w-full rounded-(--radius-control) border border-line p-3 text-left hover:border-brand-600" @click="chooseTab(t.id)">
+              <span class="block truncate font-bold">{{ t.label }}</span>
+              <span class="text-sm tabular-nums text-muted">{{ formatMoney(t.subtotal) }}</span>
+            </button>
+          </li>
+        </ul>
+        <form class="flex gap-2" aria-label="Nova conta" @submit.prevent="chooseTab(null)">
+          <input v-model="picker.label" required maxlength="40" placeholder="Nova: Mesa 7, Comanda 15…" aria-label="Nome da nova mesa ou comanda" class="min-h-11 min-w-0 flex-1 rounded-lg border border-line px-3">
+          <SButton type="submit">Abrir</SButton>
+        </form>
+        <p v-if="picker.error" role="alert" class="text-sm text-danger">{{ picker.error }}</p>
+      </div>
     </SSheet>
 
     <!-- Venda concluída -->
     <SSheet :open="done !== null" label="Venda concluída" @close="newSale">
       <div v-if="done" class="grid gap-4 p-6 text-center" role="status">
-        <p class="text-sm text-muted">Venda nº {{ done.number }}</p>
+        <p class="text-sm text-muted">Venda nº {{ done.number }}<template v-if="doneTab"> · {{ doneTab }} fechada</template></p>
         <p class="text-3xl font-bold tabular-nums">{{ formatMoney(done.total) }}</p>
         <p v-if="done.change && Number(done.change) > 0" class="rounded-(--radius-control) bg-brand-50 p-4 text-2xl font-bold text-brand-700">Troco: {{ formatMoney(done.change) }}</p>
         <div class="grid gap-2 sm:grid-cols-2">
           <RouterLink :to="`/pedidos/${done.id}/recibo`" class="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line font-semibold hover:bg-canvas">Imprimir recibo</RouterLink>
           <SButton @click="newSale">Nova venda (Enter)</SButton>
+          <RouterLink v-if="doneTab" to="/mesas" class="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-line font-semibold hover:bg-canvas sm:col-span-2" @click="doneTab = null">Voltar às mesas</RouterLink>
         </div>
       </div>
     </SSheet>

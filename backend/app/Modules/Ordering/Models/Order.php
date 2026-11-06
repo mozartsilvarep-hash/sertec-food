@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int $tenant_id
  * @property int $branch_id
  * @property string $channel
+ * @property string|null $table_label mesa/comanda de origem (PDV)
  * @property int|null $created_by
  * @property string|null $change_given
  * @property int|null $customer_id

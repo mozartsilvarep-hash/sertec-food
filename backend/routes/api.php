@@ -3,6 +3,7 @@
 use App\Modules\Cash\Http\Controllers\CashController;
 use App\Modules\Cash\Http\Controllers\FinanceController;
 use App\Modules\Cash\Http\Controllers\PosController;
+use App\Modules\Cash\Http\Controllers\TabController;
 use App\Modules\Catalog\Http\Controllers\AvailabilityController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\MenuController;
@@ -10,6 +11,7 @@ use App\Modules\Catalog\Http\Controllers\OptionGroupController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\PromotionController;
 use App\Modules\Catalog\Http\Controllers\PublicCatalogController;
+use App\Modules\Catalog\Http\Controllers\StockController;
 use App\Modules\Catalog\Http\Controllers\StorefrontFeedController;
 use App\Modules\Catalog\Http\Controllers\StorefrontFeedSettingsController;
 use App\Modules\Identity\Http\Controllers\AccountController;
@@ -175,6 +177,16 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         Route::put('branches/{branch}/availability/{product}', [AvailabilityController::class, 'update'])
             ->middleware('permission:'.P::CATALOG_AVAILABILITY)->name('availability.update');
 
+        // Estoque simples (Sprint 16).
+        Route::middleware('permission:'.P::CATALOG_VIEW)->group(function () {
+            Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+            Route::get('stock/{product}/movements', [StockController::class, 'movements'])->name('stock.movements');
+        });
+        Route::middleware('permission:'.P::CATALOG_MANAGE)->group(function () {
+            Route::put('stock/{product}', [StockController::class, 'update'])->name('stock.update');
+            Route::post('stock/{product}/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
+        });
+
         // Entrega e retirada
         Route::get('branches/{branch}/delivery', [DeliverySettingsController::class, 'show'])
             ->middleware('permission:'.P::BRANCHES_VIEW)->name('delivery.show');
@@ -246,6 +258,16 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::get('pos/customer', [PosController::class, 'customer'])->middleware('throttle:phone-lookup')->name('pos.customer');
                 Route::post('pos/sales', [PosController::class, 'sale'])->name('pos.sales.store');
                 Route::get('sessions/{session}/report', [CashController::class, 'sessionReport'])->name('sessions.report');
+                // Mesas e comandas (Sprint 16).
+                Route::get('tabs', [TabController::class, 'index'])->name('tabs.index');
+                Route::post('tabs', [TabController::class, 'store'])->name('tabs.store');
+                Route::get('tabs/{tab}', [TabController::class, 'show'])->name('tabs.show');
+                Route::patch('tabs/{tab}', [TabController::class, 'update'])->name('tabs.update');
+                Route::post('tabs/{tab}/items', [TabController::class, 'addItems'])->name('tabs.items.store');
+                Route::post('tabs/{tab}/items/{item}/void', [TabController::class, 'voidItem'])->name('tabs.items.void');
+                Route::post('tabs/{tab}/send', [TabController::class, 'send'])->name('tabs.send');
+                Route::post('tabs/{tab}/close', [TabController::class, 'close'])->name('tabs.close');
+                Route::post('tabs/{tab}/cancel', [TabController::class, 'cancel'])->name('tabs.cancel');
             });
             Route::middleware('permission:'.P::CASH_MANAGE)->group(function () {
                 Route::post('entries/{entry}/void', [CashController::class, 'void'])->name('entries.void');

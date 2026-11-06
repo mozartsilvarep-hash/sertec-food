@@ -119,3 +119,30 @@ it('catálogo do PDV traz código, favorito e mais vendidos; isolamento entre re
     $kitchen = merchantLogin($this->a, makeMember($this->a, role: Role::KITCHEN, branch: $this->fa->branch));
     posSale($this, ['items' => [posPizza($this)], 'payments' => [['method' => 'cash', 'amount' => '40,00']]], session: $kitchen)->assertForbidden();
 });
+
+it('sem nome digitado, mantém o nome do cliente já cadastrado', function () {
+    posOpenCash($this);
+    posSale($this, ['items' => [posPizza($this)], 'customer' => ['name' => 'Ana Souza', 'phone' => '(79) 99999-2222'], 'payments' => [['method' => 'cash', 'amount' => '40,00']]])->assertCreated();
+    $res = posSale($this, ['items' => [posPizza($this)], 'customer' => ['phone' => '79999992222'], 'payments' => [['method' => 'cash', 'amount' => '40,00']]])->assertCreated();
+    withSession($this->session)->getJson(tenantUrl($this->a, 'merchant/cash/pos/customer?phone=79999992222'))->assertOk()->assertJsonPath('data.name', 'Ana Souza');
+    expect(inTenant($this->a, fn () => Order::query()->where('public_id', $res->json('data.order_id'))->value('customer_name')))->toBe('Ana Souza');
+});
+
+it('venda zerada (100% de desconto) não aceita pagamento sobrando', function () {
+    posOpenCash($this);
+    posSale($this, ['items' => [posPizza($this)], 'discount' => ['type' => 'percent', 'value' => '100'], 'payments' => [['method' => 'pix', 'amount' => '10,00']]])
+        ->assertStatus(422)->assertJsonPath('code', 'sale_payment_mismatch');
+    posSale($this, ['items' => [posPizza($this)], 'discount' => ['type' => 'percent', 'value' => '100'], 'payments' => []])
+        ->assertCreated()->assertJsonPath('data.total', '0.00');
+});
+
+it('atendente dá até 10% de desconto; acima disso só gerente', function () {
+    posOpenCash($this);
+    $attendant = merchantLogin($this->a, makeMember($this->a, role: Role::ATTENDANT, branch: $this->fa->branch));
+    posSale($this, ['items' => [posPizza($this)], 'discount' => ['type' => 'amount', 'value' => '4,00'], 'payments' => [['method' => 'cash', 'amount' => '36,00']]], session: $attendant)
+        ->assertCreated();
+    posSale($this, ['items' => [posPizza($this)], 'discount' => ['type' => 'percent', 'value' => '15'], 'payments' => [['method' => 'cash', 'amount' => '34,00']]], session: $attendant)
+        ->assertForbidden()->assertJsonPath('code', 'sale_discount_not_allowed');
+    posSale($this, ['items' => [posPizza($this)], 'discount' => ['type' => 'percent', 'value' => '15'], 'payments' => [['method' => 'cash', 'amount' => '34,00']]])
+        ->assertCreated();
+});

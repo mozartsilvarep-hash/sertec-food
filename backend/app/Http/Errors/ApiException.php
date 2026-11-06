@@ -37,6 +37,11 @@ class ApiException extends HttpException
         return new self(403, 'forbidden', 'Você não tem permissão para esta ação.');
     }
 
+    public static function notFound(): self
+    {
+        return new self(404, 'not_found', 'Não encontrado.');
+    }
+
     public static function featureUnavailable(string $feature): self
     {
         return new self(403, 'feature_unavailable', 'Recurso não incluído no plano atual.', ['feature' => $feature]);

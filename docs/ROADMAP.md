@@ -51,8 +51,8 @@ Venda no balcão vira pedido (tamanhos, sabores, adicionais, promoções, cozinh
 ## Sprint 15 — Financeiro ✅ concluída (27/10/2026)
 Taxas de cartão (crédito/débito), Pix e site por forma; custos fixos mensais proporcionais ao período; resultado (vendas − estornos − taxas − despesas − custos fixos) com margem; sangria/entrada/saída com botões diretos e saída ligada a custo fixo; fechamento e parcial do caixa impressos (80/58 mm) com resumo por operador.
 
-## Sprint 16 — Operação do salão (próxima)
-Mesas e comandas (conta aberta, lançar itens, fechar e dividir) e estoque simples (baixa na venda, aviso de estoque baixo, esgotado automático).
+## Sprint 16 — Operação do salão ✅ concluída (05/11/2026)
+Mesas e comandas: conta aberta por mesa, itens lançados pelo PDV, envios à cozinha em lotes impressos, cancelamento de item com motivo, fechamento como venda do PDV com taxa de serviço (10% sugerido), divisão por pessoa e várias formas. Estoque simples: saldo por produto e unidade, baixa no site, no PDV e na mesa, devolução no cancelamento, estoque baixo, esgotado e liberado sozinho, entradas/perdas/contagem com histórico. Revisão: desconto do atendente limitado a 10%, nome do cliente preservado no PDV, índices de relatório e tela Marca sem rolagem lateral.
 
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.

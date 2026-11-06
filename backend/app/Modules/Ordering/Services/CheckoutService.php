@@ -3,6 +3,7 @@
 namespace App\Modules\Ordering\Services;
 
 use App\Modules\Catalog\Pricing\PriceQuote;
+use App\Modules\Catalog\Stock\StockService;
 use App\Modules\Loyalty\Services\LoyaltyService;
 use App\Modules\Ordering\Enums\FulfillmentType;
 use App\Modules\Ordering\Enums\OrderStatus;
@@ -212,6 +213,8 @@ final class CheckoutService
         foreach ($cart->items as $item) {
             self::snapshotItem($order, $item, $view['quotes'][$item->id]);
         }
+        // Estoque: sem saldo, o pedido não nasce (a transação desfaz tudo).
+        app(StockService::class)->consume($order->branch_id, StockService::demandForCart($cart), null, $order);
 
         $lines = [
             ['subtotal', 'Subtotal', $subtotal],

@@ -58,3 +58,10 @@ Ver `backend/database/migrations` e as decisões D14 e D16–D22 em `docs/ARCHIT
 - Sprint 4: sem tabelas novas (pulso no Redis); permissão `audit.view`.
 - Sprint 6: `promotions` (produto, `percent_bp` 1–9000, período, destaque, selo), `coupons` (UNIQUE `(tenant_id, code)`, tipo percent/fixed/free_delivery, teto, mínimo, período, limites, `times_used`), `coupon_redemptions` (UNIQUE `(tenant_id, order_id)`, celular, valor, applied/voided); `tenants.announcement_json` e `tenants.feed_origins_json`. `order_totals` ganha a linha `discount` e `orders.discount_total` passa a ser usado.
 - Sprint 5: `orders.anonymized_at` (LGPD) com índice `(anonymized_at, placed_at)`; `tenant_domains.verification_token_hash` passa a ser usado (domínio próprio via TXT).
+
+## Sprint 16 — Operação do salão
+- `product_stocks` (tenant, branch, product, `quantity`, `min_quantity`, `auto_paused`): único por (tenant, unidade, produto). Existir = produto controlado.
+- `stock_movements` (tenant, branch, product, `type` sale|cancel|entry|loss|count, `quantity` com sinal, `balance_after`, `order_id?`, `tab_item_id?`, `user_id?`, `reason?`, `occurred_at`).
+- `tabs` (public_id, tenant, branch, `label`, `open_key` único por unidade enquanto aberta, `people`, `customer_name`, `status` open|closed|cancelled, `kitchen_batches`, `order_id?`, quem abriu/fechou e quando).
+- `tab_items` (public_id, tenant, tab, `product_id?`, `variant_id?`, `options_json` {selections, lines, variant_name}, `name`, `detail`, `unit_price` do servidor, `quantity`, `notes`, `kitchen_batch`, `sent_at`, `voided_at`/`voided_by`/`void_reason`).
+- `orders.table_label` (mesa de origem) e índices `orders (tenant_id, placed_at)` e `cash_entries (tenant_id, occurred_at)` para relatórios de todas as unidades.

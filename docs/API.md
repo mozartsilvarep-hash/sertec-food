@@ -326,3 +326,23 @@ Rotas com `cash.operate` e o recurso `cashbook`.
 - `GET merchant/cash/sessions/{id}/report`: fechamento para imprimir.
 - `POST merchant/cash/entries` aceita `fixed_cost` (id) em saídas de despesa.
 - Os lançamentos trazem `fee_amount` e `fixed_cost`.
+
+## Implementado na Sprint 16 — Operação do salão
+
+**Mesas e comandas** (`cash.operate`, recurso `cashbook`):
+- `GET merchant/cash/tabs?branch=`: contas abertas `{id, label, people, customer_name, items_count, pending_kitchen, subtotal, opened_at, branch}`.
+- `POST merchant/cash/tabs` `{branch?, label, people?, customer_name?}` → 201; 409 `tab_already_open` se já houver uma aberta com o mesmo nome.
+- `GET|PATCH merchant/cash/tabs/{id}` (`label`, `people`, `customer_name`, `notes`): detalhe com `items[{id, name, detail, unit_price, quantity, line_total, notes, custom, kitchen_batch, sent_at, voided_at, void_reason, added_by}]`.
+- `POST merchant/cash/tabs/{id}/items` `{items: [...]}`: mesmo formato dos itens do PDV; 422 `out_of_stock` sem saldo.
+- `POST merchant/cash/tabs/{id}/items/{item}/void` `{reason?}`: motivo obrigatório se o item já foi para a cozinha.
+- `POST merchant/cash/tabs/{id}/send` → `{batch, count, tab}` (lote novo, `null` se nada novo).
+- `POST merchant/cash/tabs/{id}/close` (cabeçalho `Idempotency-Key`): `{customer?, use_loyalty?, discount?, service_percent?, payments[], cash_received?, notes?}` → igual à venda do PDV. 409 `cash_closed` / `tab_not_open`.
+- `POST merchant/cash/tabs/{id}/cancel` `{reason}` → 204; com itens já enviados, só `cash.manage`.
+
+**Estoque** (`catalog.view` para ler, `catalog.manage` para mudar):
+- `GET merchant/stock?branch=` → `{branch, products[{id, name, code, active, tracked, quantity, min_quantity, low, sold_out}]}`.
+- `PUT merchant/stock/{product}` `{branch?, tracked, quantity?, min_quantity?}`: liga (com saldo inicial), muda o mínimo ou desliga.
+- `POST merchant/stock/{product}/adjust` `{branch?, type: entry|loss|count, quantity, reason?}` → `{quantity, low, sold_out}`.
+- `GET merchant/stock/{product}/movements?branch=` → últimos 100 movimentos.
+
+**Mudanças:** pedidos do painel trazem `table_label`; checkout do site e venda do PDV podem responder 422 `out_of_stock`; venda do PDV responde 403 `sale_discount_not_allowed` para desconto acima de 10% sem `cash.manage`.

@@ -215,8 +215,8 @@ onMounted(load)
   <SPageState v-if="state === 'loading'" state="loading" />
   <SPageState v-else-if="state === 'offline'" state="offline" @retry="load" />
   <SPageState v-else-if="state === 'error'" state="error" @retry="load" />
-  <div v-else-if="settings" class="grid max-w-5xl gap-10 lg:grid-cols-[1fr_20rem]">
-    <div class="grid content-start gap-10">
+  <div v-else-if="settings" class="grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-10">
       <section aria-labelledby="imagens">
         <h2 id="imagens" class="mb-4 font-semibold">Logo e capa</h2>
         <div class="grid gap-6 sm:grid-cols-[auto_1fr]">
@@ -268,11 +268,11 @@ onMounted(load)
         </div>
       </section>
 
-      <form class="grid content-start gap-10" @submit.prevent="save">
-        <section aria-labelledby="visual" class="grid gap-5">
+      <form class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-10" @submit.prevent="save">
+        <section aria-labelledby="visual" class="grid grid-cols-[minmax(0,1fr)] gap-5">
           <h2 id="visual" class="font-semibold">Cor e apresentação</h2>
           <SAlert v-if="error">{{ error }}</SAlert>
-          <fieldset class="grid gap-2">
+          <fieldset class="min-w-0 grid gap-2">
             <legend class="mb-1.5 text-sm font-medium">Cor principal</legend>
             <div class="flex flex-wrap items-center gap-2">
               <button
@@ -300,7 +300,7 @@ onMounted(load)
           <STextArea v-model="form.description" label="Descrição no topo do cardápio" :maxlength="1000" hint="Uma frase que diga o que torna o seu lugar especial." />
         </section>
 
-        <section aria-labelledby="tema" class="grid gap-6">
+        <section aria-labelledby="tema" class="grid grid-cols-[minmax(0,1fr)] gap-6">
           <div>
             <h2 id="tema" class="font-semibold">Tema da loja</h2>
             <p class="mt-1 text-sm text-muted">Cores de fundo e texto, fontes e cantos do cardápio. Deixe a loja com a cara do seu site.</p>
@@ -324,7 +324,7 @@ onMounted(load)
             </ul>
           </div>
 
-          <fieldset class="grid gap-2">
+          <fieldset class="min-w-0 grid gap-2">
             <legend class="mb-1.5 text-sm font-medium">Modelos prontos</legend>
             <div class="flex flex-wrap gap-2">
               <button
@@ -342,7 +342,7 @@ onMounted(load)
             </div>
           </fieldset>
 
-          <fieldset class="grid gap-3">
+          <fieldset class="min-w-0 grid gap-3">
             <legend class="mb-1.5 text-sm font-medium">Cores</legend>
             <div class="grid gap-3 sm:grid-cols-2">
               <div v-for="f in colorFields" :key="f.key" class="flex items-start gap-3">
@@ -366,29 +366,29 @@ onMounted(load)
             </div>
           </fieldset>
 
-          <div class="grid gap-4 sm:grid-cols-3">
-            <label class="grid gap-1.5 text-sm">
+          <div class="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
+            <label class="grid min-w-0 gap-1.5 text-sm">
               <span class="font-medium">Fonte dos títulos</span>
-              <select v-model="theme.fonts.display" class="min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
+              <select v-model="theme.fonts.display" class="min-w-0 min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
                 <option v-for="f in displayFonts" :key="f.key" :value="f.key">{{ f.label }}</option>
               </select>
             </label>
-            <label class="grid gap-1.5 text-sm">
+            <label class="grid min-w-0 gap-1.5 text-sm">
               <span class="font-medium">Fonte do texto</span>
-              <select v-model="theme.fonts.body" class="min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
+              <select v-model="theme.fonts.body" class="min-w-0 min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
                 <option v-for="f in bodyFonts" :key="f.key" :value="f.key">{{ f.label }}</option>
               </select>
             </label>
-            <label class="grid gap-1.5 text-sm">
+            <label class="grid min-w-0 gap-1.5 text-sm">
               <span class="font-medium">Nome da loja em letra cursiva</span>
-              <select v-model="theme.fonts.script" class="min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
+              <select v-model="theme.fonts.script" class="min-w-0 min-h-10 rounded-(--radius-control) border border-line bg-surface px-3" :disabled="!manage">
                 <option :value="null">Não (usa a fonte dos títulos)</option>
                 <option v-for="f in scriptFonts" :key="f.key" :value="f.key">{{ f.label }}</option>
               </select>
             </label>
           </div>
 
-          <fieldset class="grid gap-2">
+          <fieldset class="min-w-0 grid gap-2">
             <legend class="mb-1.5 text-sm font-medium">Cantos de botões e cartões</legend>
             <div class="flex flex-wrap gap-2">
               <label
@@ -404,7 +404,7 @@ onMounted(load)
           </fieldset>
         </section>
 
-        <section aria-labelledby="empresa" class="grid gap-5">
+        <section aria-labelledby="empresa" class="grid grid-cols-[minmax(0,1fr)] gap-5">
           <div>
             <h2 id="empresa" class="font-semibold">Dados da empresa e contato</h2>
             <p class="mt-1 text-sm text-muted">Razão social e CNPJ aparecem no rodapé do cardápio, como pede a lei do comércio eletrônico.</p>
