@@ -2,6 +2,7 @@
 
 namespace App\Modules\Platform\Console;
 
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Platform\Tenants\TenantProvisioner;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
@@ -14,6 +15,7 @@ class CreateTenantCommand extends Command
         {--owner-email= : E-mail do proprietário}
         {--owner-name= : Nome do proprietário}
         {--plan= : Slug do plano (opcional)}
+        {--modules= : Módulos separados por vírgula: menu,pos,tabs,stock (padrão: menu)}
         {--timezone= : Fuso (padrão: tenancy.default_timezone)}
         {--activate : Ativa imediatamente (padrão: pending, ativação manual)}';
 
@@ -33,6 +35,7 @@ class CreateTenantCommand extends Command
                 planSlug: $this->option('plan') ?: null,
                 activate: (bool) $this->option('activate'),
                 timezone: $this->option('timezone') ?: null,
+                modules: $this->option('modules') ? array_map(fn (ModuleKey $m) => $m->value, ModuleKey::list(array_map('trim', explode(',', (string) $this->option('modules'))))) : null,
             );
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());

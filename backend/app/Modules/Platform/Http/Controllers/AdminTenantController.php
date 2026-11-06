@@ -14,6 +14,7 @@ use App\Modules\Payments\Models\IntegrationConnection;
 use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Platform\Tenants\TenantProvisioner;
 use App\Modules\Tenancy\Enums\TenantStatus;
 use App\Modules\Tenancy\Models\Branch;
@@ -74,7 +75,10 @@ class AdminTenantController
             'plan' => ['nullable', 'string', 'max:40'],
             'timezone' => ['nullable', 'timezone:all'],
             'activate' => ['sometimes', 'boolean'],
+            'modules' => ['sometimes', 'array', 'max:10'],
+            'modules.*' => ['string', Rule::in(ModuleKey::values())],
         ]);
+        $modules = isset($data['modules']) ? AdminBillingController::checkedModules($data['modules']) : null;
 
         if (Tenant::query()->where('slug', strtolower($data['slug']))->exists()) {
             throw new ApiException(409, 'slug_taken', 'Este endereço já está em uso.');
@@ -86,7 +90,7 @@ class AdminTenantController
         try {
             $result = $provisioner->provision(
                 $data['name'], $data['slug'], $data['owner_email'], $data['owner_name'],
-                $data['plan'] ?? null, (bool) ($data['activate'] ?? false), $data['timezone'] ?? null,
+                $data['plan'] ?? null, (bool) ($data['activate'] ?? false), $data['timezone'] ?? null, $modules,
             );
         } catch (InvalidArgumentException $e) {
             throw new ApiException(422, 'slug_invalid', $e->getMessage());
@@ -149,6 +153,7 @@ class AdminTenantController
                     Subscription::query()->create([
                         'tenant_id' => $tenant->id, 'plan_id' => $plan->id, 'status' => Subscription::STATUS_ACTIVE,
                         'billing_months' => $current->billing_months ?? 1, 'paid_until' => $current?->paid_until,
+                        'modules_json' => $current === null ? [ModuleKey::Menu->value] : ($current->modules_json ?? [ModuleKey::Menu->value]),
                     ]);
                 }
                 $changes['plan'] = [$current?->plan->slug, $plan?->slug];
@@ -199,6 +204,7 @@ class AdminTenantController
             'status' => $t->status->value,
             'host' => $primary?->hostname,
             'plan' => $subscription?->plan->slug,
+            'modules' => $subscription === null ? [] : array_map(fn (ModuleKey $m) => $m->value, $subscription->modules()),
             'billing_status' => $subscription?->status,
             'paid_until' => $subscription?->paid_until?->toDateString(),
             'created_at' => $t->created_at?->toIso8601String(),

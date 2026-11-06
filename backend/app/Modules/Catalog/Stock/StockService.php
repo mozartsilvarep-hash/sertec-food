@@ -11,6 +11,8 @@ use App\Modules\Catalog\Models\StockMovement;
 use App\Modules\Identity\Models\User;
 use App\Modules\Ordering\Models\Cart;
 use App\Modules\Ordering\Models\Order;
+use App\Modules\Platform\Features\Feature;
+use App\Modules\Platform\Features\FeatureGate;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -76,7 +78,8 @@ final class StockService
      */
     public function consume(int $branchId, array $demand, ?User $user = null, ?Order $order = null, ?int $tabItemId = null, ?string $reason = null): void
     {
-        if ($demand === []) {
+        // Sem o módulo Estoque, nada é controlado (saldo antigo fica parado).
+        if ($demand === [] || ! app(FeatureGate::class)->enabled(Feature::STOCK)) {
             return;
         }
         $stocks = ProductStock::query()->where('branch_id', $branchId)->whereIn('product_id', array_keys($demand))

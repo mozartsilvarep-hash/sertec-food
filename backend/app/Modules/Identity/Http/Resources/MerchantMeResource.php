@@ -6,6 +6,7 @@ use App\Modules\Identity\Access\TenantAccess;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Permissions;
 use App\Modules\Platform\Billing\BillingService;
+use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Platform\Models\Invoice;
 use App\Modules\Tenancy\TenantContext;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class MerchantMeResource extends JsonResource
     {
         $tenant = app(TenantContext::class)->get();
         $access = app(TenantAccess::class)->for($this->resource);
+        $gate = app(FeatureGate::class);
 
         return [
             'user' => [
@@ -41,6 +43,9 @@ class MerchantMeResource extends JsonResource
             'roles' => $access->roles,
             'permissions' => $access->permissions,
             'all_branches' => $access->hasAllBranches(),
+            // Módulos contratados e funcionalidades liberadas (o painel esconde o resto).
+            'modules' => $gate->modules(),
+            'features' => array_keys(array_filter($gate->features())),
             // Aviso da mensalidade SerTec (só para quem pode pagar).
             'billing' => in_array(Permissions::BILLING_MANAGE, $access->permissions, true) ? self::billingNotice() : null,
         ];

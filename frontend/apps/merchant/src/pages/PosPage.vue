@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ApiError, cashApi, centsToString, describeError, formatMoney, loyaltyRewardCents, merchantApi, posApi, publicCatalogApi, tabsApi, toCents,
-  type Branch, type CashSession, type LoyaltyRule, type PosCatalog, type PosCustomer, type PosLine, type PosMethod, type ProductSummary, type StorefrontInfo,
+  ApiError, cashApi, centsToString, describeError, formatMoney, loyaltyRewardCents, merchantApi, posApi, tabsApi, toCents,
+  type Branch, type CashSession, type LoyaltyRule, type PosCatalog, type PosCustomer, type PosLine, type PosMethod, type ProductSummary,
   type TabDetail, type TabSummary,
 } from '@sertec/api-client'
 import { SButton, SPageState, SSheet, SStepper } from '@sertec/ui'
@@ -32,14 +32,13 @@ async function load() {
   try {
     branches.value = await merchantApi.branches()
     branchId.value ||= branches.value[0]?.id ?? ''
-    const [cat, sess, store] = await Promise.all([
+    const [cat, sess] = await Promise.all([
       posApi.catalog(branchId.value || null),
       cashApi.current(branchId.value || null),
-      publicCatalogApi.storefront().catch(() => null as StorefrontInfo | null),
     ])
     catalog.value = cat
     session.value = sess
-    loyaltyRule.value = store?.loyalty ?? null
+    loyaltyRule.value = cat.loyalty ?? null
     await loadTab()
     state.value = sess ? 'ready' : 'closed'
     if (sess && tab.value && route.query.fechar === '1') {

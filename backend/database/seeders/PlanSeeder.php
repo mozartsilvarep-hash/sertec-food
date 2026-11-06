@@ -7,7 +7,8 @@ use App\Modules\Platform\Models\Plan;
 use Illuminate\Database\Seeder;
 
 /**
- * Planos iniciais. Só CRIA os que faltam: preço, nome e recursos são
+ * Planos iniciais (recursos extras; o que é vendido por partes são os
+ * módulos, em billing_modules). Só CRIA os que faltam: preço, nome e recursos são
  * editados no painel SerTec e nunca sobrescritos por um novo seed (D81).
  * Recursos novos chegam aos planos existentes por migration.
  */
@@ -17,11 +18,11 @@ class PlanSeeder extends Seeder
     {
         $plans = [
             'cardapio' => [
-                'name' => 'Cardápio Digital',
+                'name' => 'Básico',
                 'features' => [Feature::THERMAL_PRINT, Feature::CASHBOOK, Feature::LOYALTY],
             ],
             'site-cardapio' => [
-                'name' => 'Site Profissional + Cardápio',
+                'name' => 'Site profissional',
                 'features' => [Feature::SITE_MODE, Feature::CUSTOM_DOMAIN, Feature::THERMAL_PRINT, Feature::COUPONS, Feature::REPORTS, Feature::CASHBOOK, Feature::LOYALTY],
             ],
         ];

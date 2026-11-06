@@ -38,6 +38,7 @@ use App\Modules\Platform\Http\Controllers\AdminAuthController;
 use App\Modules\Platform\Http\Controllers\AdminBillingController;
 use App\Modules\Platform\Http\Controllers\AdminDomainController;
 use App\Modules\Platform\Http\Controllers\AdminMailController;
+use App\Modules\Platform\Http\Controllers\AdminModuleController;
 use App\Modules\Platform\Http\Controllers\AdminPlanController;
 use App\Modules\Platform\Http\Controllers\AdminTenantController;
 use App\Modules\Platform\Http\Controllers\BillingWebhookController;
@@ -61,8 +62,10 @@ use Illuminate\Support\Facades\Route;
 | tenant_id do cliente como autoridade.
 */
 
-// Público (storefront) — host de tenant, sem sessão.
-Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->group(function () {
+// Público (storefront) — host de tenant, sem sessão. Pedir pelo site é o
+// módulo Cardápio digital (D100); acompanhar um pedido feito continua valendo.
+Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->get('orders/track/{token}', TrackingController::class)->name('orders.track');
+Route::middleware(['tenant', 'feature:'.Feature::ONLINE_ORDERING, SubstituteBindings::class, 'throttle:public'])->group(function () {
     Route::get('storefront', StorefrontController::class)->name('storefront.show');
     Route::get('menus', [PublicCatalogController::class, 'menus'])->name('public.menus');
     Route::get('products/{product}', [PublicCatalogController::class, 'product'])->name('public.products.show');
@@ -73,7 +76,6 @@ Route::middleware(['tenant', SubstituteBindings::class, 'throttle:public'])->gro
     Route::post('carts/{token}/items', [CartController::class, 'addItem'])->name('carts.items.store');
     Route::patch('carts/{token}/items/{item}', [CartController::class, 'updateItem'])->name('carts.items.update');
     Route::delete('carts/{token}/items/{item}', [CartController::class, 'removeItem'])->name('carts.items.destroy');
-    Route::get('orders/track/{token}', TrackingController::class)->name('orders.track');
     Route::post('carts/{token}/coupon', [CartController::class, 'coupon'])->name('carts.coupon');
     // Feed público de promoções (contrato v1, lido pelo site do restaurante).
     Route::get('vitrine/promocoes.json', StorefrontFeedController::class)->name('vitrine.promocoes');
@@ -88,10 +90,10 @@ Route::middleware(['tenant', 'throttle:webhooks'])
     ->post('webhooks/mercadopago', MercadoPagoWebhookController::class)->name('webhooks.mercadopago');
 
 // Checkout: limite próprio, mais restrito.
-Route::middleware(['tenant', 'throttle:checkout'])->post('checkout', CheckoutController::class)->name('checkout');
+Route::middleware(['tenant', 'feature:'.Feature::ONLINE_ORDERING, 'throttle:checkout'])->post('checkout', CheckoutController::class)->name('checkout');
 
 // Cliente pelo celular (checkout e "Acompanhar pedido"): limite próprio, apertado.
-Route::middleware(['tenant', 'throttle:phone-lookup'])->group(function () {
+Route::middleware(['tenant', 'feature:'.Feature::ONLINE_ORDERING, 'throttle:phone-lookup'])->group(function () {
     Route::post('customers/lookup', [CustomerLookupController::class, 'customer'])->name('customers.lookup');
     Route::post('orders/lookup', [CustomerLookupController::class, 'orders'])->name('orders.lookup');
 });
@@ -177,12 +179,12 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
         Route::put('branches/{branch}/availability/{product}', [AvailabilityController::class, 'update'])
             ->middleware('permission:'.P::CATALOG_AVAILABILITY)->name('availability.update');
 
-        // Estoque simples (Sprint 16).
-        Route::middleware('permission:'.P::CATALOG_VIEW)->group(function () {
+        // Estoque simples (Sprint 16) — módulo próprio.
+        Route::middleware(['permission:'.P::CATALOG_VIEW, 'feature:'.Feature::STOCK])->group(function () {
             Route::get('stock', [StockController::class, 'index'])->name('stock.index');
             Route::get('stock/{product}/movements', [StockController::class, 'movements'])->name('stock.movements');
         });
-        Route::middleware('permission:'.P::CATALOG_MANAGE)->group(function () {
+        Route::middleware(['permission:'.P::CATALOG_MANAGE, 'feature:'.Feature::STOCK])->group(function () {
             Route::put('stock/{product}', [StockController::class, 'update'])->name('stock.update');
             Route::post('stock/{product}/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
         });
@@ -258,7 +260,11 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
                 Route::get('pos/customer', [PosController::class, 'customer'])->middleware('throttle:phone-lookup')->name('pos.customer');
                 Route::post('pos/sales', [PosController::class, 'sale'])->name('pos.sales.store');
                 Route::get('sessions/{session}/report', [CashController::class, 'sessionReport'])->name('sessions.report');
-                // Mesas e comandas (Sprint 16).
+                // Produto com opções para o PDV (não depende do cardápio online).
+                Route::get('pos/products/{product}', [PublicCatalogController::class, 'product'])->name('pos.products.show');
+            });
+            // Mesas e comandas (Sprint 16) — módulo próprio.
+            Route::middleware(['permission:'.P::CASH_OPERATE, 'feature:'.Feature::TABS])->group(function () {
                 Route::get('tabs', [TabController::class, 'index'])->name('tabs.index');
                 Route::post('tabs', [TabController::class, 'store'])->name('tabs.store');
                 Route::get('tabs/{tab}', [TabController::class, 'show'])->name('tabs.show');
@@ -327,6 +333,8 @@ Route::prefix('admin')->middleware(['platform.host', 'spa'])->name('admin.')->gr
         Route::get('plans', [AdminTenantController::class, 'plans'])->name('plans.index');
         // Cobrança SerTec (Sprint 13).
         Route::get('billing/plans', [AdminPlanController::class, 'index'])->name('billing.plans.index');
+        Route::get('billing/modules', [AdminModuleController::class, 'index'])->name('billing.modules.index');
+        Route::patch('billing/modules/{module}', [AdminModuleController::class, 'update'])->name('billing.modules.update');
         Route::post('billing/plans', [AdminPlanController::class, 'store'])->name('billing.plans.store');
         Route::patch('billing/plans/{plan}', [AdminPlanController::class, 'update'])->name('billing.plans.update');
         Route::get('billing/settings', [AdminBillingController::class, 'settings'])->name('billing.settings');

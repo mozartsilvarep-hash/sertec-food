@@ -5,6 +5,8 @@ import { SPageState } from '@sertec/ui'
 import { loadStore, store, toast } from './shop'
 
 const state = ref<'loading' | 'ready' | 'error' | 'offline' | 'unavailable'>('loading')
+/** Restaurante sem o módulo Cardápio digital: só usa o PDV/salão. */
+const noOnline = ref(false)
 
 async function load() {
   state.value = 'loading'
@@ -13,7 +15,10 @@ async function load() {
     state.value = 'ready'
   } catch (error) {
     if (error instanceof ApiError && error.code === 'network_error') state.value = 'offline'
-    else if (error instanceof ApiError && (error.status === 403 || error.status === 404)) state.value = 'unavailable'
+    else if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+      noOnline.value = error.code === 'feature_unavailable'
+      state.value = 'unavailable'
+    }
     else state.value = 'error'
   }
 }
@@ -22,7 +27,12 @@ onMounted(load)
 </script>
 
 <template>
-  <SPageState v-if="state !== 'ready' || !store" :state="state === 'ready' ? 'loading' : state" class="min-h-dvh" @retry="load" />
+  <SPageState
+    v-if="state !== 'ready' || !store" :state="state === 'ready' ? 'loading' : state" class="min-h-dvh"
+    :title="noOnline ? 'Cardápio online indisponível' : undefined"
+    :message="noOnline ? 'Este estabelecimento não recebe pedidos pelo site. Faça seu pedido no local.' : undefined"
+    @retry="load"
+  />
   <RouterView v-else />
 
   <div

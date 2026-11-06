@@ -16,6 +16,8 @@ export interface AdminTenantSummary {
   status: TenantStatus
   host: string | null
   plan: string | null
+  /** Módulos contratados (vazio = sem assinatura). */
+  modules?: import('./billing').ModuleKey[]
   created_at: string | null
   orders_30d?: number
   payments?: 'test' | 'live' | null
@@ -50,6 +52,7 @@ export interface NewTenant {
   plan?: string | null
   timezone?: string | null
   activate: boolean
+  modules?: import('./billing').ModuleKey[]
 }
 
 export interface PlatformAuditEntry {

@@ -17,6 +17,12 @@ export async function loadSession(): Promise<MerchantMe | null> {
   return me.value
 }
 
+/** Funcionalidade liberada pela assinatura (plano + módulos contratados). */
+export function has(feature: string): boolean {
+  const list = me.value?.features
+  return list === undefined ? true : list.includes(feature)
+}
+
 export function can(permission: string): boolean {
   return me.value?.permissions.includes(permission) ?? false
 }

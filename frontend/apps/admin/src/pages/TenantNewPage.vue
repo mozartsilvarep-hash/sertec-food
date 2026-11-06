@@ -1,11 +1,24 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
-import { adminTenantsApi, describeError, type AdminTenant } from '@sertec/api-client'
+import { adminTenantsApi, describeError, MODULES, type AdminTenant, type ModuleKey } from '@sertec/api-client'
 import { SAlert, SButton, STextField } from '@sertec/ui'
 import { slugify } from '../labels'
 
 const form = reactive({ name: '', slug: '', owner_name: '', owner_email: '', plan: '', timezone: 'America/Maceio', activate: true })
 const plans = ref<{ slug: string; name: string }[]>([])
+const modules = ref<ModuleKey[]>(['menu'])
+function toggle(key: ModuleKey, on: boolean) {
+  const set = new Set(modules.value)
+  const m = MODULES.find((x) => x.key === key)
+  if (on) {
+    set.add(key)
+    if (m?.requires) set.add(m.requires)
+  } else {
+    set.delete(key)
+    for (const x of MODULES) if (x.requires === key) set.delete(x.key)
+  }
+  modules.value = MODULES.map((x) => x.key).filter((k) => set.has(k))
+}
 const errors = ref<Record<string, string[]>>({})
 const message = ref<string | null>(null)
 const saving = ref(false)
@@ -22,7 +35,7 @@ async function save() {
   errors.value = {}
   message.value = null
   try {
-    created.value = await adminTenantsApi.create({ ...form, plan: form.plan || null })
+    created.value = await adminTenantsApi.create({ ...form, plan: form.plan || null, ...(form.plan ? { modules: modules.value } : {}) })
   } catch (e) {
     const d = describeError(e)
     errors.value = d.fields ?? {}
@@ -86,6 +99,16 @@ onMounted(async () => {
         </select>
       </label>
     </div>
+    <fieldset v-if="form.plan" class="min-w-0">
+      <legend class="mb-2 text-sm font-medium">Módulos contratados</legend>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label v-for="m in MODULES" :key="m.key" class="flex items-center gap-2 rounded-(--radius-control) border px-3 py-2.5 text-sm" :class="modules.includes(m.key) ? 'border-brand-600 bg-brand-50' : 'border-line'">
+          <input type="checkbox" class="size-4" :checked="modules.includes(m.key)" @change="toggle(m.key, ($event.target as HTMLInputElement).checked)">
+          {{ m.label }}<span v-if="m.requires" class="text-xs text-muted">(com PDV)</span>
+        </label>
+      </div>
+      <p class="mt-1 text-xs text-muted">Preço e ciclo (mensal ou anual) ficam na ficha do estabelecimento, em Mensalidade.</p>
+    </fieldset>
     <label class="inline-flex items-center gap-2 text-sm"><input v-model="form.activate" type="checkbox" class="accent-brand-600"> Ativar agora (o cardápio já abre ao público)</label>
     <div><SButton type="submit" :loading="saving">Criar estabelecimento</SButton></div>
   </form>

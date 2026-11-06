@@ -65,3 +65,7 @@ Ver `backend/database/migrations` e as decisões D14 e D16–D22 em `docs/ARCHIT
 - `tabs` (public_id, tenant, branch, `label`, `open_key` único por unidade enquanto aberta, `people`, `customer_name`, `status` open|closed|cancelled, `kitchen_batches`, `order_id?`, quem abriu/fechou e quando).
 - `tab_items` (public_id, tenant, tab, `product_id?`, `variant_id?`, `options_json` {selections, lines, variant_name}, `name`, `detail`, `unit_price` do servidor, `quantity`, `notes`, `kitchen_batch`, `sent_at`, `voided_at`/`voided_by`/`void_reason`).
 - `orders.table_label` (mesa de origem) e índices `orders (tenant_id, placed_at)` e `cash_entries (tenant_id, occurred_at)` para relatórios de todas as unidades.
+
+## Módulos (06/11/2026)
+- `billing_modules` (global): `key` único (menu, pos, tabs, stock), `name`, `description`, `prices_json` por período em meses, `active`, `sort_order`.
+- `subscriptions.modules_json` (lista de módulos; null = só o Cardápio digital) e `invoices.lines_json` (composição da fatura).

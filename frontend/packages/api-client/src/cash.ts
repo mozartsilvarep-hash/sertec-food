@@ -119,6 +119,8 @@ export interface PosCatalog {
   /** Mais vendidos nos últimos 30 dias (ids). */
   top: string[]
   methods: { method: PosMethod; label: string }[]
+  /** Regra do cartão fidelidade (null = sem programa ativo). */
+  loyalty?: import('./catalog').LoyaltyRule | null
 }
 
 export interface PosLine {
@@ -157,6 +159,9 @@ export const posApi = {
     request<Data<PosCatalog>>(`/merchant/cash/pos/catalog${filterQuery({ branch })}`).then((r) => r.data),
   customer: (phone: string) =>
     request<Data<PosCustomer>>(`/merchant/cash/pos/customer?phone=${enc(phone)}`).then((r) => r.data),
+  /** Produto com opções para o PDV (pelo painel: não depende do cardápio online). */
+  product: (id: string, branch?: string) =>
+    request<Data<import('./catalog').PublicProduct>>(`/merchant/cash/pos/products/${enc(id)}${filterQuery({ branch })}`).then((r) => r.data),
   sale: (payload: PosSalePayload, idempotencyKey: string) =>
     request<Data<PosSaleResult>>('/merchant/cash/pos/sales', { method: 'POST', body: payload, headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
 }

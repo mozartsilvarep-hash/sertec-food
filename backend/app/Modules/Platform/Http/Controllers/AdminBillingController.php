@@ -10,12 +10,15 @@ use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Billing\BillingService;
 use App\Modules\Platform\Billing\InvoicePresenter;
 use App\Modules\Platform\Billing\PlatformMercadoPago;
+use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Platform\Models\Invoice;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\PlatformSetting;
 use App\Modules\Platform\Models\Subscription;
+use App\Modules\Platform\Modules\ModuleKey;
 use App\Modules\Tenancy\Models\Tenant;
 use App\Modules\Tenancy\TenantContext;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -125,17 +128,29 @@ class AdminBillingController
             'billing_months' => ['required', 'integer', Rule::in(array_keys(Plan::PERIODS))],
             'price' => ['nullable', 'regex:/^\d{1,7}([.,]\d{1,2})?$/'],
             'paid_until' => ['nullable', 'date_format:Y-m-d'],
-        ], ['price.regex' => 'Valor inválido. Use o formato 99,90.'], ['billing_months' => 'período', 'price' => 'valor', 'paid_until' => 'pago até']);
+            'modules' => ['sometimes', 'array', 'max:10'],
+            'modules.*' => ['string', Rule::in(ModuleKey::values())],
+        ], ['price.regex' => 'Valor inválido. Use o formato 99,90.'], ['billing_months' => 'período', 'price' => 'valor', 'paid_until' => 'pago até', 'modules' => 'módulos']);
 
         $plan = Plan::query()->where('slug', $data['plan'])->firstOrFail();
         $price = isset($data['price']) && $data['price'] !== '' ? number_format((float) str_replace(',', '.', (string) $data['price']), 2, '.', '') : null;
-        if ($price === null && $plan->priceFor((int) $data['billing_months']) === null) {
-            throw new ApiException(422, 'plan_period_unavailable', 'Este plano não tem preço para o período escolhido. Informe um valor próprio ou ajuste o plano.');
-        }
+        $months = (int) $data['billing_months'];
+        $modules = array_key_exists('modules', $data) ? self::checkedModules($data['modules']) : null;
 
-        return new JsonResponse(['data' => $context->run($tenant, function () use ($data, $plan, $price, $tenant, $audit) {
+        return new JsonResponse(['data' => $context->run($tenant, function () use ($data, $plan, $price, $months, $modules, $tenant, $audit) {
             $sub = MerchantBillingController::subscription();
-            $attrs = ['billing_months' => (int) $data['billing_months'], 'price' => $price];
+            $modules ??= array_map(fn (ModuleKey $m) => $m->value, $sub?->modules() ?? ModuleKey::cases());
+            // Sem valor próprio: precisa haver algo com preço no período (módulo
+            // sem preço no período entra sem custo — a tela avisa).
+            if ($price === null) {
+                $probe = new Subscription(['plan_id' => $plan->id, 'billing_months' => $months, 'modules_json' => $modules]);
+                $probe->setRelation('plan', $plan);
+                if ($probe->catalogPrice() === null) {
+                    $period = mb_strtolower(Plan::PERIODS[$months] ?? "{$months} meses");
+                    throw new ApiException(422, 'plan_period_unavailable', "Nenhum módulo tem preço {$period}. Defina os preços em Cobrança ou informe um valor próprio.");
+                }
+            }
+            $attrs = ['billing_months' => $months, 'price' => $price, 'modules_json' => $modules];
             if (array_key_exists('paid_until', $data)) {
                 $attrs['paid_until'] = $data['paid_until'];
             }
@@ -150,8 +165,17 @@ class AdminBillingController
                     ->update(['status' => Invoice::CANCELLED, 'note' => 'Plano alterado']);
             } else {
                 $sub->forceFill($attrs)->save();
+                // Fatura em aberto ainda sem Pix gerado acompanha o novo valor.
+                $sub->load('plan');
+                $newPrice = $sub->effectivePrice();
+                if ($newPrice !== null && Money::toCents($newPrice) > 0) {
+                    foreach (Invoice::query()->where('subscription_id', $sub->id)->where('status', Invoice::OPEN)->whereNull('pix_code')->get() as $open) {
+                        $open->forceFill(['amount' => $newPrice, 'plan_name' => $sub->billingLabel(), 'lines_json' => BillingService::lines($sub, $newPrice)])->save();
+                    }
+                }
             }
             $audit->record('billing.subscription_updated', $tenant, ['plan' => $plan->slug, ...$attrs], tenant: $tenant);
+            app(FeatureGate::class)->forget();
 
             return $this->presentTenant();
         })]);
@@ -200,6 +224,27 @@ class AdminBillingController
 
             return $this->presentTenant();
         })]);
+    }
+
+    /**
+     * Mesas e comandas exige o PDV; ao menos um módulo.
+     *
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    public static function checkedModules(array $keys): array
+    {
+        $list = ModuleKey::list($keys);
+        if ($list === []) {
+            throw new ApiException(422, 'validation_failed', 'Escolha ao menos um módulo.', ['fields' => ['modules' => ['Escolha ao menos um módulo.']]]);
+        }
+        foreach ($list as $m) {
+            if ($m->requires() !== null && ! in_array($m->requires(), $list, true)) {
+                throw new ApiException(422, 'validation_failed', "{$m->label()} precisa do módulo {$m->requires()->label()}.", ['fields' => ['modules' => ["{$m->label()} precisa do módulo {$m->requires()->label()}."]]]);
+            }
+        }
+
+        return array_map(fn (ModuleKey $m) => $m->value, $list);
     }
 
     /**

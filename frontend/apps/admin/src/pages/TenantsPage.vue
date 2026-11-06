@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { ApiError, adminTenantsApi, type AdminTenantSummary, type TenantStatus } from '@sertec/api-client'
+import { ApiError, adminTenantsApi, MODULES, type AdminTenantSummary, type TenantStatus } from '@sertec/api-client'
 import { SButton, SPageState } from '@sertec/ui'
 import { me } from '../session'
 import { STATUS_LABEL, STATUS_TONE } from '../labels'
@@ -65,7 +65,7 @@ onMounted(load)
           <th scope="col" class="px-4 py-3 font-medium">Estabelecimento</th>
           <th scope="col" class="px-4 py-3 font-medium">Endereço</th>
           <th scope="col" class="px-4 py-3 font-medium">Situação</th>
-          <th scope="col" class="px-4 py-3 font-medium">Plano</th>
+          <th scope="col" class="px-4 py-3 font-medium">Módulos</th>
           <th scope="col" class="px-4 py-3 font-medium">Mercado Pago</th>
           <th scope="col" class="px-4 py-3 text-right font-medium">Pedidos (30 dias)</th>
         </tr>
@@ -75,7 +75,12 @@ onMounted(load)
           <td class="px-4 py-3"><RouterLink :to="`/estabelecimentos/${t.id}`" class="font-semibold text-ink hover:text-brand-700 hover:underline">{{ t.name }}</RouterLink></td>
           <td class="px-4 py-3 text-muted">{{ t.host }}</td>
           <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="STATUS_TONE[t.status]">{{ STATUS_LABEL[t.status] }}</span></td>
-          <td class="px-4 py-3">{{ t.plan ?? '—' }}</td>
+          <td class="px-4 py-3">
+            <span v-if="!t.modules?.length" class="text-muted">—</span>
+            <span v-else class="flex flex-wrap gap-1">
+              <span v-for="k in t.modules" :key="k" class="rounded-full bg-canvas px-2 py-0.5 text-xs font-medium whitespace-nowrap">{{ MODULES.find((m) => m.key === k)?.label ?? k }}</span>
+            </span>
+          </td>
           <td class="px-4 py-3">{{ t.payments === 'live' ? 'Produção' : t.payments === 'test' ? 'Teste' : '—' }}</td>
           <td class="px-4 py-3 text-right tabular-nums">{{ t.orders_30d ?? 0 }}</td>
         </tr>

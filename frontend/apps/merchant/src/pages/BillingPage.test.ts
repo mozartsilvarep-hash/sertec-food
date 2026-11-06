@@ -11,18 +11,20 @@ afterEach(() => {
 const OPEN: Invoice = {
   id: 'inv1', plan_name: 'Cardápio Digital', months: 1, amount: '89.90', period_start: '2026-11-01', period_end: '2026-11-30',
   due_date: '2026-11-01', status: 'open', overdue: true, paid_at: null, paid_via: null, note: null, pix: null,
+  lines: [{ label: 'Cardápio digital', amount: '89.90' }],
 }
+const MODS = { modules: ['menu' as const], lines: [{ label: 'Cardápio digital', amount: '89.90', module: 'menu' as const }], catalog_price: '89.90' }
 
 describe('Assinatura (mensalidade SerTec)', () => {
   it('mostra a fatura atrasada, gera o Pix e confirma sozinho quando pago', async () => {
     vi.useFakeTimers()
     vi.spyOn(merchantBillingApi, 'show').mockResolvedValueOnce({
       pix_available: true,
-      subscription: { plan: { slug: 'cardapio', name: 'Cardápio Digital' }, status: 'past_due', billing_months: 1, period_label: 'Mensal', custom_price: null, price: '89.90', paid_until: '2026-10-31' },
+      subscription: { plan: { slug: 'cardapio', name: 'Cardápio Digital' }, status: 'past_due', billing_months: 1, period_label: 'Mensal', ...MODS, custom_price: null, price: '89.90', paid_until: '2026-10-31' },
       invoices: [OPEN],
     }).mockResolvedValue({
       pix_available: true,
-      subscription: { plan: { slug: 'cardapio', name: 'Cardápio Digital' }, status: 'active', billing_months: 1, period_label: 'Mensal', custom_price: null, price: '89.90', paid_until: '2026-11-30' },
+      subscription: { plan: { slug: 'cardapio', name: 'Cardápio Digital' }, status: 'active', billing_months: 1, period_label: 'Mensal', ...MODS, custom_price: null, price: '89.90', paid_until: '2026-11-30' },
       invoices: [{ ...OPEN, status: 'paid', overdue: false, paid_at: '2026-11-02T10:00:00-03:00', paid_via: 'pix' }],
     })
     const pix = vi.spyOn(merchantBillingApi, 'pix').mockResolvedValue({ ...OPEN, pix: { code: '000201PIXCODE', qr_base64: 'aGVsbG8=', expires_at: null } })

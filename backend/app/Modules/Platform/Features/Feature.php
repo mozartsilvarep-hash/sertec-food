@@ -3,7 +3,8 @@
 namespace App\Modules\Platform\Features;
 
 /**
- * Funcionalidades controladas por plano (plans.features_json).
+ * Funcionalidades controladas por plano (plans.features_json) ou por
+ * módulo contratado (ver ModuleKey: online_ordering, cashbook, tabs, stock).
  * Toda funcionalidade comercializável nasce aqui e é checada com
  * FeatureGate::enabled() ou middleware "feature:<chave>".
  */
@@ -29,6 +30,15 @@ final class Feature
 
     /** Cartão fidelidade (selos por celular). */
     public const LOYALTY = 'loyalty';
+
+    /** Pedidos pelo cardápio online (módulo Cardápio digital). */
+    public const ONLINE_ORDERING = 'online_ordering';
+
+    /** Mesas e comandas (módulo). */
+    public const TABS = 'tabs';
+
+    /** Estoque simples (módulo). */
+    public const STOCK = 'stock';
 
     /**
      * @return list<string>

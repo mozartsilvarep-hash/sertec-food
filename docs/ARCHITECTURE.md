@@ -541,3 +541,14 @@ Operação, Cardápio, Loja e Conta, com ícone e descrição ao passar o mouse.
 
 ### D99 — Desconto do operador limitado
 No PDV e no fechamento da mesa, desconto do caixa acima de 10% dos itens exige `cash.manage` (403 `sale_discount_not_allowed`). Promoções do cardápio e prêmio da fidelidade não contam nesse limite.
+
+## Módulos vendidos separadamente (06/11/2026)
+
+### D100 — Assinatura = plano (recursos extras) + módulos
+- **Módulos** (`ModuleKey`): Cardápio digital (`menu` → `online_ordering`), PDV e caixa (`pos` → `cashbook`, inclui o financeiro), Mesas e comandas (`tabs`, exige o PDV) e Estoque (`stock`). A lista contratada fica em `subscriptions.modules_json`; sem lista (ou sem assinatura) = só o Cardápio digital, como sempre foi.
+- **FeatureGate:** recursos do plano (site profissional, domínio próprio, várias unidades, relatórios, cupons…) + funcionalidades dos módulos. O plano não liga mais `cashbook`, `online_ordering`, `tabs` nem `stock`; só os módulos ligam. Mesas sem o PDV não valem, mesmo se gravadas.
+- **Preço:** cada módulo tem preço por período em `billing_modules.prices_json` (mensal e anual na tela; trimestral/semestral opcionais). A mensalidade é **um ciclo por cliente**: plano (se tiver preço) + soma dos módulos no período. "Valor próprio" substitui a soma (desconto por cliente; 0 = cortesia). Módulo sem preço no período entra sem custo e a tela avisa; sem nada com preço, a SerTec precisa informar o valor.
+- **Fatura:** `invoices.plan_name` = "Cardápio digital + PDV e caixa…" e `invoices.lines_json` com cada módulo. Mudar os módulos atualiza a fatura em aberto que ainda não tem Pix gerado.
+- **Bloqueio:** sem `online_ordering`, as rotas públicas de pedido (storefront, cardápio, carrinho, checkout, busca por celular, vitrine) respondem 403 `feature_unavailable` e o cardápio mostra "Cardápio online indisponível"; acompanhar um pedido já feito continua. O PDV usa `merchant/cash/pos/products/{id}` e a regra do fidelidade vem em `pos/catalog`, então não depende do cardápio online. Sem `stock`, a venda não baixa estoque.
+- **Painel:** `merchant/me` traz `modules` e `features`; o menu esconde o que não foi contratado (PDV, Caixa, Financeiro, Mesas, Estoque, Horários, Entrega, Pagamentos) e o endereço direto abre "Módulo não contratado".
+- **Clientes que já existiam:** migration liga os 4 módulos e congela o valor de hoje em "valor próprio" (quem não tinha preço ficou com 0,00), para ninguém ser cobrado de surpresa quando os preços dos módulos forem definidos. Planos padrão renomeados para "Básico" e "Site profissional" (só se não tinham sido renomeados).
