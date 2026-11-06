@@ -15,6 +15,9 @@ export const router = createRouter({
       const token = lastOrder()
       return token ? { path: `/pedido/${token}`, replace: true } : { path: '/', replace: true }
     } },
+    // QR Code da mesa (D103).
+    { path: '/mesa/pedido/:id', name: 'table-request', component: () => import('./pages/TableRequestPage.vue'), props: true },
+    { path: '/mesa/:token', name: 'table', component: () => import('./pages/TableEntryPage.vue'), props: true },
     { path: '/acompanhar', name: 'track-phone', component: () => import('./pages/TrackByPhonePage.vue') },
     { path: '/pedido/:token', name: 'track', component: () => import('./pages/TrackPage.vue'), props: true },
     { path: '/privacidade', name: 'privacy', component: () => import('./pages/PrivacyPage.vue') },

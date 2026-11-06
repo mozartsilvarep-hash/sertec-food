@@ -160,6 +160,13 @@ Dicas:
   - só é enviado a quem pode entrar naquele painel;
   - nunca fica gravado em log, fila ou banco (lá fica só o hash do token).
 
+## 6.2.1 Mesas, garçom e QR Code
+1. **Mesas e comandas → Mesas e QR Codes:** crie as mesas (ex.: Mesa de 1 até 20) e clique em **Imprimir todos os QR**. Imprima em papel adesivo ou plastifique.
+2. **Equipe:** cadastre os garçons com a função **Garçom**. Eles entram pelo celular e caem direto no **Salão**.
+3. **No salão:** o cliente escaneia, pede e o pedido aparece em vermelho para o garçom ("Aguardando você"). O garçom confirma e o pedido vai para a cozinha, ou recusa com um motivo. "Chamar garçom" e "Pedir a conta" chegam do mesmo jeito.
+4. **Fechar a conta** continua no caixa (PDV, com taxa de serviço e divisão).
+5. **QR perdido ou copiado:** use **Novo QR** na mesa. O antigo para de funcionar.
+
 ## 6.3 Mensalidade dos restaurantes (cobrança SerTec)
 
 Os restaurantes pagam a mensalidade por Pix, direto na conta Mercado Pago da SerTec. O dinheiro não passa pela conta deles.

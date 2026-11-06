@@ -20,7 +20,9 @@ class RequirePermission
     {
         $user = $request->user();
 
-        if (! $user instanceof User || ! $this->access->for($user)->can($permission)) {
+        // "a|b" = qualquer uma das permissões.
+        $access = $user instanceof User ? $this->access->for($user) : null;
+        if ($access === null || ! collect(explode('|', $permission))->contains(fn (string $p) => $access->can($p))) {
             throw ApiException::forbidden();
         }
 

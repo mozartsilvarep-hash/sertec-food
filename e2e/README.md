@@ -20,6 +20,7 @@ Cenários reais no Chromium contra o ambiente local (Nginx + PHP-FPM + fila + Vi
 | `s15-financeiro.mjs` | taxas de crédito e Pix, custo fixo, venda no crédito com taxa no caixa, saída pagando o custo fixo, sangria, fechamento impresso, resultado do dia |
 | `s16-salao.mjs` | estoque do refrigerante (saldo inicial, entrada); Mesa 9 para 2 pessoas; PDV lança na mesa e manda à cozinha (impressão do lote sem preço); fecha com 10% e divisão por pessoa; recibo com a mesa; estoque baixou; mesas e estoque no celular |
 | `s17-modulos.mjs` | SerTec põe preço mensal/anual nos módulos; Pizzaria Demo só com o PDV (total anual); painel esconde mesas/estoque/entrega e explica o módulo não contratado; assinatura lista o módulo; PDV abre produto com sabores; cardápio online indisponível; volta tudo |
+| `s18-garcom-qr.mjs` | gerente cria Mesa 1–3 e imprime os QR; cliente escaneia, pede pelo cardápio e aguarda; garçom (celular) confirma e manda à cozinha; cliente vê confirmado; "Pedir a conta" e atendido; garçom lança direto; caixa vê "Conta pedida" |
 | `s98-telas.mjs` | todas as telas (cardápio, painel e SerTec) em 360 px e 768 px sem rolagem lateral |
 | `s99-senha.mjs` | "Esqueci a senha" no painel da loja (link do e-mail, regra de senha, entra com a nova, link não vale 2×) e no painel SerTec. Lê o link do log (`MAIL_MAILER=log`); rode por último |
 

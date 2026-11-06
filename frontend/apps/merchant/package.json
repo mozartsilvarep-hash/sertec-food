@@ -11,7 +11,11 @@
   "dependencies": {
     "@sertec/api-client": "workspace:*",
     "@sertec/ui": "workspace:*",
+    "qrcode": "1.5.4",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "1.5.5"
   }
 }

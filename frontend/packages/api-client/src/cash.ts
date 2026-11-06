@@ -254,6 +254,7 @@ export interface TabItem {
 export interface TabSummary {
   id: string
   label: string
+  bill_requested_at?: string | null
   people: number
   customer_name: string | null
   status: 'open' | 'closed' | 'cancelled'
@@ -329,4 +330,57 @@ export const stockApi = {
     request<Data<{ quantity: number; low: boolean; sold_out: boolean }>>(`/merchant/stock/${enc(product)}/adjust`, { method: 'POST', body }).then((r) => r.data),
   movements: (product: string, branch?: string | null) =>
     request<Data<StockMove[]>>(`/merchant/stock/${enc(product)}/movements${filterQuery({ branch })}`).then((r) => r.data),
+}
+
+/* ---------- Garçom e QR Code da mesa (D103) ---------- */
+
+export interface FloorTable {
+  /** null = conta aberta sem mesa cadastrada (comanda, balcão). */
+  id: string | null
+  label: string
+  qr_url: string | null
+  tab: { id: string; people: number; subtotal: string; items_count: number; pending_kitchen: number; bill_requested_at: string | null; opened_at: string } | null
+  pending: number
+}
+
+export interface FloorRequest {
+  id: string
+  type: 'order' | 'waiter' | 'bill'
+  table: string | null
+  summary: string | null
+  customer_name: string | null
+  notes: string | null
+  created_at: string
+  lines: number
+}
+
+export interface DiningTableRow { id: string; label: string; active: boolean; qr_url: string | null }
+
+export const floorApi = {
+  get: (branch?: string | null) => request<Data<{ tables: FloorTable[]; requests: FloorRequest[] }>>(`/merchant/cash/floor${filterQuery({ branch })}`).then((r) => r.data),
+  accept: (id: string, sendToKitchen: boolean) =>
+    request<Data<{ id: string; status: string; tab_id: string | null; kitchen_batch: number | null }>>(`/merchant/cash/tab-requests/${enc(id)}/accept`, { method: 'POST', body: { send_to_kitchen: sendToKitchen } }).then((r) => r.data),
+  reject: (id: string, reason?: string | null) =>
+    request<Data<{ id: string; status: string }>>(`/merchant/cash/tab-requests/${enc(id)}/reject`, { method: 'POST', body: { reason: reason ?? null } }).then((r) => r.data),
+  bill: (tabId: string, cancel = false) =>
+    request<Data<{ bill_requested_at: string | null }>>(`/merchant/cash/tabs/${enc(tabId)}/bill`, { method: 'POST', body: { cancel } }).then((r) => r.data),
+}
+
+export const diningTablesApi = {
+  list: (branch?: string | null) => request<Data<DiningTableRow[]>>(`/merchant/cash/dining-tables${filterQuery({ branch })}`).then((r) => r.data),
+  create: (body: { branch?: string | null; label?: string; prefix?: string; from?: number; to?: number }) =>
+    request<Data<DiningTableRow[]>>('/merchant/cash/dining-tables', { method: 'POST', body }).then((r) => r.data),
+  update: (id: string, body: { label?: string; active?: boolean; new_qr?: boolean }) =>
+    request<Data<DiningTableRow>>(`/merchant/cash/dining-tables/${enc(id)}`, { method: 'PATCH', body }).then((r) => r.data),
+  remove: (id: string) => request<void>(`/merchant/cash/dining-tables/${enc(id)}`, { method: 'DELETE' }),
+}
+
+export interface TableRequestView { id: string; type: 'order' | 'waiter' | 'bill'; status: 'pending' | 'accepted' | 'rejected' | 'expired'; summary: string | null; reason: string | null; created_at: string; view_token?: string | null }
+
+/** Público: o cliente na mesa (QR Code). */
+export const tableApi = {
+  get: (token: string) => request<Data<{ label: string; branch: { id: string | null; name: string | null } }>>(`/tables/${enc(token)}`).then((r) => r.data),
+  send: (token: string, body: { type: 'order' | 'waiter' | 'bill'; cart_token?: string | null; customer_name?: string | null; notes?: string | null }) =>
+    request<Data<TableRequestView>>(`/tables/${enc(token)}/requests`, { method: 'POST', body }).then((r) => r.data),
+  status: (id: string, viewToken: string) => request<Data<TableRequestView>>(`/table-requests/${enc(id)}?t=${enc(viewToken)}`).then((r) => r.data),
 }

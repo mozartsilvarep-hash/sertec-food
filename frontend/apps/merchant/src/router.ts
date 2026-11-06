@@ -12,6 +12,8 @@ export const router = createRouter({
     { path: '/pedidos/:id/imprimir', name: 'order-print', component: () => import('./pages/PrintPage.vue'), props: true },
     { path: '/caixa/:id/fechamento', name: 'cash-print', component: () => import('./pages/CashPrintPage.vue'), props: true, meta: { feature: 'cashbook' } },
     { path: '/pedidos/:id/recibo', name: 'order-receipt', component: () => import('./pages/PrintPage.vue'), props: (r) => ({ id: String(r.params.id), kind: 'receipt' }) },
+    { path: '/garcom', name: 'waiter', component: () => import('./pages/WaiterPage.vue'), meta: { feature: 'tabs' } },
+    { path: '/mesas/qr', name: 'tables-qr', component: () => import('./pages/TableQrPrintPage.vue'), meta: { feature: 'tabs' } },
     { path: '/mesas/:id/cozinha', name: 'tab-kitchen', component: () => import('./pages/TabKitchenPrintPage.vue'), props: true, meta: { feature: 'tabs' } },
     // PDV em tela própria (sem o menu lateral), pensado para tela cheia.
     { path: '/pdv', name: 'pos', component: () => import('./pages/PosPage.vue'), meta: { feature: 'cashbook' } },
@@ -63,6 +65,8 @@ router.beforeEach(async (to) => {
   if (me.value?.blocked && !['billing', 'account', 'blocked'].includes(String(to.name))) {
     return { name: can('billing.manage') ? 'billing' : 'blocked' }
   }
+  // Garçom (sem unidades nem pedidos): a tela dele é o salão.
+  if (to.name === 'home' && !can('branches.view') && !can('orders.view') && can('tabs.operate')) return { name: 'waiter' }
   // Módulo não contratado: explica em vez de abrir uma tela que não funciona.
   const feature = to.meta.feature
   if (typeof feature === 'string' && !has(feature)) return { name: 'module-locked', params: { modulo: feature } }

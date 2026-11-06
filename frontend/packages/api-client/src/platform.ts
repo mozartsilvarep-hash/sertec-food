@@ -94,7 +94,7 @@ export const adminTenantsApi = {
 
 /* ---------- Painel do restaurante: equipe, conta e unidades ---------- */
 
-export type StaffRole = 'owner' | 'manager' | 'attendant' | 'kitchen'
+export type StaffRole = 'owner' | 'manager' | 'attendant' | 'kitchen' | 'waiter'
 
 export interface StaffMember {
   id: string
@@ -114,6 +114,7 @@ export const STAFF_ROLES: { value: Exclude<StaffRole, 'owner'>; label: string; h
   { value: 'manager', label: 'Gerente', hint: 'Tudo, menos equipe, pagamentos online e auditoria' },
   { value: 'attendant', label: 'Atendente', hint: 'Pedidos e esgotados' },
   { value: 'kitchen', label: 'Cozinha', hint: 'Pedidos e esgotados, sem ver unidades' },
+  { value: 'waiter', label: 'Garçom', hint: 'Só o salão no celular: lança nas mesas e confirma os pedidos do QR' },
 ]
 
 export const teamApi = {

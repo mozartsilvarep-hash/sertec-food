@@ -61,7 +61,7 @@ Cardápio digital, PDV e caixa, Mesas e comandas e Estoque vendidos separadament
 Bloqueio automático no 8º dia de atraso, com avisos e liberação imediata ao pagar; status público para monitor externo; conferência de SPF/DKIM/DMARC.
 
 ## Próximas etapas (pedido de 06/11/2026)
-Garçom no celular e QR Code na mesa (garçom confirma) · módulo Impressora e impressão automática (agente Windows) · ficha técnica e CMV · mensalidade recorrente no cartão (assinaturas do Mercado Pago) · iFood (depende do cadastro no Portal do Desenvolvedor).
+~~Garçom no celular e QR Code na mesa~~ ✅ · módulo Impressora e impressão automática (agente Windows) · ficha técnica e CMV · mensalidade recorrente no cartão (assinaturas do Mercado Pago) · iFood (depende do cadastro no Portal do Desenvolvedor).
 
 ## Pós-MVP
 WhatsApp Cloud API (aviso automático), impressão térmica (agente local), relatórios, PDV e IA.

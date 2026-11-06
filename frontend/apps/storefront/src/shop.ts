@@ -134,3 +134,39 @@ export function rememberCustomer(customer: SavedCustomer): void {
 export function forgetCustomer(): void {
   removePref(key('customer'))
 }
+
+/* ---------- Mesa (QR Code): o pedido vai para o garçom confirmar ---------- */
+
+export interface TableMode { token: string; label: string; branchId: string; since: number }
+
+/** Mesa atual (QR escaneado há menos de 6 horas). */
+export const table = ref<TableMode | null>(readTable())
+
+function readTable(): TableMode | null {
+  try {
+    const raw = readPref('table')
+    const t = raw ? (JSON.parse(raw) as TableMode) : null
+    return t && Date.now() - t.since < 6 * 3600_000 ? t : null
+  } catch {
+    return null
+  }
+}
+
+export function enterTable(t: Omit<TableMode, 'since'>) {
+  table.value = { ...t, since: Date.now() }
+  writePref('table', JSON.stringify(table.value))
+  if (branchId.value !== t.branchId) selectBranch(t.branchId)
+}
+
+export function leaveTable() {
+  table.value = null
+  removePref('table')
+}
+
+export function rememberTableRequest(id: string, viewToken: string) {
+  writePref(`table-request:${id}`, viewToken)
+}
+
+export function tableRequestToken(id: string): string | null {
+  return readPref(`table-request:${id}`)
+}

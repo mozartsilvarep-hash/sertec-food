@@ -30,7 +30,7 @@ use Illuminate\Validation\Rule;
  */
 class StaffController
 {
-    private const ASSIGNABLE = [Role::MANAGER, Role::ATTENDANT, Role::KITCHEN];
+    private const ASSIGNABLE = [Role::MANAGER, Role::ATTENDANT, Role::KITCHEN, Role::WAITER];
 
     public function index(Request $request): JsonResponse
     {

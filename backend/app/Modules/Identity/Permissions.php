@@ -51,6 +51,9 @@ final class Permissions
     /** Caixa: estornar lançamentos, relatórios e exportação. */
     public const CASH_MANAGE = 'cash.manage';
 
+    /** Mesas: lançar itens, enviar à cozinha, confirmar pedidos do QR (garçom). */
+    public const TABS_OPERATE = 'tabs.operate';
+
     /** Ver e pagar a mensalidade da SerTec (só o proprietário). */
     public const BILLING_MANAGE = 'billing.manage';
 
@@ -78,6 +81,7 @@ final class Permissions
             self::CASH_OPERATE => 'Operar o caixa',
             self::CASH_MANAGE => 'Gerenciar o caixa e relatórios do caixa',
             self::BILLING_MANAGE => 'Ver e pagar a mensalidade',
+            self::TABS_OPERATE => 'Atender mesas (garçom)',
         ];
     }
 
@@ -95,7 +99,10 @@ final class Permissions
             Role::MANAGER => ['name' => 'Gerente', 'permissions' => array_values(array_diff($all, [self::STAFF_MANAGE, self::PAYMENTS_MANAGE, self::AUDIT_VIEW, self::BILLING_MANAGE]))],
             Role::ATTENDANT => ['name' => 'Atendente', 'permissions' => [
                 self::BRANCHES_VIEW, self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,
-                self::CASH_OPERATE,
+                self::CASH_OPERATE, self::TABS_OPERATE,
+            ]],
+            Role::WAITER => ['name' => 'Garçom', 'permissions' => [
+                self::CATALOG_VIEW, self::CATALOG_AVAILABILITY, self::TABS_OPERATE,
             ]],
             Role::KITCHEN => ['name' => 'Cozinha', 'permissions' => [
                 self::CATALOG_AVAILABILITY, self::ORDERS_VIEW, self::ORDERS_MANAGE,

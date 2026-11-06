@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TableBar from '../components/TableBar.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, formatMoney, type ProductSummary, type PublicMenu } from '@sertec/api-client'
@@ -98,6 +99,7 @@ onMounted(async () => {
       {{ store.announcement.text }}
       <a v-if="store.announcement.link" :href="store.announcement.link" class="ml-1 font-semibold whitespace-nowrap underline underline-offset-2">{{ store.announcement.link_label ?? 'Saiba mais' }}</a>
     </p>
+    <TableBar />
     <StoreHero :store="store" :branch="branch" @change-branch="selectBranch" />
     <div class="mx-auto grid max-w-2xl gap-2 px-4 pb-2 sm:px-6 lg:max-w-5xl" :class="store.loyalty && 'lg:grid-cols-2'">
       <p v-if="store.loyalty" class="flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm">

@@ -69,3 +69,8 @@ Ver `backend/database/migrations` e as decisões D14 e D16–D22 em `docs/ARCHIT
 ## Módulos (06/11/2026)
 - `billing_modules` (global): `key` único (menu, pos, tabs, stock), `name`, `description`, `prices_json` por período em meses, `active`, `sort_order`.
 - `subscriptions.modules_json` (lista de módulos; null = só o Cardápio digital) e `invoices.lines_json` (composição da fatura).
+
+## Garçom e QR Code (06/11/2026)
+- `dining_tables` (public_id, tenant, branch, `label` único por unidade, `qr_token` único, `active`, `sort_order`).
+- `tab_requests` (public_id, tenant, branch, mesa, `tab_id?`, `type` order|waiter|bill, `lines_json`, `summary`, `customer_name`, `notes`, `status`, `view_token_hash`, quem decidiu e quando, `reason`).
+- `tabs.bill_requested_at`. Permissão `tabs.operate` e papel `waiter`.
