@@ -39,6 +39,9 @@ class RunBillingCommand extends Command
                     }
                     $billing->remind($invoice, $today);
                 }
+                if ($sub !== null) {
+                    $billing->refreshBlock($sub->refresh(), $today);
+                }
 
                 return $new;
             });

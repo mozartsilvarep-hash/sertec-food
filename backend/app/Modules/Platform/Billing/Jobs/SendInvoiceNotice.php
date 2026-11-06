@@ -31,6 +31,12 @@ class SendInvoiceNotice implements ShouldQueue
 
     public const PAID = 'paid';
 
+    /** Faltam poucos dias para o bloqueio. */
+    public const BLOCK_SOON = 'block_soon';
+
+    /** Bloqueado por atraso. */
+    public const BLOCKED = 'blocked';
+
     public int $tries = 3;
 
     public int $tenantId;

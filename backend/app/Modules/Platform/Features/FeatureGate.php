@@ -16,12 +16,16 @@ final class FeatureGate
     /** @var array<int, array<string, bool>> */
     private array $cache = [];
 
+    /** @var array<int, bool> */
+    private array $blocked = [];
+
     public function __construct(private readonly TenantContext $context) {}
 
     /** Esquece o que foi lido (após mudar a assinatura na mesma requisição). */
     public function forget(): void
     {
         $this->cache = [];
+        $this->blocked = [];
     }
 
     public function enabled(string $feature): bool
@@ -45,6 +49,10 @@ final class FeatureGate
     private function load(): array
     {
         $subscription = Subscription::query()->current()->with('plan')->first();
+        // Bloqueado por atraso: nada funciona até pagar (D101).
+        if ($subscription?->blocked_at !== null) {
+            return array_fill_keys([...Feature::all(), ...ModuleKey::features()], false);
+        }
 
         // Plano: recursos extras. As funcionalidades dos módulos (cardápio
         // online, caixa, mesas, estoque) vêm só dos módulos contratados.
@@ -71,5 +79,13 @@ final class FeatureGate
         $subscription = Subscription::query()->current()->first();
 
         return array_map(fn (ModuleKey $m) => $m->value, $subscription?->modules() ?? [ModuleKey::Menu]);
+    }
+
+    /** Bloqueado por mensalidade atrasada (o painel mostra só a tela de pagar). */
+    public function blocked(): bool
+    {
+        $tenantId = $this->context->id();
+
+        return $this->blocked[$tenantId] ??= Subscription::query()->current()->whereNotNull('blocked_at')->exists();
     }
 }

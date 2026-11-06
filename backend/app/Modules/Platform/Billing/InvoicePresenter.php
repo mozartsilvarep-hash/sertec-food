@@ -56,6 +56,11 @@ final class InvoicePresenter
             'custom_price' => $s->price,
             'price' => $s->effectivePrice(),
             'paid_until' => $s->paid_until?->toDateString(),
+            'auto_block' => $s->auto_block,
+            'blocked_at' => $s->blocked_at?->toIso8601String(),
+            // Data em que bloqueia (fatura em aberto mais antiga), se houver.
+            'block_date' => ($late = Invoice::query()->where('subscription_id', $s->id)->where('status', Invoice::OPEN)->orderBy('due_date')->first()) !== null && $s->auto_block
+                ? BillingService::blockDate($late)->toDateString() : null,
         ];
     }
 }

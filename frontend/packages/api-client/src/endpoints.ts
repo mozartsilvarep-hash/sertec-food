@@ -11,7 +11,9 @@ export interface MerchantMe {
   /** Funcionalidades liberadas (plano + módulos). */
   features?: string[]
   /** Mensalidade SerTec perto do vencimento ou atrasada (só para o proprietário). */
-  billing?: { invoice_id: string; due_date: string; amount: string; overdue: boolean } | null
+  billing?: { invoice_id: string; due_date: string; amount: string; overdue: boolean; block_date?: string | null } | null
+  /** Bloqueado por mensalidade atrasada: só a tela de pagar funciona. */
+  blocked?: boolean
 }
 
 export interface Branch {

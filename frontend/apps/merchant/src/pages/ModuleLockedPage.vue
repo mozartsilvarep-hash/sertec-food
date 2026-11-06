@@ -12,13 +12,21 @@ const NAMES: Record<string, { name: string; what: string }> = {
   stock: { name: 'Estoque', what: 'saldo por produto, baixa automática e esgotado sozinho' },
 }
 const mod = computed(() => NAMES[props.modulo] ?? { name: 'Este recurso', what: '' })
+const blocked = computed(() => props.modulo === 'blocked')
 </script>
 
 <template>
   <SPageState
+    v-if="blocked"
+    state="unavailable"
+    title="Sistema bloqueado"
+    message="A mensalidade está em atraso e o sistema foi bloqueado. Avise o responsável pelo restaurante: assim que ele pagar, tudo volta na hora."
+  />
+  <SPageState
+    v-else
     state="unavailable"
     :title="`${mod.name} não está no seu plano`"
     :message="`${mod.what ? `O módulo ${mod.name} traz ${mod.what}. ` : ''}Para contratar, fale com a equipe SerTec${can('billing.manage') ? ' ou veja sua assinatura' : ''}.`"
   />
-  <p v-if="can('billing.manage')" class="mt-4 text-center"><RouterLink to="/assinatura" class="font-semibold text-brand-700 underline">Ver minha assinatura</RouterLink></p>
+  <p v-if="can('billing.manage') && !blocked" class="mt-4 text-center"><RouterLink to="/assinatura" class="font-semibold text-brand-700 underline">Ver minha assinatura</RouterLink></p>
 </template>

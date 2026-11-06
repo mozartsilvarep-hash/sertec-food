@@ -17,4 +17,15 @@ class HealthController
 
         return new JsonResponse($result, $result['ok'] ? 200 : 503);
     }
+
+    /**
+     * GET /api/v1/status — público, para o monitor externo (UptimeRobot etc.).
+     * Só diz se está tudo bem (banco, cache, fila e agendador), sem detalhes.
+     */
+    public function public(HealthCheck $health): JsonResponse
+    {
+        $ok = $health->run()['ok'];
+
+        return new JsonResponse(['ok' => $ok], $ok ? 200 : 503, ['Cache-Control' => 'no-store']);
+    }
 }

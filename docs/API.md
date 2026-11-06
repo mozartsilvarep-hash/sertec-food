@@ -359,3 +359,8 @@ Rotas com `cash.operate` e o recurso `cashbook`.
 **Restaurante:** `merchant/me` traz `modules` e `features`. Novo `GET merchant/cash/pos/products/{id}?branch=` (mesmo formato de `products/{id}`). `pos/catalog` traz `loyalty`.
 
 **Público:** sem o módulo Cardápio digital, `storefront`, `menus`, `products/*`, `carts*`, `checkout`, `customers/lookup`, `orders/lookup` e a vitrine respondem 403 `feature_unavailable`. `orders/track/{token}` continua.
+
+## Bloqueio e status (06/11/2026)
+- Painel bloqueado por atraso: 403 `account_blocked` em todas as rotas `merchant/*`, menos `me`, `me/password`, `auth/logout` e `billing/*`. `merchant/me` traz `blocked`; `billing` (aviso) traz `block_date`.
+- `subscription` traz `auto_block`, `blocked_at` e `block_date`. `PUT admin/tenants/{id}/billing` aceita `auto_block`. A lista de estabelecimentos traz `blocked`.
+- `GET /api/v1/status` → `{"ok": true}` (200) ou `{"ok": false}` (503).

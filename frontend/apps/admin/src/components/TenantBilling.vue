@@ -14,7 +14,7 @@ const plans = ref<AdminPlan[]>([])
 const meta = ref<PlanMeta | null>(null)
 const modules = ref<AdminModule[]>([])
 const state = ref<'loading' | 'ready' | 'error'>('loading')
-const form = reactive({ plan: '', months: 1, price: '', paid_until: '', modules: [] as ModuleKey[] })
+const form = reactive({ plan: '', months: 1, price: '', paid_until: '', modules: [] as ModuleKey[], auto_block: true })
 const errors = ref<Record<string, string[]>>({})
 const message = ref<{ ok: boolean; text: string } | null>(null)
 const busy = ref(false)
@@ -49,6 +49,7 @@ function fill(b: TenantBilling) {
   form.price = b.subscription?.custom_price?.replace('.', ',') ?? ''
   form.paid_until = b.subscription?.paid_until ?? ''
   form.modules = b.subscription ? [...b.subscription.modules] : ['menu']
+  form.auto_block = b.subscription?.auto_block ?? true
 }
 
 async function load() {
@@ -83,7 +84,7 @@ async function run(fn: () => Promise<TenantBilling>, ok: string) {
 }
 
 const save = () => run(() => adminBillingApi.updateTenant(props.tenantId, {
-  plan: form.plan, billing_months: form.months, price: form.price.trim() || null, paid_until: form.paid_until || null, modules: form.modules,
+  plan: form.plan, billing_months: form.months, price: form.price.trim() || null, paid_until: form.paid_until || null, modules: form.modules, auto_block: form.auto_block,
 }), 'Mensalidade atualizada')
 const generate = () => run(() => adminBillingApi.createInvoice(props.tenantId), 'Fatura gerada')
 const pay = (id: string) => run(() => adminBillingApi.payInvoice(id, 'Baixa manual no painel SerTec'), 'Fatura marcada como paga')
@@ -103,6 +104,10 @@ onMounted(load)
         <span :class="billing.subscription.status === 'past_due' ? 'font-semibold text-danger' : 'text-success'">{{ STATUS[billing.subscription.status] }}</span>
         <template v-if="billing.subscription.paid_until"> · pago até {{ formatDay(billing.subscription.paid_until) }}</template>
       </p>
+      <p v-if="billing.subscription?.blocked_at" class="mb-4 rounded-(--radius-control) bg-danger-soft p-3 text-sm font-semibold text-danger" role="alert">
+        Bloqueado por atraso desde {{ new Date(billing.subscription.blocked_at).toLocaleDateString('pt-BR') }}. Libera sozinho quando a fatura for paga (ou dê baixa / cancele abaixo).
+      </p>
+      <p v-else-if="billing.subscription?.block_date" class="mb-4 text-sm text-danger">Se não pagar, bloqueia em {{ formatDay(billing.subscription.block_date) }}.</p>
       <p v-else class="mb-4 text-sm text-muted">Sem plano ativo.</p>
 
       <p v-if="message" role="status" class="mb-4 rounded-(--radius-control) p-3 text-sm" :class="message.ok ? 'bg-brand-50' : 'bg-danger-soft text-danger'">{{ message.text }}</p>
@@ -133,6 +138,9 @@ onMounted(load)
         <STextField v-model="form.price" label="Valor próprio (R$)" inputmode="decimal" :placeholder="estimate ? `Soma: ${estimate.replace('.', ',')}` : '0 = cortesia'" :error="errors.price?.[0]" />
         <label class="grid gap-1.5 text-sm font-medium">Pago até
           <input v-model="form.paid_until" type="date" class="min-h-11 rounded-(--radius-control) border border-line bg-surface px-3">
+        </label>
+        <label class="flex items-center gap-2 text-sm sm:col-span-4">
+          <input v-model="form.auto_block" type="checkbox" class="size-4"> Bloquear sozinho 7 dias depois do vencimento (avisa por e-mail antes)
         </label>
         <p class="text-sm sm:col-span-4" role="status">
           {{ form.price.trim() ? 'Valor próprio' : 'Total' }} ({{ (meta?.periods.find((p) => p.months === form.months)?.label ?? '').toLowerCase() }}):

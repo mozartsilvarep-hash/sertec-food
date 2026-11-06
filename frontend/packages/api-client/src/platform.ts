@@ -18,6 +18,8 @@ export interface AdminTenantSummary {
   plan: string | null
   /** Módulos contratados (vazio = sem assinatura). */
   modules?: import('./billing').ModuleKey[]
+  /** Bloqueado por mensalidade atrasada. */
+  blocked?: boolean
   created_at: string | null
   orders_30d?: number
   payments?: 'test' | 'live' | null

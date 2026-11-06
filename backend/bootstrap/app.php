@@ -4,6 +4,7 @@ use App\Http\Errors\ErrorRenderer;
 use App\Http\Middleware\AssignRequestId;
 use App\Modules\Identity\Http\Middleware\EnsureMerchantSession;
 use App\Modules\Identity\Http\Middleware\RequirePermission;
+use App\Modules\Platform\Http\Middleware\EnsureNotBlocked;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformHost;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformSession;
 use App\Modules\Platform\Http\Middleware\RequireFeature;
@@ -64,6 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'merchant' => EnsureMerchantSession::class,
             'permission' => RequirePermission::class,
             'feature' => RequireFeature::class,
+            'not-blocked' => EnsureNotBlocked::class,
             'platform.host' => EnsurePlatformHost::class,
             'platform' => EnsurePlatformSession::class,
         ]);

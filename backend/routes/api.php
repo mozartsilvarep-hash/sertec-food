@@ -107,7 +107,7 @@ Route::prefix('merchant')->middleware(['tenant', 'spa'])->name('merchant.')->gro
     Route::post('auth/reset-password', [PasswordResetController::class, 'merchantReset'])
         ->middleware('throttle:password-reset')->name('auth.reset');
 
-    Route::middleware(['auth:sanctum', 'merchant', 'throttle:panel', SubstituteBindings::class, AuditMutations::class])->group(function () {
+    Route::middleware(['auth:sanctum', 'merchant', 'not-blocked', 'throttle:panel', SubstituteBindings::class, AuditMutations::class])->group(function () {
         Route::post('auth/logout', [MerchantAuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [MerchantAuthController::class, 'me'])->name('me');
 
@@ -362,3 +362,5 @@ Route::middleware(['platform.host', 'throttle:webhooks'])
 // bloqueia /api/v1/internal/* vindo de fora; só a rede interna alcança.
 Route::get('internal/tls-ask', TlsAskController::class)->middleware('throttle:60,1')->name('internal.tls-ask');
 Route::get('internal/health', HealthController::class)->middleware('throttle:60,1')->name('internal.health');
+// Monitor externo: só ok/fora do ar (D102).
+Route::get('status', [HealthController::class, 'public'])->middleware('throttle:30,1')->name('status');
