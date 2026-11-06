@@ -552,3 +552,15 @@ No PDV e no fechamento da mesa, desconto do caixa acima de 10% dos itens exige `
 - **Bloqueio:** sem `online_ordering`, as rotas públicas de pedido (storefront, cardápio, carrinho, checkout, busca por celular, vitrine) respondem 403 `feature_unavailable` e o cardápio mostra "Cardápio online indisponível"; acompanhar um pedido já feito continua. O PDV usa `merchant/cash/pos/products/{id}` e a regra do fidelidade vem em `pos/catalog`, então não depende do cardápio online. Sem `stock`, a venda não baixa estoque.
 - **Painel:** `merchant/me` traz `modules` e `features`; o menu esconde o que não foi contratado (PDV, Caixa, Financeiro, Mesas, Estoque, Horários, Entrega, Pagamentos) e o endereço direto abre "Módulo não contratado".
 - **Clientes que já existiam:** migration liga os 4 módulos e congela o valor de hoje em "valor próprio" (quem não tinha preço ficou com 0,00), para ninguém ser cobrado de surpresa quando os preços dos módulos forem definidos. Planos padrão renomeados para "Básico" e "Site profissional" (só se não tinham sido renomeados).
+
+## Bloqueio, monitoramento e e-mail (06/11/2026)
+
+### D101 — Bloqueio automático por atraso
+- `billing:run` (de hora em hora) marca `subscriptions.blocked_at` quando há fatura em aberto vencida há mais de 7 dias (`BLOCK_AFTER_DAYS`), e só para cliente com `auto_block` ligado. O aviso "vai bloquear" vai 2 dias antes (`reminded_block_at`), e o e-mail de bloqueio é enviado uma vez.
+- Bloqueado: o `FeatureGate` desliga tudo (plano e módulos). O middleware `not-blocked` responde 403 `account_blocked` no painel, exceto em `me`, senha, sair e `billing.*`. O cardápio público fica indisponível; acompanhar um pedido já feito continua.
+- Desbloqueio imediato ao pagar (`markPaid`), ao cancelar a fatura ou ao mudar a mensalidade (`refreshBlock`). O painel recarrega a sessão quando o Pix é confirmado.
+- O painel leva o dono para Assinatura e mostra a equipe uma tela de aviso. A faixa de atraso mostra a data do bloqueio.
+
+### D102 — Monitor externo e e-mail no DNS
+- `GET /api/v1/status`: público, responde só `{"ok": bool}` (200/503) a partir do `HealthCheck`, que verifica banco, cache, fila e agendador. Limite de 30 por minuto. O monitor fica fora da VPS (UptimeRobot), passo a passo em OPERATIONS.
+- `ops:mail-dns`: confere SPF (um registro, com o IP do servidor), DKIM (seletores comuns, `default` do aaPanel primeiro) e DMARC, e diz o registro que falta.

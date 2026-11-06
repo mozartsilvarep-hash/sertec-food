@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import PanelLayout from './layouts/PanelLayout.vue'
-import { has, loadSession, me } from './session'
+import { can, has, loadSession, me } from './session'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +44,7 @@ export const router = createRouter({
         { path: 'marca', name: 'brand', component: () => import('./pages/BrandPage.vue') },
         { path: 'assinatura', name: 'billing', component: () => import('./pages/BillingPage.vue') },
         { path: 'pagamentos', name: 'payments', component: () => import('./pages/PaymentsPage.vue'), meta: { feature: 'online_ordering' } },
+        { path: 'bloqueado', name: 'blocked', component: () => import('./pages/ModuleLockedPage.vue'), props: { modulo: 'blocked' } },
         { path: 'modulo/:modulo', name: 'module-locked', component: () => import('./pages/ModuleLockedPage.vue'), props: true },
         // Endereço desconhecido: página 404 dentro do painel (com o menu).
         { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('./pages/NotFoundPage.vue') },
@@ -58,6 +59,10 @@ router.beforeEach(async (to) => {
   }
   if (!to.meta.guest && me.value === null) return { name: 'login' }
   if (to.meta.guest && me.value !== null) return { name: 'home' }
+  // Bloqueado por atraso: só Assinatura e Minha conta abrem.
+  if (me.value?.blocked && !['billing', 'account', 'blocked'].includes(String(to.name))) {
+    return { name: can('billing.manage') ? 'billing' : 'blocked' }
+  }
   // Módulo não contratado: explica em vez de abrir uma tela que não funciona.
   const feature = to.meta.feature
   if (typeof feature === 'string' && !has(feature)) return { name: 'module-locked', params: { modulo: feature } }

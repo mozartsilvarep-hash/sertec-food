@@ -39,6 +39,11 @@ export interface BillingSubscription {
   /** null = plano sem preço para o período; "0.00" = cortesia. */
   price: string | null
   paid_until: string | null
+  /** Bloqueia sozinho 7 dias após vencer (a SerTec pode desligar por cliente). */
+  auto_block?: boolean
+  blocked_at?: string | null
+  /** Dia em que bloqueia, se houver fatura em aberto. */
+  block_date?: string | null
 }
 
 /** Módulos vendidos separadamente. */
@@ -119,7 +124,7 @@ export const adminBillingApi = {
   cancelInvoice: (id: string, note?: string | null) =>
     request<Data<TenantBilling>>(`/admin/billing/invoices/${enc(id)}/cancel`, { method: 'POST', body: { note: note ?? null } }).then((r) => r.data),
   tenant: (id: string) => request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing`).then((r) => r.data),
-  updateTenant: (id: string, body: { plan: string; billing_months: number; price?: string | null; paid_until?: string | null; modules?: ModuleKey[] }) =>
+  updateTenant: (id: string, body: { plan: string; billing_months: number; price?: string | null; paid_until?: string | null; modules?: ModuleKey[]; auto_block?: boolean }) =>
     request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing`, { method: 'PUT', body }).then((r) => r.data),
   createInvoice: (id: string) =>
     request<Data<TenantBilling>>(`/admin/tenants/${enc(id)}/billing/invoices`, { method: 'POST' }).then((r) => r.data),

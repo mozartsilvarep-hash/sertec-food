@@ -206,6 +206,7 @@ class AdminTenantController
             'plan' => $subscription?->plan->slug,
             'modules' => $subscription === null ? [] : array_map(fn (ModuleKey $m) => $m->value, $subscription->modules()),
             'billing_status' => $subscription?->status,
+            'blocked' => $subscription?->blocked_at !== null,
             'paid_until' => $subscription?->paid_until?->toDateString(),
             'created_at' => $t->created_at?->toIso8601String(),
         ];

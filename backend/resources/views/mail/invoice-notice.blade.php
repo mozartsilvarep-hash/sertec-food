@@ -7,7 +7,15 @@
 @elseif ($kind === 'overdue')
 <h1 style="font-size:22px;margin:8px 0 12px;">Mensalidade em atraso</h1>
 <p style="margin:0 0 12px;">Olá, {{ $name }}!</p>
-<p style="margin:0 0 20px;">A mensalidade do <strong>{{ $store }}</strong> ({{ $amount }}, período {{ $period }}) venceu em {{ $due }}. Para evitar a suspensão do cardápio, pague pelo Pix no painel:</p>
+<p style="margin:0 0 20px;">A mensalidade do <strong>{{ $store }}</strong> ({{ $amount }}, período {{ $period }}) venceu em {{ $due }}. Sem o pagamento, o sistema será bloqueado em <strong>{{ $blockDate }}</strong>. Pague pelo Pix no painel:</p>
+@elseif ($kind === 'block_soon')
+<h1 style="font-size:22px;margin:8px 0 12px;">O sistema será bloqueado em {{ $blockDate }}</h1>
+<p style="margin:0 0 12px;">Olá, {{ $name }}!</p>
+<p style="margin:0 0 20px;">A mensalidade do <strong>{{ $store }}</strong> ({{ $amount }}) venceu em {{ $due }} e ainda está em aberto. Em <strong>{{ $blockDate }}</strong> a loja online, o PDV e as mesas param de funcionar. Pague pelo Pix para não ser bloqueado:</p>
+@elseif ($kind === 'blocked')
+<h1 style="font-size:22px;margin:8px 0 12px;">Sistema bloqueado</h1>
+<p style="margin:0 0 12px;">Olá, {{ $name }}!</p>
+<p style="margin:0 0 20px;">A mensalidade do <strong>{{ $store }}</strong> ({{ $amount }}) está em atraso desde {{ $due }}, e o sistema foi bloqueado: a loja online, o PDV e as mesas estão parados. Seus dados estão guardados. Pague pelo Pix e tudo volta a funcionar na hora:</p>
 @else
 <h1 style="font-size:22px;margin:8px 0 12px;">Sua mensalidade vence em {{ $due }}</h1>
 <p style="margin:0 0 12px;">Olá, {{ $name }}!</p>

@@ -10,7 +10,6 @@ use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Billing\BillingService;
 use App\Modules\Platform\Billing\InvoicePresenter;
 use App\Modules\Platform\Billing\PlatformMercadoPago;
-use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Platform\Models\Invoice;
 use App\Modules\Platform\Models\Plan;
 use App\Modules\Platform\Models\PlatformSetting;
@@ -130,6 +129,7 @@ class AdminBillingController
             'paid_until' => ['nullable', 'date_format:Y-m-d'],
             'modules' => ['sometimes', 'array', 'max:10'],
             'modules.*' => ['string', Rule::in(ModuleKey::values())],
+            'auto_block' => ['sometimes', 'boolean'],
         ], ['price.regex' => 'Valor inválido. Use o formato 99,90.'], ['billing_months' => 'período', 'price' => 'valor', 'paid_until' => 'pago até', 'modules' => 'módulos']);
 
         $plan = Plan::query()->where('slug', $data['plan'])->firstOrFail();
@@ -151,6 +151,9 @@ class AdminBillingController
                 }
             }
             $attrs = ['billing_months' => $months, 'price' => $price, 'modules_json' => $modules];
+            if (array_key_exists('auto_block', $data)) {
+                $attrs['auto_block'] = (bool) $data['auto_block'];
+            }
             if (array_key_exists('paid_until', $data)) {
                 $attrs['paid_until'] = $data['paid_until'];
             }
@@ -175,7 +178,8 @@ class AdminBillingController
                 }
             }
             $audit->record('billing.subscription_updated', $tenant, ['plan' => $plan->slug, ...$attrs], tenant: $tenant);
-            app(FeatureGate::class)->forget();
+            // Pago até / bloqueio automático podem ter mudado.
+            app(BillingService::class)->refreshBlock($sub->refresh());
 
             return $this->presentTenant();
         })]);

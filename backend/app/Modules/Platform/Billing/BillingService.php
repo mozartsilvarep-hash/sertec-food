@@ -8,6 +8,7 @@ use App\Modules\Payments\Gateway\PaymentGateway;
 use App\Modules\Payments\Gateway\RemotePayment;
 use App\Modules\Platform\Audit\AuditLogger;
 use App\Modules\Platform\Billing\Jobs\SendInvoiceNotice;
+use App\Modules\Platform\Features\FeatureGate;
 use App\Modules\Platform\Models\Invoice;
 use App\Modules\Platform\Models\Subscription;
 use App\Support\Money;
@@ -31,6 +32,12 @@ final class BillingService
     public const FIRST_DUE_DAYS = 5;
 
     public const REMIND_BEFORE_DAYS = 3;
+
+    /** Dias de atraso tolerados: no dia seguinte, o sistema bloqueia (D101). */
+    public const BLOCK_AFTER_DAYS = 7;
+
+    /** Aviso de "vai bloquear" este tanto de dias antes do bloqueio. */
+    public const BLOCK_WARN_DAYS = 2;
 
     public function __construct(private readonly PaymentGateway $gateway) {}
 
@@ -116,6 +123,7 @@ final class BillingService
         });
 
         if ($paid !== null) {
+            $this->refreshBlock(Subscription::query()->findOrFail($paid->subscription_id));
             app(AuditLogger::class)->record('billing.invoice_paid', null, ['invoice' => $paid->public_id, 'via' => $via, 'amount' => $paid->amount]);
             SendInvoiceNotice::dispatch($paid->id, SendInvoiceNotice::PAID);
         }
@@ -129,6 +137,9 @@ final class BillingService
             throw new ApiException(409, 'invoice_not_open', 'Só faturas em aberto podem ser canceladas.');
         }
         $invoice->forceFill(['status' => Invoice::CANCELLED, 'note' => $note, 'pix_code' => null, 'pix_qr_base64' => null, 'pix_expires_at' => null])->save();
+        if (($sub = Subscription::query()->find($invoice->subscription_id)) !== null) {
+            $this->refreshBlock($sub);
+        }
 
         return $invoice;
     }
@@ -236,6 +247,41 @@ final class BillingService
                 $invoice->forceFill(['reminded_overdue_at' => Carbon::now()])->save();
                 SendInvoiceNotice::dispatch($invoice->id, SendInvoiceNotice::OVERDUE);
             }
+            $sub = Subscription::query()->find($invoice->subscription_id);
+            $warnAt = -(self::BLOCK_AFTER_DAYS - self::BLOCK_WARN_DAYS);
+            if ($sub !== null && $sub->auto_block && $sub->blocked_at === null && $daysToDue <= $warnAt
+                && $daysToDue >= -self::BLOCK_AFTER_DAYS && $invoice->reminded_block_at === null) {
+                $invoice->forceFill(['reminded_block_at' => Carbon::now()])->save();
+                SendInvoiceNotice::dispatch($invoice->id, SendInvoiceNotice::BLOCK_SOON);
+            }
         }
+    }
+
+    /** Último dia antes do bloqueio para uma fatura em aberto. */
+    public static function blockDate(Invoice $invoice): CarbonImmutable
+    {
+        return CarbonImmutable::instance($invoice->due_date)->addDays(self::BLOCK_AFTER_DAYS + 1);
+    }
+
+    /**
+     * Liga/desliga o bloqueio: fatura em aberto vencida há mais de
+     * BLOCK_AFTER_DAYS dias (e cliente com bloqueio automático) = bloqueado.
+     */
+    public function refreshBlock(Subscription $subscription, ?CarbonImmutable $today = null): void
+    {
+        $today ??= CarbonImmutable::today();
+        $late = Invoice::query()->where('subscription_id', $subscription->id)->where('status', Invoice::OPEN)
+            ->where('due_date', '<', $today->subDays(self::BLOCK_AFTER_DAYS)->toDateString())->orderBy('due_date')->first();
+        $should = $subscription->auto_block && $late !== null;
+
+        if ($should && $subscription->blocked_at === null) {
+            $subscription->forceFill(['blocked_at' => Carbon::now()])->save();
+            app(AuditLogger::class)->record('billing.blocked', null, ['invoice' => $late->public_id, 'due_date' => $late->due_date->toDateString()]);
+            SendInvoiceNotice::dispatch($late->id, SendInvoiceNotice::BLOCKED);
+        } elseif (! $should && $subscription->blocked_at !== null) {
+            $subscription->forceFill(['blocked_at' => null])->save();
+            app(AuditLogger::class)->record('billing.unblocked', null, []);
+        }
+        app(FeatureGate::class)->forget();
     }
 }

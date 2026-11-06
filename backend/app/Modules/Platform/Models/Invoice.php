@@ -34,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $synced_at
  * @property Carbon|null $reminded_due_at
  * @property Carbon|null $reminded_overdue_at
+ * @property Carbon|null $reminded_block_at
  * @property-read Subscription $subscription
  */
 class Invoice extends Model
@@ -77,6 +78,7 @@ class Invoice extends Model
             'synced_at' => 'datetime',
             'reminded_due_at' => 'datetime',
             'reminded_overdue_at' => 'datetime',
+            'reminded_block_at' => 'datetime',
         ];
     }
 

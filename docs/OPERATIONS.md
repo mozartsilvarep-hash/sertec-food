@@ -146,7 +146,14 @@ O sistema envia e-mails pelo servidor SMTP da SerTec. No piloto é a caixa `nore
    - se o servidor recusar, a mensagem de erro aparece na tela.
 
 Dicas:
-- Se a mensagem for parar no spam, confira no DNS de `sertecsolution.com.br` os registros SPF, DKIM e DMARC. O aaPanel mostra os valores na tela do domínio, no Mail Server.
+- **Spam:** confira SPF, DKIM e DMARC com um comando:
+  ```bash
+  sf exec app php artisan ops:mail-dns --ip=144.217.162.154
+  ```
+  Ele diz o que está certo e, para o que falta, o registro exato a criar no DNS de `sertecsolution.com.br`.
+  - **SPF** (já existe em 06/11/2026): `v=spf1 include:zohomail.com ip4:144.217.162.154 ~all`. Precisa ser um registro só.
+  - **DKIM:** no aaPanel, Mail Server → Domínios → `sertecsolution.com.br` → DNS. Copie o TXT `default._domainkey` para o DNS.
+  - **DMARC:** TXT em `_dmarc.sertecsolution.com.br` com `v=DMARC1; p=none; rua=mailto:postmaster@sertecsolution.com.br`. Depois de algumas semanas sem problema, pode passar para `p=quarantine`.
 - Se a conexão falhar dentro do Docker, confira o passo do firewall em `docs/DEPLOY-AAPANEL.md` (tráfego roteado liberado no ufw).
 - O link de "Esqueci a senha":
   - vale 60 minutos e uma única vez;
@@ -183,7 +190,12 @@ Os restaurantes pagam a mensalidade por Pix, direto na conta Mercado Pago da Ser
 | No dia seguinte ao vencimento | E-mail "em atraso"; situação "Em atraso". |
 | Quando o Pix é pago | Baixa automática, "pago até" avança e o proprietário recebe o e-mail "pagamento confirmado". |
 
-- **Atraso não desliga nada sozinho.** Para suspender, use **Suspender** no estabelecimento: o cardápio fica fora do ar até reativar.
+- **Bloqueio automático (D101):**
+  - 5º dia de atraso: e-mail "o sistema será bloqueado em DD/MM", e a faixa do painel mostra a data.
+  - 8º dia: o sistema bloqueia. A loja online, o PDV e as mesas param. O painel abre só Assinatura e Minha conta. O proprietário recebe o e-mail "sistema bloqueado".
+  - Pagou o Pix (ou a SerTec deu baixa ou cancelou a fatura): libera na hora.
+  - Para tirar um cliente do bloqueio automático, desmarque "Bloquear sozinho" na Mensalidade dele.
+- **Suspensão manual** continua: use **Suspender** no estabelecimento.
 - **Pagamento por fora** (transferência, dinheiro): em Cobrança → Faturas, use **Dar baixa** com uma observação.
 - **Conferir pela linha de comando:** `sf exec app php artisan billing:run`. Pode rodar quantas vezes quiser: não duplica fatura nem e-mail.
 
@@ -217,12 +229,21 @@ O teste restaura o backup mais recente num banco temporário, compara as contage
 | Verificação | Como |
 |---|---|
 | Saúde (banco, Redis, fila, agendador) | `sf exec app php artisan ops:status`, ou `GET /api/v1/internal/health` na rede interna. O container `app` tem healthcheck. |
-| Disponibilidade externa | `https://admin.cardapios…/up` (200 = no ar) |
+| Disponibilidade externa | `https://admin.cardapios…/api/v1/status`: 200 `{"ok":true}` quando banco, Redis, fila e agendador estão bem; 503 se algo parou. `/up` só diz se o PHP responde. |
 | Logs | `sf logs -f app worker scheduler web`. JSON por linha, com `request_id` (o mesmo devolvido nos erros da API). |
 | Pagamentos travados | `sf exec app php artisan payments:reconcile` (já roda a cada minuto) |
 | Fila parada | Se `ops:status` acusar fila acima de 100 ou agendador sem batimento: `sf restart worker scheduler` |
 
 Os logs nunca contêm tokens, senhas, corpo de webhook nem telefone em claro.
+
+**Aviso quando o sistema cai (monitor externo, grátis).** Precisa ficar fora da VPS: se ela cair, um monitor dentro dela cai junto.
+1. Crie uma conta em **UptimeRobot** (plano grátis, checagem a cada 5 minutos, aviso por e-mail e pelo app).
+2. Crie 3 monitores do tipo **HTTP(s)**:
+   - `https://admin.cardapios.sertecsolution.com.br/api/v1/status` (o sistema todo);
+   - `https://loja.yriscakes.com.br/` (cardápio de um cliente);
+   - `https://admin.cardapios.sertecsolution.com.br/up` (PHP respondendo).
+3. Em **Alert contacts**, cadastre seu e-mail e instale o app no celular para receber notificação.
+4. Opcional: na página de status pública do UptimeRobot, mostre os monitores para os clientes.
 
 ## 9. LGPD
 

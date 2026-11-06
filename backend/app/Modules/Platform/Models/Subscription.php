@@ -22,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $price
  * @property Carbon|null $period_end
  * @property Carbon|null $paid_until
+ * @property Carbon|null $blocked_at
+ * @property bool $auto_block
  * @property-read Plan $plan
  */
 class Subscription extends Model
@@ -37,11 +39,11 @@ class Subscription extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
-    protected $fillable = ['tenant_id', 'plan_id', 'modules_json', 'status', 'period_end', 'billing_months', 'price', 'paid_until'];
+    protected $fillable = ['tenant_id', 'plan_id', 'modules_json', 'status', 'period_end', 'billing_months', 'price', 'paid_until', 'auto_block'];
 
     protected function casts(): array
     {
-        return ['period_end' => 'datetime', 'paid_until' => 'date', 'price' => 'decimal:2', 'billing_months' => 'integer', 'modules_json' => 'array'];
+        return ['period_end' => 'datetime', 'paid_until' => 'date', 'price' => 'decimal:2', 'billing_months' => 'integer', 'modules_json' => 'array', 'blocked_at' => 'datetime', 'auto_block' => 'boolean'];
     }
 
     /**

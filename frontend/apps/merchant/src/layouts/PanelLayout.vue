@@ -72,7 +72,8 @@ const groups = computed(() => ([
     { to: '/minha-conta', label: 'Minha conta', icon: 'account', show: true, hint: 'Seus dados e sua senha' },
   ] },
 ] as { title: string; links: NavLink[] }[])
-  .map((g) => ({ ...g, links: g.links.filter((l) => l.show) }))
+  // Bloqueado por atraso: só Assinatura e Minha conta.
+  .map((g) => ({ ...g, links: g.links.filter((l) => l.show && (!me.value?.blocked || ['/assinatura', '/minha-conta'].includes(l.to))) }))
   .filter((g) => g.links.length > 0))
 
 /** "Cardápio" continua marcado em /cardapio/produtos/123; "Unidades" (/) só na própria página. */
@@ -148,9 +149,18 @@ onBeforeUnmount(stopLive)
     </aside>
 
     <div class="min-w-0">
-      <LiveBar v-if="live" />
+      <LiveBar v-if="live && !me?.blocked" />
       <p
-        v-if="me?.billing && $route.name !== 'billing'"
+        v-if="me?.blocked && $route.name !== 'billing'"
+        class="flex flex-wrap items-center gap-x-3 gap-y-1 bg-danger px-4 py-2.5 text-sm text-white md:px-8"
+        role="alert"
+      >
+        <span><strong>Sistema bloqueado</strong> por mensalidade em atraso. A loja online, o PDV e as mesas estão parados.</span>
+        <RouterLink v-if="can('billing.manage')" to="/assinatura" class="font-semibold underline underline-offset-2">Pagar e liberar agora</RouterLink>
+        <span v-else>Avise o responsável pelo restaurante.</span>
+      </p>
+      <p
+        v-else-if="me?.billing && $route.name !== 'billing'"
         class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm md:px-8"
         :class="me.billing.overdue ? 'bg-danger text-white' : 'bg-warning/10 text-ink'"
         role="status"
@@ -158,6 +168,7 @@ onBeforeUnmount(stopLive)
         <span>
           {{ me.billing.overdue ? 'Mensalidade em atraso' : 'Sua mensalidade vence em breve' }}:
           <strong>{{ formatMoney(me.billing.amount) }}</strong>, vencimento {{ formatDay(me.billing.due_date) }}.
+          <template v-if="me.billing.block_date"> O sistema será bloqueado em <strong>{{ formatDay(me.billing.block_date) }}</strong>.</template>
         </span>
         <RouterLink to="/assinatura" class="font-semibold underline underline-offset-2">Pagar com Pix</RouterLink>
       </p>

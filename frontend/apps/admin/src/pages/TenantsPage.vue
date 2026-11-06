@@ -74,7 +74,10 @@ onMounted(load)
         <tr v-for="t in tenants" :key="t.id" class="hover:bg-canvas">
           <td class="px-4 py-3"><RouterLink :to="`/estabelecimentos/${t.id}`" class="font-semibold text-ink hover:text-brand-700 hover:underline">{{ t.name }}</RouterLink></td>
           <td class="px-4 py-3 text-muted">{{ t.host }}</td>
-          <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="STATUS_TONE[t.status]">{{ STATUS_LABEL[t.status] }}</span></td>
+          <td class="px-4 py-3">
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="STATUS_TONE[t.status]">{{ STATUS_LABEL[t.status] }}</span>
+            <span v-if="t.blocked" class="ml-1 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">Bloqueado (atraso)</span>
+          </td>
           <td class="px-4 py-3">
             <span v-if="!t.modules?.length" class="text-muted">—</span>
             <span v-else class="flex flex-wrap gap-1">
